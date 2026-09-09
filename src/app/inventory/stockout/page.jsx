@@ -1,0 +1,1438 @@
+"use client";
+
+import { useEffect, useMemo, useState } from 'react';
+import InventoryShell from '@/components/inventory/InventoryShell';
+import SearchableSelect from '@/components/SearchableSelect';
+import { getBulkField, parseBulkSheet, pickSpreadsheetFile, toBoolean } from '@/lib/bulkSheet';
+import { formatIndianDate } from '@/lib/dateUtils';
+import { fetchAllInventoryProducts } from '@/lib/productPagination';
+
+async function fetchStores() {
+  const res = await fetch('/api/stores');
+  if (!res.ok) throw new Error('Failed to fetch stores');
+  const json = await res.json();
+  return json.data?.records || json.data?.stores || json.stores || [];
+}
+
+async function fetchStockOutList() {
+  const res = await fetch('/api/inventory/stockout');
+  if (!res.ok) throw new Error('Failed to fetch stock out records');
+  return res.json();
+}
+
+async function fetchInventoryProducts(storeId, searchTerm, filters = {}) {
+  if (!storeId) return [];
+  const params = {
+    store_id: String(storeId),
+    search: searchTerm,
+  };
+  if (filters.brandId) params.brand_id = filters.brandId;
+  if (filters.vendor) params.vendor = filters.vendor;
+  return fetchAllInventoryProducts({ params, pageSize: 500 });
+}
+
+async function postStockOut(payload) {
+  const res = await fetch('/api/inventory/stockout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to create stock out');
+  return data;
+}
+
+async function fetchStockOutDetails(id) {
+  const res = await fetch(`/api/inventory/stockout/${encodeURIComponent(id)}`, { cache: 'no-store' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load stock out');
+  return data;
+}
+
+async function updateStockOutDetails(id, payload) {
+  const res = await fetch(`/api/inventory/stockout/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update stock out');
+  return data;
+}
+
+const tableHeaders = [
+  'Transaction ID',
+  'Invoice Number',
+  'Destination',
+  'Invoice Date',
+  'Total Item Number',
+  'Cost',
+  'Reference Transaction Type',
+  'Reference ID',
+];
+
+function formatDate(value) {
+  return formatIndianDate(value, '-');
+}
+
+function formatCost(value) {
+  const n = Number(value || 0);
+  return `Rs. ${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function mapRecordsToTable(records) {
+  return (records || []).map((row) => ({
+    _id: row.id,
+    'Transaction ID': row.transactionId ? `#${row.transactionId}` : `#STKO-${row.id}`,
+    'Invoice Number': row.invoiceNumber || '-',
+    Destination: row.destination || 'All',
+    'Invoice Date': formatDate(row.invoiceDate),
+    'Total Item Number': row.totalItems ?? 0,
+    Cost: formatCost(row.cost),
+    'Reference Transaction Type': row.referenceType || '-',
+    'Reference ID': row.referenceId || '-',
+    _invoiceDate: row.invoiceDate || '',
+    _source: row.referenceType || '',
+  }));
+}
+
+export default function StockOutPage() {
+  const [showModal, setShowModal] = useState(false);
+  const [lineItemsDraftId, setLineItemsDraftId] = useState(null);
+  const [lineItemsDraftContext, setLineItemsDraftContext] = useState(null);
+  const [stores, setStores] = useState([]);
+  const [loadingStores, setLoadingStores] = useState(false);
+  const [activeTab, setActiveTab] = useState('stock_out');
+  const [source, setSource] = useState('');
+  const [destination, setDestination] = useState('');
+  const [purchaseOrderId, setPurchaseOrderId] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [grnId, setGrnId] = useState('');
+  const [reason, setReason] = useState('');
+  const [applyTaxes, setApplyTaxes] = useState(true);
+  const [addProductsPrefill, setAddProductsPrefill] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [tableData, setTableData] = useState([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [listFilters, setListFilters] = useState({ dateFrom: '', dateTo: '', source: '' });
+  const [previewEntry, setPreviewEntry] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [editEntry, setEditEntry] = useState(null);
+  const [editForm, setEditForm] = useState({
+    vendor: '',
+    invoice_date: '',
+    invoice_number: '',
+    purchase_order_id: '',
+    grn_id: '',
+    other_charges: '',
+    remarks: '',
+    reason: '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const visibleTableData = useMemo(() => {
+    return tableData.filter((row) => {
+      const invoiceTime = row._invoiceDate ? new Date(row._invoiceDate).getTime() : null;
+      if (listFilters.dateFrom && invoiceTime && invoiceTime < new Date(listFilters.dateFrom).getTime()) return false;
+      if (listFilters.dateTo && invoiceTime && invoiceTime > new Date(`${listFilters.dateTo}T23:59:59`).getTime()) return false;
+      if (listFilters.source && String(row._source || '') !== listFilters.source) return false;
+      return true;
+    });
+  }, [tableData, listFilters]);
+
+  const sourceOptions = useMemo(
+    () => Array.from(new Set(tableData.map((row) => row._source).filter(Boolean))).sort(),
+    [tableData]
+  );
+
+  const loadList = () => {
+    setLoadingList(true);
+    fetchStockOutList()
+      .then((data) => setTableData(mapRecordsToTable(data)))
+      .catch(() => setTableData([]))
+      .finally(() => setLoadingList(false));
+  };
+
+  useEffect(() => {
+    loadList();
+  }, []);
+
+  useEffect(() => {
+    if (!showModal) return;
+    setLoadingStores(true);
+    fetchStores()
+      .then((data) => {
+        const nextStores = Array.isArray(data) ? data : [];
+        setStores(nextStores);
+      })
+      .catch(() => setStores([]))
+      .finally(() => setLoadingStores(false));
+  }, [showModal]);
+
+  const handleOpen = () => {
+    setActiveTab('stock_out');
+    setSource('');
+    setDestination('');
+    setPurchaseOrderId('');
+    setInvoiceNumber('');
+    setGrnId('');
+    setReason('');
+    setApplyTaxes(true);
+    setAddProductsPrefill(true);
+    setShowModal(true);
+  };
+
+  const handleClose = () => setShowModal(false);
+
+  const handleBulkImport = async () => {
+    try {
+      const file = await pickSpreadsheetFile();
+      if (!file) return;
+
+      const rows = await parseBulkSheet(file);
+      if (!rows.length) {
+        alert('No rows found in selected file.');
+        return;
+      }
+      const storeOptions = stores.length ? stores : await fetchStores().catch(() => []);
+
+      const created = [];
+      let failed = 0;
+
+      for (const row of rows) {
+        try {
+          const methodRaw = String(getBulkField(row, ['method', 'mode'], 'stock_out')).toLowerCase();
+          const method = methodRaw.includes('return') ? 'po_return' : 'stock_out';
+          const payload = {
+            method,
+            source: String(getBulkField(row, ['source_id', 'source', 'source_store_id'], storeOptions[0]?.id || '')),
+            destination: String(getBulkField(row, ['destination_id', 'destination', 'store_id', 'store'], storeOptions[0]?.id || '')),
+            applyTaxes: toBoolean(getBulkField(row, ['apply_taxes']), true),
+            addProductsPrefill: toBoolean(getBulkField(row, ['add_products_prefill']), true),
+            purchaseOrderId: getBulkField(row, ['purchase_order_id', 'po_id'], null),
+            invoiceNumber: getBulkField(row, ['invoice_number'], null),
+          };
+          const draft = await postStockOut(payload);
+          created.push({ ...draft, payload });
+        } catch {
+          failed += 1;
+        }
+      }
+
+      if (!created.length) {
+        alert('Could not import any row. Check columns like destination_id, method, invoice_number.');
+        return;
+      }
+
+      alert(`Bulk import complete: ${created.length} draft(s) created${failed ? `, ${failed} failed` : ''}. Opening the first draft.`);
+      const firstPayload = created[0].payload || {};
+      setLineItemsDraftContext({
+        method: firstPayload.method,
+        source: Number(firstPayload.source),
+        destination: Number(firstPayload.destination),
+        sourceName:
+          storeOptions.find((store) => String(store.id) === String(firstPayload.source))?.name || '',
+        destinationName:
+          storeOptions.find((store) => String(store.id) === String(firstPayload.destination))?.name || '',
+        applyTaxes: firstPayload.applyTaxes,
+      });
+      setLineItemsDraftId(created[0].id);
+    } catch (err) {
+      console.error(err);
+      alert('Bulk import failed. Please use a valid Excel/CSV file.');
+    }
+  };
+
+  const handleNext = async () => {
+    if (!source || !destination) {
+      return alert('Please select both source and destination stores');
+    }
+    if ((activeTab === 'return_vendor' || activeTab === 'return_warehouse') && !grnId.trim()) {
+      return alert('Enter GRN ID');
+    }
+    if ((activeTab === 'damage_dump' || activeTab === 'return_vendor' || activeTab === 'return_warehouse') && !reason.trim()) {
+      return alert('Enter reason');
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        method: activeTab,
+        source,
+        destination,
+        applyTaxes,
+        addProductsPrefill,
+        purchaseOrderId: purchaseOrderId.trim() || null,
+        invoiceNumber: invoiceNumber.trim() || null,
+        grnId: grnId.trim() || null,
+        reason: reason.trim() || null,
+      };
+      const created = await postStockOut(payload);
+      setShowModal(false);
+      setLineItemsDraftContext({
+        method: activeTab,
+        source: Number(source),
+        destination: Number(destination),
+        sourceName: stores.find((store) => String(store.id) === String(source))?.name || '',
+        destinationName:
+          stores.find((store) => String(store.id) === String(destination))?.name || '',
+        applyTaxes,
+      });
+      setLineItemsDraftId(created.id);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to create stock out');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openPreview = async (row) => {
+    if (!row?._id) return;
+    setPreviewLoading(true);
+    setPreviewEntry({ id: row._id, transactionId: String(row['Transaction ID'] || '').replace(/^#/, '') });
+    try {
+      setPreviewEntry(await fetchStockOutDetails(row._id));
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to load stock out preview');
+      setPreviewEntry(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const openEdit = async (row) => {
+    if (!row?._id) return;
+    try {
+      const details = await fetchStockOutDetails(row._id);
+      setEditEntry(details);
+      setEditForm({
+        vendor: details.vendor_name || '',
+        invoice_date: details.invoice_date || '',
+        invoice_number: details.invoice_number || '',
+        purchase_order_id: details.purchase_order_id || '',
+        grn_id: details.grn_id || '',
+        other_charges: details.other_charges ?? '',
+        remarks: details.remarks || '',
+        reason: details.reason || '',
+      });
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to load stock out');
+    }
+  };
+
+  const saveEdit = async () => {
+    if (!editEntry?.id) return;
+    setSavingEdit(true);
+    try {
+      await updateStockOutDetails(editEntry.id, editForm);
+      setEditEntry(null);
+      alert('Stock out updated successfully.');
+      loadList();
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to update stock out');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const downloadEntryExcel = async (row) => {
+    if (!row?._id) return;
+    setDownloadingId(row._id);
+    try {
+      const details = await fetchStockOutDetails(row._id);
+      await downloadInventoryEntryWorkbook('stock-out', details);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to download stock out file');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const deleteEntry = async (row) => {
+    if (!row?._id || deletingId) return;
+    if (String(row._source || '').toLowerCase() === 'sales_bill') {
+      alert('This POS stock movement is controlled by its sales bill. Delete the related bill instead.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Delete ${row['Transaction ID'] || 'this stock out'}? Confirmed quantities will be restored to the source store.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(row._id);
+    try {
+      const response = await fetch(`/api/inventory/stockout/${encodeURIComponent(row._id)}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Failed to delete stock out');
+      setPreviewEntry(null);
+      setEditEntry(null);
+      loadList();
+      alert('Stock out deleted and inventory restored successfully.');
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'Failed to delete stock out');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <>
+      <InventoryShell
+        breadcrumb={[{ label: 'Inventory' }, { label: 'Stock Out' }]}
+        title="Stock Out"
+        subtitle="Stock Out transaction history of last 7 days. Need Help?"
+        actions={[
+          { label: 'Remove In Bulk (Excel)', onClick: handleBulkImport },
+          { label: 'Remove Stock', primary: true, onClick: handleOpen },
+        ]}
+        searchPlaceholder="Search"
+        filters={(
+          <>
+            <input
+              type="date"
+              value={listFilters.dateFrom}
+              onChange={(e) => setListFilters((current) => ({ ...current, dateFrom: e.target.value }))}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600"
+              title="From date"
+            />
+            <input
+              type="date"
+              value={listFilters.dateTo}
+              onChange={(e) => setListFilters((current) => ({ ...current, dateTo: e.target.value }))}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600"
+              title="To date"
+            />
+            <select
+              value={listFilters.source}
+              onChange={(e) => setListFilters((current) => ({ ...current, source: e.target.value }))}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600"
+            >
+              <option value="">All sources</option>
+              {sourceOptions.map((source) => <option key={source} value={source}>{source}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => setListFilters({ dateFrom: '', dateTo: '', source: '' })}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600 hover:bg-slate-50"
+            >
+              Reset
+            </button>
+          </>
+        )}
+        tableHeaders={tableHeaders}
+        tableData={loadingList ? [] : visibleTableData}
+        emptyMessage={loadingList ? 'Loading records...' : 'No Records Found'}
+        rowActions={(row) => (
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={() => openPreview(row)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50">
+              Preview
+            </button>
+            {String(row._source || '').toLowerCase() !== 'sales_bill' && (
+              <button type="button" onClick={() => openEdit(row)} className="rounded-lg border border-blue-200 px-3 py-1.5 text-[12px] font-semibold text-blue-700 hover:bg-blue-50">
+                Edit
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => downloadEntryExcel(row)}
+              disabled={downloadingId === row._id}
+              className="rounded-lg border border-emerald-200 px-3 py-1.5 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+            >
+              {downloadingId === row._id ? 'Downloading...' : 'Excel'}
+            </button>
+            {String(row._source || '').toLowerCase() !== 'sales_bill' && (
+              <button
+                type="button"
+                onClick={() => deleteEntry(row)}
+                disabled={deletingId === row._id}
+                className="rounded-lg border border-red-200 px-3 py-1.5 text-[12px] font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+              >
+                {deletingId === row._id ? 'Deleting...' : 'Delete'}
+              </button>
+            )}
+          </div>
+        )}
+      />
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-6">
+          <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
+          <div className="relative flex min-h-0 w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-xl max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3rem)]">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h3 className="text-lg font-semibold text-gray-900">Step 1: Fill Details</h3>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="rounded-md p-1 text-gray-500 transition-colors hover:bg-gray-100"
+                aria-label="Close"
+              >
+                <i className="ti ti-x text-[20px]" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+              <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('stock_out')}
+                  className={`rounded-md border px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                    activeTab === 'stock_out'
+                      ? 'border-blue-300 bg-blue-50 text-gray-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Stock Out
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('damage_dump')}
+                  className={`rounded-md border px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                    activeTab === 'damage_dump'
+                      ? 'border-blue-300 bg-blue-50 text-gray-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Damage/Dump
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('return_vendor')}
+                  className={`rounded-md border px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                    activeTab === 'return_vendor'
+                      ? 'border-blue-300 bg-blue-50 text-gray-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Return Vendor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('return_warehouse')}
+                  className={`rounded-md border px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                    activeTab === 'return_warehouse'
+                      ? 'border-blue-300 bg-blue-50 text-gray-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Return Warehouse
+                </button>
+              </div>
+
+              <div className="mb-5">
+                <label className="mb-2 block text-sm text-gray-800">
+                  Source Store<span className="ml-0.5 text-red-500">*</span>
+                </label>
+                <select
+                  className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-700"
+                  value={source}
+                  onChange={(event) => setSource(event.target.value)}
+                >
+                  <option value="">Select Source Store</option>
+                  {loadingStores ? (
+                    <option disabled>Loading...</option>
+                  ) : (
+                    stores.map((store) => (
+                      <option key={store.id} value={store.id}>{store.name}</option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {activeTab === 'stock_out' || activeTab === 'damage_dump' ? (
+                <div>
+                  <div className="mb-5">
+                    <label className="mb-2 block text-sm text-gray-800">
+                      Destination<span className="ml-0.5 text-red-500">*</span>
+                    </label>
+                    <select
+                      className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-700"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                    >
+                      <option value="">Select Destination</option>
+                      {loadingStores ? (
+                        <option disabled>Loading...</option>
+                      ) : (
+                        stores.map((store) => (
+                          <option key={store.id} value={store.id}>
+                            {store.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                  {activeTab === 'damage_dump' && (
+                    <div className="mb-5">
+                      <label className="mb-2 block text-sm text-gray-800">Reason<span className="ml-0.5 text-red-500">*</span></label>
+                      <input className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700" placeholder="Damage, dump, expiry..." value={reason} onChange={(e) => setReason(e.target.value)} />
+                    </div>
+                  )}
+
+                  <label className="inline-flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={applyTaxes}
+                      onChange={(e) => setApplyTaxes(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+                    />
+                    <span className="text-sm font-semibold text-gray-800">Apply Taxes On This Transaction</span>
+                  </label>
+                </div>
+              ) : (
+                <div>
+                  <div className="mb-4">
+                    <label className="mb-2 block text-sm text-gray-800">
+                      Source Store<span className="ml-0.5 text-red-500">*</span>
+                    </label>
+                    <select
+                      className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-700"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                    >
+                      <option value="">Select Store</option>
+                      {stores.map((store) => (
+                        <option key={store.id} value={store.id}>{store.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mb-4">
+                    <label className="mb-2 block text-sm text-gray-800">GRN ID</label>
+                    <input
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700"
+                      placeholder="Enter GRN ID"
+                      value={grnId}
+                      onChange={(e) => setGrnId(e.target.value)}
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="mb-2 block text-sm text-gray-800">Invoice Number</label>
+                    <input
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700"
+                      placeholder="Enter Invoice Number"
+                      value={invoiceNumber}
+                      onChange={(e) => setInvoiceNumber(e.target.value)}
+                    />
+                  </div>
+                  <p className="mb-5 text-[12px] italic text-gray-500">
+                    *Stock will be removed from the selected destination on the next screen.
+                  </p>
+                  <div className="mb-5">
+                    <label className="mb-2 block text-sm text-gray-800">Reason<span className="ml-0.5 text-red-500">*</span></label>
+                    <input className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700" placeholder={activeTab === 'return_warehouse' ? 'Return to warehouse reason' : 'Return to vendor reason'} value={reason} onChange={(e) => setReason(e.target.value)} />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="inline-flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={applyTaxes}
+                        onChange={(e) => setApplyTaxes(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+                      />
+                      <span className="text-sm font-semibold text-gray-800">Apply Taxes On This Transaction</span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-2">
+                      <input
+                        type="checkbox"
+                        checked={addProductsPrefill}
+                        onChange={(e) => setAddProductsPrefill(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+                      />
+                      <span className="text-sm font-semibold text-gray-800">
+                        Add products to cart by default with prefilled quantity.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                type="button"
+                className="rounded-lg border border-blue-500 px-5 py-2 text-[13px] font-medium text-blue-600 transition-colors hover:bg-blue-50"
+                onClick={handleClose}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-blue-600 px-5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                onClick={handleNext}
+                disabled={submitting}
+              >
+                {submitting ? '...' : 'Next'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lineItemsDraftId && (
+        <StockOutLineItemsWindow
+          id={lineItemsDraftId}
+          initialDraft={lineItemsDraftContext}
+          onClose={() => {
+            setLineItemsDraftId(null);
+            setLineItemsDraftContext(null);
+          }}
+          onConfirmed={() => {
+            setLineItemsDraftId(null);
+            setLineItemsDraftContext(null);
+            loadList();
+          }}
+        />
+      )}
+
+      {(previewEntry || previewLoading) && (
+        <InventoryEntryPreviewDialog
+          title="Stock Out Preview"
+          entry={previewEntry}
+          loading={previewLoading}
+          onClose={() => {
+            if (!previewLoading) setPreviewEntry(null);
+          }}
+        />
+      )}
+
+      {editEntry && (
+        <StockOutEditDialog
+          entry={editEntry}
+          form={editForm}
+          onChange={setEditForm}
+          saving={savingEdit}
+          onCancel={() => {
+            if (!savingEdit) setEditEntry(null);
+          }}
+          onSave={saveEdit}
+        />
+      )}
+    </>
+  );
+}
+
+async function downloadInventoryEntryWorkbook(kind, entry) {
+  const XLSX = await import('xlsx');
+  const safeCell = (value) => {
+    const text = String(value ?? '');
+    return /^[=+\-@]/.test(text) ? `'${text}` : text;
+  };
+  const summaryHeaders = [
+    'Transaction ID',
+    'Method',
+    'Status',
+    'Source Store',
+    'Destination Store',
+    'Invoice Number',
+    'Invoice Date',
+    'Vendor',
+    'Purchase Order ID',
+    'GRN ID',
+    'Other Charges',
+    'Remarks',
+    'Reason',
+    'Total Quantity',
+    'Total Cost',
+    'Total Tax',
+  ];
+  const totalQuantity = (entry.items || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+  const totalCost =
+    (entry.items || []).reduce(
+      (sum, item) => sum + Number(item.qty || 0) * Number(item.cost_price || 0),
+      0,
+    ) + Number(entry.other_charges || 0);
+  const totalTax = (entry.items || []).reduce(
+    (sum, item) => sum + Number(item.qty || 0) * Number(item.tax_value || 0),
+    0,
+  );
+  const summaryValues = [
+    safeCell(entry.transactionId || entry.id || ''),
+    safeCell(entry.method || ''),
+    safeCell(entry.status || ''),
+    safeCell(entry.sourceName || entry.source || ''),
+    safeCell(entry.destinationName || entry.destination || ''),
+    safeCell(entry.invoice_number || ''),
+    formatDate(entry.invoice_date),
+    safeCell(entry.vendor_name || ''),
+    safeCell(entry.purchase_order_id || ''),
+    safeCell(entry.grn_id || ''),
+    Number(entry.other_charges || 0),
+    safeCell(entry.remarks || ''),
+    safeCell(entry.reason || ''),
+    totalQuantity,
+    totalCost,
+    totalTax,
+  ];
+  const summaryRows = [summaryHeaders, summaryValues];
+  const itemRows = (entry.items || []).map((item, index) => ({
+    'S.No.': index + 1,
+    Product: safeCell(item.product_name || item.name || ''),
+    SKU: safeCell(item.sku || ''),
+    Barcode: safeCell(item.barcode || ''),
+    'Batch No': safeCell(item.batch_no || ''),
+    Expiry: formatDate(item.expiry_date),
+    Qty: Number(item.qty || 0),
+    'Cost Price': Number(item.cost_price || 0),
+    MRP: Number(item.mrp || 0),
+    'Selling Price': Number(item.selling_price || 0),
+    Tax: Number(item.tax_value || 0),
+  }));
+  const workbook = XLSX.utils.book_new();
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+  summarySheet['!cols'] = summaryHeaders.map((header) => ({ wch: Math.max(14, header.length + 2) }));
+  const productsSheet = itemRows.length
+    ? XLSX.utils.json_to_sheet(itemRows)
+    : XLSX.utils.aoa_to_sheet([['No product items recorded']]);
+  productsSheet['!cols'] = [
+    { wch: 8 }, { wch: 30 }, { wch: 18 }, { wch: 20 }, { wch: 18 },
+    { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 12 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+  XLSX.utils.book_append_sheet(workbook, productsSheet, 'Products');
+  XLSX.writeFile(workbook, `${kind}-${entry.transactionId || entry.id || 'entry'}.xlsx`);
+}
+
+function InventoryEntryPreviewDialog({ title, entry, loading, onClose }) {
+  const items = entry?.items || [];
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 px-4">
+      <div className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <div>
+            <h3 className="text-lg font-black text-slate-950">{title}</h3>
+            <p className="mt-1 text-xs font-semibold text-slate-500">{entry?.transactionId || 'Loading entry details...'}</p>
+          </div>
+          <button type="button" onClick={onClose} disabled={loading} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50">
+            <i className="ti ti-x text-[18px]" />
+          </button>
+        </div>
+        <div className="overflow-auto p-6">
+          {loading && !items.length ? (
+            <div className="py-16 text-center text-sm font-semibold text-slate-500">Loading details...</div>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <PreviewStat label="Invoice" value={entry?.invoice_number || '-'} />
+                <PreviewStat label="Date" value={formatDate(entry?.invoice_date)} />
+                <PreviewStat label="Source" value={entry?.sourceName || '-'} />
+                <PreviewStat label="Destination" value={entry?.destinationName || '-'} />
+                <PreviewStat label="Items" value={items.length} />
+              </div>
+              <div className="mt-5 grid gap-3 text-sm text-slate-700 md:grid-cols-2">
+                <div><span className="font-bold text-slate-500">Vendor:</span> {entry?.vendor_name || '-'}</div>
+                <div><span className="font-bold text-slate-500">PO/GRN:</span> {[entry?.purchase_order_id, entry?.grn_id].filter(Boolean).join(' / ') || '-'}</div>
+                <div><span className="font-bold text-slate-500">Reason:</span> {entry?.reason || '-'}</div>
+                <div><span className="font-bold text-slate-500">Remarks:</span> {entry?.remarks || '-'}</div>
+              </div>
+              <InventoryItemsTable items={items} />
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreviewStat({ label, value }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="text-[11px] font-bold uppercase text-slate-500">{label}</div>
+      <div className="mt-1 truncate text-sm font-black text-slate-900">{value || '-'}</div>
+    </div>
+  );
+}
+
+function InventoryItemsTable({ items }) {
+  return (
+    <div className="mt-6 overflow-hidden rounded-lg border border-slate-200">
+      <div className="max-h-[44vh] overflow-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-slate-50 text-[11px] uppercase text-slate-500">
+            <tr>
+              {['Product', 'SKU', 'Barcode', 'Batch', 'Expiry', 'Qty', 'Cost', 'MRP', 'Selling', 'Tax'].map((header) => (
+                <th key={header} className="px-3 py-3">{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {items.length ? items.map((item, index) => (
+              <tr key={item.id || `${item.product_id}-${index}`}>
+                <td className="px-3 py-3 font-semibold text-slate-900">{item.product_name || item.name || '-'}</td>
+                <td className="px-3 py-3 text-slate-600">{item.sku || '-'}</td>
+                <td className="px-3 py-3 text-slate-600">{item.barcode || '-'}</td>
+                <td className="px-3 py-3 text-slate-600">{item.batch_no || '-'}</td>
+                <td className="px-3 py-3 text-slate-600">{formatDate(item.expiry_date)}</td>
+                <td className="px-3 py-3 text-slate-700">{Number(item.qty || 0)}</td>
+                <td className="px-3 py-3 text-slate-700">Rs. {formatCurrency(item.cost_price)}</td>
+                <td className="px-3 py-3 text-slate-700">Rs. {formatCurrency(item.mrp)}</td>
+                <td className="px-3 py-3 text-slate-700">Rs. {formatCurrency(item.selling_price)}</td>
+                <td className="px-3 py-3 text-slate-700">Rs. {formatCurrency(item.tax_value)}</td>
+              </tr>
+            )) : (
+              <tr><td colSpan={10} className="px-3 py-10 text-center text-slate-500">No product rows found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function StockOutEditDialog({ form, onChange, saving, onCancel, onSave }) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 px-4">
+      <div className="w-full max-w-3xl rounded-xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <h3 className="text-lg font-black text-slate-950">Edit Stock Out</h3>
+          <button type="button" onClick={onCancel} disabled={saving} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50">
+            <i className="ti ti-x text-[18px]" />
+          </button>
+        </div>
+        <div className="grid gap-4 p-6 md:grid-cols-2">
+          <Field label="Vendor"><input value={form.vendor} onChange={(e) => onChange((v) => ({ ...v, vendor: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /></Field>
+          <Field label="Invoice Date"><input type="date" value={form.invoice_date} onChange={(e) => onChange((v) => ({ ...v, invoice_date: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /></Field>
+          <Field label="Invoice Number"><input value={form.invoice_number} onChange={(e) => onChange((v) => ({ ...v, invoice_number: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /></Field>
+          <Field label="Purchase Order ID"><input value={form.purchase_order_id} onChange={(e) => onChange((v) => ({ ...v, purchase_order_id: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /></Field>
+          <Field label="GRN ID"><input value={form.grn_id} onChange={(e) => onChange((v) => ({ ...v, grn_id: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /></Field>
+          <Field label="Other Charges"><input type="number" min="0" value={form.other_charges} onChange={(e) => onChange((v) => ({ ...v, other_charges: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /></Field>
+          <Field label="Reason"><input value={form.reason} onChange={(e) => onChange((v) => ({ ...v, reason: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /></Field>
+          <Field label="Remarks"><input value={form.remarks} onChange={(e) => onChange((v) => ({ ...v, remarks: e.target.value }))} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" /></Field>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
+          <button type="button" onClick={onCancel} disabled={saving} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+          <button type="button" onClick={onSave} disabled={saving} className="rounded-lg bg-red-700 px-4 py-2 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StockOutLineItemsWindow({ id, initialDraft, onClose, onConfirmed }) {
+  const [draft, setDraft] = useState(initialDraft || null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [cartFilter, setCartFilter] = useState('');
+  const [products, setProducts] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [brandId, setBrandId] = useState('');
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState('');
+  const [detailError, setDetailError] = useState('');
+  const [cart, setCart] = useState([]);
+  const [form, setForm] = useState({
+    vendor: '',
+    invoice_date: '',
+    invoice_number: '',
+    purchase_order_id: '',
+    grn_id: '',
+    other_charges: '',
+    remarks: '',
+    reason: '',
+  });
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      fetchStockOutDetails(id),
+      fetch('/api/vendors').then((res) => res.json()).catch(() => []),
+      fetch('/api/catalog/brands?pageSize=300').then((res) => res.json()).catch(() => null),
+    ])
+      .then(([draftData, vendorData, brandData]) => {
+        setDraft((current) => ({ ...(current || {}), ...draftData }));
+        setVendors(Array.isArray(vendorData) ? vendorData : []);
+        setBrands(brandData?.success ? (brandData.data?.records || []) : []);
+        if (draftData && !draftData.error) {
+          setForm({
+            vendor: draftData.vendor_name || '',
+            invoice_date: draftData.invoice_date || '',
+            invoice_number: draftData.invoice_number || '',
+            purchase_order_id: draftData.purchase_order_id || '',
+            grn_id: draftData.grn_id || '',
+            other_charges: draftData.other_charges ?? '',
+            remarks: draftData.remarks || '',
+            reason: draftData.reason || '',
+          });
+        }
+      })
+      .catch((error) => {
+        setDetailError(error.message || 'Some transaction details could not be refreshed.');
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const storeId = draft?.source || draft?.destination;
+      if (!storeId) {
+        setProducts([]);
+        setProductsError('Select a source store to view its available products.');
+        return;
+      }
+      setProductsLoading(true);
+      setProductsError('');
+      fetchInventoryProducts(storeId, searchTerm, { brandId, vendor: form.vendor })
+        .then((records) => setProducts((records || []).filter((product) => Number(product.availableStock ?? product.available_stock ?? 0) > 0)))
+        .catch((error) => {
+          setProducts([]);
+          setProductsError(error.message || 'Failed to load products.');
+        })
+        .finally(() => setProductsLoading(false));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, draft?.source, draft?.destination, brandId, form.vendor]);
+
+  const filteredCart = cartFilter.trim()
+    ? cart.filter((item) => (item.name || '').toLowerCase().includes(cartFilter.toLowerCase()))
+    : cart;
+  const selectedProductIds = new Set(cart.map((item) => String(item.product_id)));
+  const unselectedProducts = products.filter(
+    (product) => !selectedProductIds.has(String(product.id ?? product.product_id)),
+  );
+
+  const totals = cart.reduce(
+    (acc, item) => {
+      const qty = Number(item.qty || 0);
+      const cost = Number(item.cost_price || 0);
+      acc.totalItems += qty;
+      acc.totalCost += qty * cost;
+      acc.totalTax += Number(item.tax_value || 0) * qty;
+      return acc;
+    },
+    { totalItems: 0, totalCost: Number(form.other_charges || 0), totalTax: 0 }
+  );
+
+  const sourceLabel = draft?.sourceName || '—';
+  const destinationLabel = draft?.destinationName || '—';
+
+  const addToCart = (product) => {
+    const productId = product.id ?? product.product_id;
+    const availableStock = Number(product.availableStock ?? product.available_stock ?? 0);
+    if (availableStock <= 0) return;
+    setCart((current) => {
+      const existing = current.find((item) => String(item.product_id) === String(productId));
+      if (existing) {
+        const nextQty = Math.min(Number(existing.qty) + 1, availableStock);
+        return current.map((item) =>
+          String(item.product_id) === String(productId)
+            ? { ...item, qty: nextQty }
+            : item
+        );
+      }
+
+      const cost = Number(product.cost_price || 0);
+      const mrp = Number(product.mrp || 0);
+      const sellingPrice = Number(
+        product.selling_price || product.sellingPrice || product.mrp || 0
+      );
+      const taxRate = Number(product.tax_rate || 0);
+      return [
+        ...current,
+        {
+          product_id: productId,
+          name: product.name,
+          sku: product.sku,
+          cost_price: cost,
+          mrp,
+          selling_price: sellingPrice,
+          tax_value: draft?.applyTaxes ? (cost * taxRate) / 100 : 0,
+          available_stock: availableStock,
+          qty: 1,
+        },
+      ];
+    });
+    setSearchTerm('');
+  };
+
+  const updateQty = (productId, qty) => {
+    setCart((current) =>
+      current.map((item) =>
+        String(item.product_id) === String(productId)
+          ? { ...item, qty: Math.min(Math.max(1, Number(qty) || 1), Number(item.available_stock || 1)) }
+          : item
+      )
+    );
+  };
+
+  const validateCart = () => {
+    for (const item of cart) {
+      const qty = Number(item.qty || 0);
+      const available = Number(item.available_stock || 0);
+      if (qty > available) {
+        alert(`${item.name} only has ${available} available in this store.`);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const removeItem = (productId) => {
+    setCart((current) => current.filter((item) => String(item.product_id) !== String(productId)));
+  };
+
+  const confirm = async () => {
+    if (cart.length === 0) return alert('Add at least one product');
+    if ((draft?.method === 'damage_dump' || draft?.method === 'return_vendor' || draft?.method === 'return_warehouse') && !form.reason.trim()) {
+      return alert('Enter reason');
+    }
+    if (!validateCart()) return;
+
+    setConfirming(true);
+    try {
+      const res = await fetch(`/api/inventory/stockout/${encodeURIComponent(id)}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ form, items: cart }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to confirm stock out');
+      onConfirmed();
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to confirm stock out');
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-0 right-0 top-[104px] z-[35] bg-[#f1f2f5] md:left-[418px] max-md:left-0">
+      <div className="relative h-full overflow-hidden border-t border-gray-200 bg-[#f1f2f5] shadow-[0_-4px_20px_rgba(15,23,42,0.08)]">
+        <div className="flex h-12 items-center justify-between border-b border-gray-200 bg-[#f1f2f5] px-9">
+          <div className="flex items-center gap-2 text-[13px]">
+            <span className="text-gray-500">Inventory</span>
+            <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+            <span className="font-semibold text-gray-900">Stock out</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
+            aria-label="Close line items"
+          >
+            <i className="ti ti-x text-[18px]" />
+          </button>
+        </div>
+
+        <div className="absolute bottom-[88px] left-0 right-0 top-12 grid grid-cols-[350px_minmax(520px,1fr)] gap-6 overflow-auto px-9 py-6 max-lg:grid-cols-1 max-lg:px-4">
+          <aside className="h-full min-h-0 overflow-auto rounded-lg border border-gray-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+            <h3 className="mb-5 text-[15px] font-semibold text-blue-600">Stock Information</h3>
+
+            <div>
+              <div className="mb-4">
+                <label className="mb-1 block text-[12px] text-gray-500">Source Store</label>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] font-medium text-gray-900">
+                  {loading ? '...' : sourceLabel}
+                </div>
+              </div>
+              <div className="mb-4">
+                <label className="mb-1 block text-[12px] text-gray-500">Destination Store</label>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-[13px] font-medium text-gray-900">
+                  {loading ? '...' : destinationLabel}
+                </div>
+                {!loading && <p className="mt-1 text-[11px] text-gray-500">Products below are loaded from {sourceLabel}.</p>}
+              </div>
+              {detailError && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                  Store selections are available. Additional draft details could not be refreshed.
+                </div>
+              )}
+
+              <Field label="Vendor Name">
+                <div className="relative">
+                  <input
+                    list="stockout-window-vendor-list"
+                    value={form.vendor}
+                    onChange={(e) => setForm({ ...form, vendor: e.target.value })}
+                    placeholder="Select vendor"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 pr-8 text-[13px] text-gray-700 outline-none focus:border-blue-400"
+                  />
+                  <datalist id="stockout-window-vendor-list">
+                    {vendors.map((vendor) => (
+                      <option key={vendor.name} value={vendor.name} />
+                    ))}
+                  </datalist>
+                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] text-gray-400" />
+                </div>
+              </Field>
+
+              <Field label="Brand Filter">
+                <SearchableSelect
+                  value={brandId}
+                  onChange={setBrandId}
+                  placeholder="All brands"
+                  searchPlaceholder="Search brand..."
+                  options={brands.map((brand) => ({ value: brand.id, label: brand.name }))}
+                />
+              </Field>
+
+              <div className="mb-4 grid grid-cols-2 gap-3">
+                <Field label="Invoice Date">
+                  <input
+                    type="date"
+                    value={form.invoice_date}
+                    onChange={(e) => setForm({ ...form, invoice_date: e.target.value })}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400"
+                  />
+                </Field>
+                <Field label="Invoice Number">
+                  <input
+                    value={form.invoice_number}
+                    onChange={(e) => setForm({ ...form, invoice_number: e.target.value })}
+                    placeholder="10"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
+                  />
+                </Field>
+              </div>
+
+              <Field label="Other Charges">
+                <input
+                  value={form.other_charges}
+                  onChange={(e) => setForm({ ...form, other_charges: e.target.value })}
+                  placeholder="Other Charges"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
+                />
+              </Field>
+
+              {(draft?.method === 'damage_dump' || draft?.method === 'return_vendor' || draft?.method === 'return_warehouse') && (
+                <>
+                  <Field label="GRN ID">
+                    <input
+                      value={form.grn_id}
+                      onChange={(e) => setForm({ ...form, grn_id: e.target.value })}
+                      placeholder="GRN ID"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
+                    />
+                  </Field>
+                  <Field label="Reason">
+                    <input
+                      value={form.reason}
+                      onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                      placeholder="Reason"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
+                    />
+                  </Field>
+                </>
+              )}
+
+              <Field label="Remarks">
+                <textarea
+                  value={form.remarks}
+                  onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+                  placeholder="Remarks"
+                  rows={5}
+                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
+                />
+              </Field>
+            </div>
+          </aside>
+
+          <main className="flex h-full min-w-0 flex-col">
+            <div className="mb-4 flex flex-shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+              <i className="ti ti-search text-[16px] text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
+              />
+            </div>
+
+            <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+              <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
+                <div>
+                  <h2 className="text-[14px] font-semibold text-gray-900">Inventory - Stock Out</h2>
+                  <p className="mt-0.5 text-[12px] text-gray-500">Select desired products & proceed</p>
+                </div>
+                <div className="flex min-w-[200px] items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 max-sm:hidden">
+                  <input
+                    type="text"
+                    placeholder="Search"
+                    value={cartFilter}
+                    onChange={(e) => setCartFilter(e.target.value)}
+                    className="min-w-0 flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
+                  />
+                  <i className="ti ti-search text-[15px] text-gray-400" />
+                </div>
+              </div>
+
+              <div className="flex flex-1 flex-col overflow-auto p-4">
+                {unselectedProducts.length > 0 && (
+                  <div className="order-2 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                    <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
+                      <div>
+                        <h3 className="text-[13px] font-semibold text-gray-900">Available Products</h3>
+                        <p className="mt-0.5 text-[11px] text-gray-500">Choose products from the source store</p>
+                      </div>
+                      <span className="rounded-full bg-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
+                        {unselectedProducts.length} available
+                      </span>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                    {unselectedProducts.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => addToCart(product)}
+                        disabled={Number(product.availableStock || product.available_stock || 0) <= 0}
+                        className="group flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-red-50/50"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[13px] font-semibold text-gray-900">{product.name}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                            <span>SKU: {product.sku || '-'}</span>
+                            {product.barcode && <span>Barcode: {product.barcode}</span>}
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                          Stock {Number(product.availableStock || product.available_stock || 0)}
+                        </span>
+                        <span className="rounded-lg border border-red-200 px-3 py-1.5 text-[12px] font-semibold text-red-700 transition-colors group-hover:bg-red-700 group-hover:text-white">Add</span>
+                      </button>
+                    ))}
+                    </div>
+                  </div>
+                )}
+
+                {productsLoading && (
+                  <p className="order-2 py-8 text-center text-[13px] text-gray-500">Loading available products...</p>
+                )}
+
+                {!productsLoading && productsError && (
+                  <p className="order-2 py-8 text-center text-[13px] font-medium text-red-600">{productsError}</p>
+                )}
+
+                {unselectedProducts.length === 0 && !productsLoading && !productsError && (
+                  <p className="order-2 py-8 text-center text-[13px] text-gray-500">No available products found for this store or filter.</p>
+                )}
+
+                {filteredCart.length > 0 ? (
+                  <div className="order-1 mb-4 overflow-hidden rounded-xl border border-red-200 bg-white shadow-sm">
+                    <div className="flex items-center justify-between border-b border-red-100 bg-red-50/60 px-4 py-3">
+                      <div>
+                        <h3 className="text-[13px] font-semibold text-gray-900">Selected Products</h3>
+                        <p className="mt-0.5 text-[11px] text-gray-500">Review quantities before confirming</p>
+                      </div>
+                      <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-700">
+                        {cart.length} selected
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                    <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">Product</th>
+                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">Qty</th>
+                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">MRP</th>
+                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">Selling</th>
+                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">Cost</th>
+                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">Tax</th>
+                        <th className="w-10" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredCart.map((item) => (
+                        <tr key={item.product_id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                          <td className="px-2 py-3">
+                            <div className="text-[13px] font-medium text-gray-900">{item.name}</div>
+                            <div className="text-[11px] text-gray-500">{item.sku}</div>
+                          </td>
+                          <td className="px-2 py-3">
+                            <input
+                              type="number"
+                              min={1}
+                              value={item.qty}
+                              onChange={(e) => updateQty(item.product_id, e.target.value)}
+                              className="w-20 rounded border border-gray-200 px-2 py-1 text-[13px] text-gray-700"
+                            />
+                          </td>
+                          <td className="px-2 py-3 text-[13px] text-gray-700">{formatCurrency(item.mrp)}</td>
+                          <td className="px-2 py-3 text-[13px] font-semibold text-red-700">{formatCurrency(item.selling_price)}</td>
+                          <td className="px-2 py-3 text-[13px] text-gray-700">{formatCurrency(item.cost_price)}</td>
+                          <td className="px-2 py-3 text-[13px] text-gray-700">{formatCurrency(item.tax_value)}</td>
+                          <td className="px-2 py-3">
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.product_id)}
+                              className="rounded p-1.5 text-red-500 hover:bg-red-50"
+                            >
+                              <i className="ti ti-trash text-[16px]" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    </table>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          </main>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 h-[88px] border-t border-gray-200 bg-white shadow-[0_-2px_8px_rgba(15,23,42,0.06)]">
+          <div className="flex h-full items-center justify-between px-6 max-md:px-4">
+            <div className="flex flex-wrap items-center gap-10">
+              <span className="text-[13px] text-gray-600">
+                Total Items: <strong className="font-semibold text-gray-900">{totals.totalItems}</strong>
+              </span>
+              <span className="text-[13px] text-gray-600">
+                Total Cost: <strong className="font-semibold text-gray-900">{formatCurrency(totals.totalCost)}</strong>
+              </span>
+              <span className="text-[13px] text-gray-600">
+                Total Tax Value: <strong className="font-semibold text-gray-900">{formatCurrency(totals.totalTax)}</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={confirm}
+                disabled={confirming || cart.length === 0}
+                className="rounded-lg bg-blue-600 px-5 py-2.5 text-[13px] font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {confirming ? 'Confirming...' : 'Confirm Transaction'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCart([])}
+                className="rounded-lg border border-gray-200 p-2.5 text-gray-600 transition-colors hover:bg-gray-50"
+                title="Clear cart"
+              >
+                <i className="ti ti-trash text-[18px]" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div className="mb-4">
+      <label className="mb-1 block text-[12px] text-gray-500">{label}</label>
+      {children}
+    </div>
+  );
+}

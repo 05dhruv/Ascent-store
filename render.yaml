@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: buyzaar-sync-backend
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_SSL
+        value: "true"
+      - key: PG_POOL_MAX
+        value: "5"
+      - key: PG_IDLE_TIMEOUT_MS
+        value: "10000"
+      - key: PG_CONNECT_TIMEOUT_MS
+        value: "10000"
+      - key: GOOGLE_CALENDAR_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CALENDAR_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: GOOGLE_CALENDAR_REDIRECT_URI
+        value: "https://sync.thebuyzaarmart.com/api/integrations/google-calendar/callback"
+      # SMTP credentials are intentionally not committed. Set these values in
+      # Render so a confirmed GRN can notify its vendor by email.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_SECURE
+        sync: false

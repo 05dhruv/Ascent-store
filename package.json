@@ -1,0 +1,35 @@
+{
+  "name": "billing-software",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "check": "next build",
+    "build": "next build",
+    "start": "next start",
+    "db:construction": "node scripts/run-construction-schema.mjs",
+    "test:movement": "node --test tests/movement-rules.test.mjs",
+    "test:movement:integration": "node --import ./scripts/test-module-loader.mjs scripts/test-movement-integration.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dexie": "^4.4.2",
+    "dotenv": "^17.4.2",
+    "jsonwebtoken": "^9.0.3",
+    "next": "16.2.6",
+    "nodemailer": "^6.10.1",
+    "pg": "^8.20.0",
+    "qrcode": "^1.5.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-is": "^19.2.6",
+    "recharts": "^3.8.1",
+    "twilio": "^6.0.2",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "babel-plugin-react-compiler": "1.0.0",
+    "tailwindcss": "^4"
+  }
+}

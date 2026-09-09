@@ -1,0 +1,19 @@
+{
+  "name": "Buyzaar Sync",
+  "short_name": "Buyzaar Sync",
+  "description": "POS billing, inventory, and customer management",
+  "start_url": "/sales/pos",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#B00000",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/buyzaar-sync-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
