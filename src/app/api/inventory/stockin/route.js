@@ -194,35 +194,35 @@ export async function GET(request) {
 
       if (searchParams.get("format") === "xlsx") {
         const headers = [
-          "Product ID", "Product Name", "Size ID", "Size Name", "Category", "Brand",
-          "Barcode", "SKU", "Unit", "Stock Items Type", "Quantity", "Cost/Unit",
-          "MRP", "Selling Price", "Expiry Date", "Serial Number (serialNumber)",
-          "serialNumber", "Remarks",
+          "Material ID", "Material Name", "Specification ID", "Specification / Grade", "Material Category", "Brand / Make",
+          "Barcode", "Material Code", "Unit of Measure", "Traceability Type", "Received Quantity", "Purchase Rate / Unit",
+          "Reference Rate", "Issue Rate", "Warranty / Expiry Date", "Lot / Batch No",
+          "Serial / Heat No", "Inspection Remarks",
         ];
         const rows = records.map((product) => ({
-          "Product ID": String(product.id),
-          "Product Name": product.productName,
-          "Size ID": String(product.sizeId),
-          "Size Name": product.sizeName,
-          Category: product.category,
-          Brand: product.brand,
+          "Material ID": String(product.id),
+          "Material Name": product.productName,
+          "Specification ID": String(product.sizeId),
+          "Specification / Grade": product.sizeName,
+          "Material Category": product.category,
+          "Brand / Make": product.brand,
           Barcode: String(product.barcode || ""),
-          SKU: String(product.sku || ""),
-          Unit: product.unit || "Piece",
-          "Stock Items Type": product.stockItemsType || "BATCHED",
-          Quantity: "",
-          "Cost/Unit": product.costPerUnit,
-          MRP: product.mrp,
-          "Selling Price": product.sellingPrice,
-          "Expiry Date": "",
-          "Serial Number (serialNumber)": "",
-          serialNumber: "",
-          Remarks: "",
+          "Material Code": String(product.sku || ""),
+          "Unit of Measure": product.unit || "Piece",
+          "Traceability Type": product.stockItemsType || "BATCHED",
+          "Received Quantity": "",
+          "Purchase Rate / Unit": product.costPerUnit,
+          "Reference Rate": product.mrp,
+          "Issue Rate": product.sellingPrice,
+          "Warranty / Expiry Date": "",
+          "Lot / Batch No": "",
+          "Serial / Heat No": "",
+          "Inspection Remarks": "",
         }));
         const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
         // IDs, barcodes and SKUs must remain text. Excel otherwise converts long
         // barcodes into scientific notation and changes the value on upload.
-        const textHeaders = ["Product ID", "Size ID", "Barcode", "SKU"];
+        const textHeaders = ["Material ID", "Specification ID", "Barcode", "Material Code", "Lot / Batch No", "Serial / Heat No"];
         for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
           for (const header of textHeaders) {
             const columnIndex = headers.indexOf(header);

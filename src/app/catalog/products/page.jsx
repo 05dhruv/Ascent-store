@@ -22,30 +22,32 @@ import {
 const columns = [
   { key: "sno", label: "S. No.", sortable: true },
   { key: "image", label: "Image", sortable: false },
-  { key: "name", label: "Product Name", sortable: true },
+  { key: "name", label: "Material Name", sortable: true },
   { key: "barcode", label: "Barcode", sortable: true },
   { key: "category", label: "Category", sortable: true },
   { key: "brand", label: "Brand", sortable: true },
   { key: "hsn", label: "HSN / SAC", sortable: true },
   { key: "gst", label: "GST", sortable: true },
-  { key: "mrp", label: "MRP", sortable: true },
+  { key: "mrp", label: "Reference Rate", sortable: true },
   { key: "costPrice", label: "Cost Price", sortable: true },
-  { key: "sellingPrice", label: "Selling Price", sortable: true },
+  { key: "sellingPrice", label: "Issue Rate", sortable: true },
   { key: "stock", label: "Stock", sortable: true },
 ];
 
-const UNIT_OPTIONS = ["PCS", "KG", "GRAMS", "LTR"];
+const UNIT_OPTIONS = [
+  "PCS", "NOS", "BAG", "KG", "MT", "CUM", "CFT", "MTR", "SQM", "RMT", "LTR", "SET", "ROLL",
+];
 const INVENTORY_METHOD_OPTIONS = ["direct", "indirect"];
 const STOCK_ITEM_TYPE_OPTIONS = ["unbatched", "batched"];
 // This is a UI-only value. It is deliberately never sent as a store ID.
 const ALL_ASSIGNED_STORES_VALUE = "__all_assigned_stores__";
 const ASCENT_TEMPLATE_HEADERS = [
-  "Item Name",
-  "Quantity",
-  "Rate",
-  "Value",
-  "Unit",
-  "Size",
+  "Material Name",
+  "Opening Quantity",
+  "Estimated Rate / Unit",
+  "Opening Material Value",
+  "Unit of Measure",
+  "Specification / Grade",
 ];
 const BULK_EDIT_HEADERS = [
   "Product ID",

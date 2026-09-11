@@ -34,21 +34,21 @@ const tableHeaders = [
 
 const ALL_VENDOR_ANALYSIS = "__all_vendors__";
 const PO_TEMPLATE_HEADERS = [
-  "Destination ID",
-  "Destination Name",
-  "Vendor ID",
-  "Vendor Name",
-  "Product ID",
-  "Product Name",
+  "Receiving Location ID",
+  "Receiving Warehouse / Site",
+  "Supplier ID",
+  "Supplier / Contractor",
+  "Material ID",
+  "Material Name",
   "Barcode",
-  "SKU",
-  "Brand",
-  "Qty",
-  "Cost Price",
-  "MRP",
-  "Selling Price",
-  "Expiry Date",
-  "Invoice Date",
+  "Material Code",
+  "Brand / Make",
+  "Required Quantity",
+  "Quoted Rate / Unit",
+  "Reference Rate",
+  "Issue Rate",
+  "Warranty / Expiry Date",
+  "PO Date",
   "Expected Delivery Date",
   "Payment Due Date",
   "Shipment Mode",
@@ -659,34 +659,34 @@ export default function PurchaseOrdersPage() {
     const rows =
       selectedSuggestionItems.length > 0
         ? selectedSuggestionItems.map((item) => ({
-            "Destination ID": form.destination || item.storeId || "",
-            "Destination Name":
+            "Receiving Location ID": form.destination || item.storeId || "",
+            "Receiving Warehouse / Site":
               stores.find(
                 (store) => String(store.id) === String(form.destination),
               )?.name ||
               item.storeName ||
               "",
-            "Vendor ID":
+            "Supplier ID":
               form.vendor && form.vendor !== ALL_VENDOR_ANALYSIS
                 ? form.vendor
                 : item.vendorId || "",
-            "Vendor Name":
+            "Supplier / Contractor":
               form.vendor && form.vendor !== ALL_VENDOR_ANALYSIS
                 ? vendors.find(
                     (vendor) => String(vendor.id) === String(form.vendor),
                   )?.name || ""
                 : item.vendorName || "",
-            "Product ID": item.productId,
-            "Product Name": item.productName,
+            "Material ID": item.productId,
+            "Material Name": item.productName,
             Barcode: item.barcode || "",
-            SKU: item.sku || "",
-            Brand: item.brandName || "",
-            Qty: Number(item.suggestedQty || 0),
-            "Cost Price": Number(item.costPrice || 0),
-            MRP: Number(item.mrp || 0),
-            "Selling Price": Number(item.sellingPrice || 0),
-            "Expiry Date": item.expiryDate || "",
-            "Invoice Date": form.invoice_date || "",
+            "Material Code": item.sku || "",
+            "Brand / Make": item.brandName || "",
+            "Required Quantity": Number(item.suggestedQty || 0),
+            "Quoted Rate / Unit": Number(item.costPrice || 0),
+            "Reference Rate": Number(item.mrp || 0),
+            "Issue Rate": Number(item.sellingPrice || 0),
+            "Warranty / Expiry Date": item.expiryDate || "",
+            "PO Date": form.invoice_date || "",
             "Expected Delivery Date": form.expected_delivery_date || "",
             "Payment Due Date": form.payment_due_date || "",
             "Shipment Mode": form.shipment_mode || "",
@@ -722,11 +722,11 @@ export default function PurchaseOrdersPage() {
     const columnIndex = (header) => PO_TEMPLATE_HEADERS.indexOf(header);
     const validations = [
       {
-        range: `${XLSX.utils.encode_col(columnIndex("Destination Name"))}2:${XLSX.utils.encode_col(columnIndex("Destination Name"))}${PO_TEMPLATE_ROW_LIMIT}`,
+        range: `${XLSX.utils.encode_col(columnIndex("Receiving Warehouse / Site"))}2:${XLSX.utils.encode_col(columnIndex("Receiving Warehouse / Site"))}${PO_TEMPLATE_ROW_LIMIT}`,
         formula: poOptionRangeFormula(optionGroups, "stores"),
       },
       {
-        range: `${XLSX.utils.encode_col(columnIndex("Vendor Name"))}2:${XLSX.utils.encode_col(columnIndex("Vendor Name"))}${PO_TEMPLATE_ROW_LIMIT}`,
+        range: `${XLSX.utils.encode_col(columnIndex("Supplier / Contractor"))}2:${XLSX.utils.encode_col(columnIndex("Supplier / Contractor"))}${PO_TEMPLATE_ROW_LIMIT}`,
         formula: poOptionRangeFormula(optionGroups, "vendors"),
       },
     ].filter((validation) => validation.formula);
@@ -846,27 +846,27 @@ export default function PurchaseOrdersPage() {
       rows.forEach((row, index) => {
         const rowNumber = index + 2;
         const storeName = String(
-          row["Destination Name"] || row["STORE NAME"] || "",
+          row["Receiving Warehouse / Site"] || row["Destination Name"] || row["STORE NAME"] || "",
         ).trim();
         const vendorName = String(
-          row["Vendor Name"] || row["VENDOR NAME"] || "",
+          row["Supplier / Contractor"] || row["Vendor Name"] || row["VENDOR NAME"] || "",
         ).trim();
         const storeId = String(
-          row["Destination ID"] ||
+          row["Receiving Location ID"] || row["Destination ID"] ||
             row["STORE ID"] ||
             (storeName ? storeByName.get(storeName.toLowerCase()) : "") ||
             form.destination ||
             "",
         ).trim();
         const vendorId = String(
-          row["Vendor ID"] ||
+          row["Supplier ID"] || row["Vendor ID"] ||
             row["VENDOR ID"] ||
             (vendorName ? vendorByName.get(vendorName.toLowerCase()) : "") ||
             "",
         ).trim();
-        const productId = Number(row["Product ID"] || row["PRODUCT ID"] || 0);
+        const productId = Number(row["Material ID"] || row["Product ID"] || row["PRODUCT ID"] || 0);
         const rawQty = String(
-          row.Qty ?? row["REQUIRED QTY"] ?? row["REQ QTY"] ?? "",
+          row["Required Quantity"] ?? row.Qty ?? row["REQUIRED QTY"] ?? row["REQ QTY"] ?? "",
         ).trim();
         const qty = Number(rawQty || 0);
         if (!rawQty || qty === 0) return;
@@ -883,7 +883,7 @@ export default function PurchaseOrdersPage() {
           storeId,
           vendorId,
           invoiceDate:
-            row["Invoice Date"] ||
+            row["PO Date"] || row["Invoice Date"] ||
             row["INVOICE DATE"] ||
             form.invoice_date ||
             null,
@@ -914,15 +914,15 @@ export default function PurchaseOrdersPage() {
         };
         current.items.push({
           productId,
-          productName: row["Product Name"] || row["ITEM NAME"] || "",
+          productName: row["Material Name"] || row["Product Name"] || row["ITEM NAME"] || "",
           qty,
-          costPrice: Number(row["Cost Price"] || row.CP || 0),
-          mrp: Number(row.MRP || 0),
-          sellingPrice: Number(row["Selling Price"] || row.SP || 0),
-          expiryDate: row["Expiry Date"] || row["EXPIRY DATE"] || null,
-          brandName: row.Brand || row.BRAND || "",
+          costPrice: Number(row["Quoted Rate / Unit"] || row["Cost Price"] || row.CP || 0),
+          mrp: Number(row["Reference Rate"] || row.MRP || 0),
+          sellingPrice: Number(row["Issue Rate"] || row["Selling Price"] || row.SP || 0),
+          expiryDate: row["Warranty / Expiry Date"] || row["Expiry Date"] || row["EXPIRY DATE"] || null,
+          brandName: row["Brand / Make"] || row.Brand || row.BRAND || "",
           barcode: row.Barcode || row.BARCODE || "",
-          sku: row.SKU || "",
+          sku: row["Material Code"] || row.SKU || "",
         });
         groups.set(key, current);
       });

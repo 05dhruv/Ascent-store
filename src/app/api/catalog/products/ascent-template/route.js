@@ -113,22 +113,22 @@ export async function POST(request) {
       ]);
 
     const normalized = rows.map((row, index) => {
-      const name = String(row["Item Name"] || "").trim();
-      const unit = String(row.Unit || "")
+      const name = String(row["Material Name"] || row["Item Name"] || "").trim();
+      const unit = String(row["Unit of Measure"] || row.Unit || "")
         .trim()
         .toUpperCase();
-      const size = String(row.Size || "").trim();
-      const quantity = number(row.Quantity);
-      const rate = number(row.Rate);
+      const size = String(row["Specification / Grade"] || row.Size || "").trim();
+      const quantity = number(row["Opening Quantity"] ?? row.Quantity);
+      const rate = number(row["Estimated Rate / Unit"] ?? row.Rate);
       if (
         !name ||
         !size ||
         quantity <= 0 ||
         rate < 0 ||
-        !["PCS", "PKT"].includes(unit)
+        !["PCS", "PKT", "BAG", "KG", "MT", "CUM", "CFT", "MTR", "SQM", "LTR", "NOS"].includes(unit)
       ) {
         throw new Error(
-          `Row ${index + 2}: Item Name, Quantity, Rate, Unit (PCS/PKT), and Size are required`,
+          `Row ${index + 2}: Material Name, Opening Quantity, Estimated Rate / Unit, Unit of Measure, and Specification / Grade are required`,
         );
       }
       return { name, unit, size, quantity, rate, value: quantity * rate };

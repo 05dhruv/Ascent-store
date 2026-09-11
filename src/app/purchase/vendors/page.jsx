@@ -171,9 +171,9 @@ export default function VendorsPage() {
       const XLSX = await import("xlsx");
       const rows = vendors.map((vendor, index) => ({
         "S. No.": index + 1,
-        "Vendor Name": vendor.name || "",
-        "Vendor Company": vendor.company || "",
-        "Distribution Via":
+        "Supplier / Contractor Name": vendor.name || "",
+        "Legal Company Name": vendor.company || "",
+        "Supplier Type":
           normalizeDistributionVia(vendor.business) === "distributor"
             ? "Distributor"
             : "Company",
@@ -183,9 +183,9 @@ export default function VendorsPage() {
           .filter(Boolean)
           .join(", "),
         "GST Number": vendor.gst_number || "",
-        "Margin (%)": Number(vendor.margin || 0),
-        "Credit Days": vendor.credit_days ?? "",
-        Brands: Array.isArray(vendor.brands) ? vendor.brands.join(", ") : "",
+        "Rate Variance (%)": Number(vendor.margin || 0),
+        "Credit Terms (Days)": vendor.credit_days ?? "",
+        "Brands / Makes Supplied": Array.isArray(vendor.brands) ? vendor.brands.join(", ") : "",
         Address: getVendorAddress(vendor),
         "Address 1": vendor.address_1 || "",
         "Address 2": vendor.address_2 || "",
@@ -249,18 +249,18 @@ export default function VendorsPage() {
       const rows = vendorsToDownload.map((vendor, index) => ({
         "S. No.": index + 1,
         "Vendor ID": vendor.id,
-        "Vendor Name": vendor.name || "",
-        "Vendor Company": vendor.company || "",
-        "Distribution Via":
+        "Supplier / Contractor Name": vendor.name || "",
+        "Legal Company Name": vendor.company || "",
+        "Supplier Type":
           normalizeDistributionVia(vendor.business) === "distributor"
             ? "Distributor"
             : "Company",
         "Mobile Number": vendor.mobile_number || "",
         "Email Address": vendor.email || "",
         "GST Number": vendor.gst_number || "",
-        "Margin (%)": Number(vendor.margin || 0),
-        "Credit Days": vendor.credit_days ?? "",
-        Brands: Array.isArray(vendor.brands) ? vendor.brands.join(", ") : "",
+        "Rate Variance (%)": Number(vendor.margin || 0),
+        "Credit Terms (Days)": vendor.credit_days ?? "",
+        "Brands / Makes Supplied": Array.isArray(vendor.brands) ? vendor.brands.join(", ") : "",
         "Address 1": vendor.address_1 || "",
         "Address 2": vendor.address_2 || "",
         City: vendor.city || "",
@@ -387,12 +387,12 @@ export default function VendorsPage() {
             `Row ${rowNumber}: Vendor ID is not part of this edit file.`,
           );
         }
-        const name = String(row["Vendor Name"] || "").trim();
+        const name = String(row["Supplier / Contractor Name"] || row["Vendor Name"] || "").trim();
         const mobile = normalizeMobile(row["Mobile Number"]);
         const gst = String(row["GST Number"] || "").trim();
         const email = String(row["Email Address"] || "").trim();
-        const creditDays = Number(row["Credit Days"]);
-        const brandIds = parseBrandIdsFromExcel(row.Brands, rowNumber);
+        const creditDays = Number(row["Credit Terms (Days)"] ?? row["Credit Days"]);
+        const brandIds = parseBrandIdsFromExcel(row["Brands / Makes Supplied"] ?? row.Brands, rowNumber);
         if (!name)
           throw new Error(`Row ${rowNumber}: Vendor name is required.`);
         if (!/^\d{10}$/.test(mobile)) {
@@ -426,12 +426,12 @@ export default function VendorsPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               name,
-              company: String(row["Vendor Company"] || "").trim(),
-              business: normalizeDistributionVia(row["Distribution Via"]),
+              company: String((row["Legal Company Name"] ?? row["Vendor Company"]) || "").trim(),
+              business: normalizeDistributionVia(row["Supplier Type"] ?? row["Distribution Via"]),
               mobile_number: mobile,
               email,
               gst_number: gst,
-              margin: Number(row["Margin (%)"] || 0),
+              margin: Number((row["Rate Variance (%)"] ?? row["Margin (%)"]) || 0),
               credit_days: creditDays,
               brand_ids: brandIds,
               address_1: String(row["Address 1"] || "").trim(),

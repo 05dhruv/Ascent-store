@@ -284,6 +284,7 @@ const BULK_EXPIRY_KEYS = [
   "expire_date",
   "expiration_date",
   "exp_date",
+  "warranty_expiry_date",
 ];
 
 const BULK_BATCH_KEYS = [
@@ -292,6 +293,8 @@ const BULK_BATCH_KEYS = [
   "batch",
   "lot_no",
   "lot_number",
+  "lot_batch_no",
+  "serial_heat_no",
   "serial_number_serialnumber",
   "serialnumber",
   "serial_number",
@@ -994,15 +997,11 @@ export default function StockInPage() {
   const [tableData, setTableData] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
   const [showTemplateFilters, setShowTemplateFilters] = useState(false);
-  const [templateBrands, setTemplateBrands] = useState([]);
   const [stockInBrandOptions, setStockInBrandOptions] = useState([]);
-  const [templateBrandQuery, setTemplateBrandQuery] = useState("");
   const [templateCategories, setTemplateCategories] = useState([]);
   const [loadingTemplateOptions, setLoadingTemplateOptions] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [templateFilters, setTemplateFilters] = useState({
-    vendorId: "",
-    brandIds: [],
     categoryId: "",
   });
   const [filters, setFilters] = useState({
@@ -1047,15 +1046,6 @@ export default function StockInPage() {
       .toLowerCase()
       .includes(vendorQuery.trim().toLowerCase()),
   );
-  const filteredTemplateBrands = useMemo(() => {
-    const query = templateBrandQuery.trim().toLowerCase();
-    if (!query) return templateBrands;
-    return templateBrands.filter((brand) =>
-      String(brand.name || "")
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [templateBrands, templateBrandQuery]);
   const editableStockInRows = useMemo(
     () => tableData.filter((row) => row?._id),
     [tableData],
@@ -1155,29 +1145,9 @@ export default function StockInPage() {
   useEffect(() => {
     if (!showTemplateFilters) return;
     setLoadingTemplateOptions(true);
-    Promise.all([
-      fetchCatalogOptions("/api/catalog/brands?pageSize=1000").catch(() => []),
-      fetchCatalogOptions("/api/catalog/categories?pageSize=1000").catch(
-        () => [],
-      ),
-    ])
-      .then(([brands, categories]) => {
-        setTemplateBrands(
-          brands
-            .filter((brand) => brand?.is_active !== false)
-            .map((brand) => ({
-              id: String(brand.id || "").trim(),
-              name: String(brand.name || "").trim(),
-            }))
-            .filter((brand) => brand.id && brand.name)
-            .sort((a, b) =>
-              a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
-            ),
-        );
-        setTemplateCategories(categories);
-      })
+    fetchCatalogOptions("/api/catalog/categories?pageSize=1000")
+      .then((categories) => setTemplateCategories(categories))
       .catch(() => {
-        setTemplateBrands([]);
         setTemplateCategories([]);
       })
       .finally(() => setLoadingTemplateOptions(false));
@@ -1415,12 +1385,14 @@ export default function StockInPage() {
       .map((row, index) => {
         const productId = getBulkField(row, [
           "product_id",
+          "material_id",
           "product_code",
           "item_code",
           "code",
         ]);
         const productName = getBulkField(row, [
           "product_name",
+          "material_name",
           "item_name",
           "product",
           "name",
@@ -1431,12 +1403,13 @@ export default function StockInPage() {
           "ean",
           "upc",
         ]);
-        const sku = getBulkField(row, ["sku", "sku_code", "barcode_value"]);
+        const sku = getBulkField(row, ["sku", "material_code", "sku_code", "barcode_value"]);
         const qty = parseBulkNumber(
           getBulkField(
             row,
             [
               "quantity",
+              "received_quantity",
               "qty",
               "total_qty",
               "total_quantity",
@@ -1543,17 +1516,7 @@ export default function StockInPage() {
         }
         const rawExpiryDate = getBulkField(row, BULK_EXPIRY_KEYS);
         const expiryDate = normalizeImportDate(rawExpiryDate);
-        if (isMissingImportDate(rawExpiryDate)) {
-          return {
-            import_error: true,
-            row_number: rowNumber,
-            productName: productName || matchedProduct.productName || "",
-            sku,
-            barcode,
-            message: "Expiry Date is mandatory for stock-in.",
-          };
-        }
-        if (!expiryDate) {
+        if (!isMissingImportDate(rawExpiryDate) && !expiryDate) {
           return {
             import_error: true,
             row_number: rowNumber,
@@ -1564,7 +1527,7 @@ export default function StockInPage() {
               "Expiry Date is invalid/unreadable. Use a valid Excel date or dd-mm-yy format.",
           };
         }
-        if (isPastDateValue(expiryDate)) {
+        if (expiryDate && isPastDateValue(expiryDate)) {
           return {
             import_error: true,
             row_number: rowNumber,
@@ -1577,13 +1540,13 @@ export default function StockInPage() {
         const costPrice = parseBulkNumber(
           getBulkField(
             row,
-            ["cost_unit", "cost_per_unit", "cost_price", "cost"],
+            ["purchase_rate_unit", "cost_unit", "cost_per_unit", "cost_price", "cost"],
             0,
           ),
         );
-        const mrp = parseBulkNumber(getBulkField(row, ["mrp"], 0));
+        const mrp = parseBulkNumber(getBulkField(row, ["reference_rate", "mrp"], 0));
         const sellingPrice = parseBulkNumber(
-          getBulkField(row, ["selling_price", "sale_price", "sp"], 0),
+          getBulkField(row, ["issue_rate", "selling_price", "sale_price", "sp"], 0),
         );
         const previewId = `${matchedProduct.id}-${index}`;
         const priceBatchKey = [
@@ -1620,7 +1583,7 @@ export default function StockInPage() {
               expiry_date: expiryDate,
             },
           ],
-          remarks: getBulkField(row, ["remarks"]),
+          remarks: getBulkField(row, ["inspection_remarks", "remarks"]),
         };
       })
       .filter(Boolean);
@@ -1678,7 +1641,6 @@ export default function StockInPage() {
   const handleCloseTemplateFilters = () => {
     if (downloadingTemplate) return;
     setShowTemplateFilters(false);
-    setTemplateBrandQuery("");
   };
 
   const openStockPreview = async (row) => {
@@ -1949,19 +1911,12 @@ export default function StockInPage() {
   };
 
   const handleDownloadBulkTemplate = async () => {
-    if (!templateFilters.brandIds.length) {
-      alert("Please select at least one brand.");
-      return;
-    }
     setDownloadingTemplate(true);
     try {
       const params = new URLSearchParams({
         template: "products",
         format: "xlsx",
       });
-      if (templateFilters.brandIds.length) {
-        params.set("brand_ids", templateFilters.brandIds.join(","));
-      }
       if (templateFilters.categoryId) {
         params.set("category_id", templateFilters.categoryId);
       }
@@ -1971,7 +1926,7 @@ export default function StockInPage() {
       if (!res.ok) throw new Error("Unable to create Stock In template.");
       const fileBlob = await res.blob();
       if (!fileBlob.size) {
-        alert("No products found for the selected brand or category.");
+        alert("No materials found for the selected category.");
         return;
       }
       const fileUrl = URL.createObjectURL(fileBlob);
@@ -2102,10 +2057,19 @@ export default function StockInPage() {
           key: "units",
           name: "StockInUnits",
           values: uniqueOptions([
-            "Piece",
             "PCS",
+            "NOS",
+            "BAG",
             "KG",
+            "MT",
+            "CUM",
+            "CFT",
+            "MTR",
+            "SQM",
+            "RMT",
             "LTR",
+            "SET",
+            "ROLL",
             ...records.map((product) => product.unit),
           ]),
         },
@@ -3035,96 +2999,8 @@ export default function StockInPage() {
               </h3>
             </div>
             <div className="space-y-4 p-6">
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="block text-sm font-medium text-gray-800">
-                    Brands <span className="text-red-600">*</span>
-                  </label>
-                  {templateBrands.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const visibleBrandIds = filteredTemplateBrands.map(
-                          (brand) => String(brand.id),
-                        );
-                        const visibleBrandIdSet = new Set(visibleBrandIds);
-                        setTemplateFilters((current) => ({
-                          ...current,
-                          brandIds: visibleBrandIds.every((id) =>
-                            current.brandIds.includes(id),
-                          )
-                            ? current.brandIds.filter(
-                                (id) => !visibleBrandIdSet.has(id),
-                              )
-                            : Array.from(
-                                new Set([
-                                  ...current.brandIds,
-                                  ...visibleBrandIds,
-                                ]),
-                              ),
-                        }));
-                      }}
-                      disabled={!filteredTemplateBrands.length}
-                      className="text-xs font-semibold text-red-600 hover:underline"
-                    >
-                      {filteredTemplateBrands.length > 0 &&
-                      filteredTemplateBrands.every((brand) =>
-                        templateFilters.brandIds.includes(String(brand.id)),
-                      )
-                        ? "Clear all"
-                        : "Select all"}
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="search"
-                  value={templateBrandQuery}
-                  onChange={(event) =>
-                    setTemplateBrandQuery(event.target.value)
-                  }
-                  placeholder="Search brands"
-                  disabled={loadingTemplateOptions || downloadingTemplate}
-                  className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-red-300 focus:ring-1 focus:ring-red-200 disabled:bg-gray-50 disabled:text-gray-400"
-                />
-                <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 p-3">
-                  {loadingTemplateOptions ? (
-                    <p className="text-sm text-gray-500">Loading brands...</p>
-                  ) : filteredTemplateBrands.length ? (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {filteredTemplateBrands.map((brand) => (
-                        <label
-                          key={brand.id}
-                          className="inline-flex items-center gap-2 text-sm text-gray-700"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={templateFilters.brandIds.includes(
-                              String(brand.id),
-                            )}
-                            onChange={(event) =>
-                              setTemplateFilters((current) => ({
-                                ...current,
-                                brandIds: event.target.checked
-                                  ? [...current.brandIds, String(brand.id)]
-                                  : current.brandIds.filter(
-                                      (id) => id !== String(brand.id),
-                                    ),
-                              }))
-                            }
-                            className="h-4 w-4 rounded border-gray-300"
-                          />
-                          <span>{brand.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  ) : templateBrands.length ? (
-                    <p className="text-sm text-gray-500">
-                      No brands match your search.
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-500">No brands found.</p>
-                  )}
-                </div>
+              <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                Download a construction material receipt template directly. Brand or make is optional and can be filled only when applicable.
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-800">

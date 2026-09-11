@@ -2,7 +2,7 @@ export const roundQty = (value) => Math.round(Number(value) * 1000) / 1000;
 
 export function quantity(value, name = 'Quantity', allowZero = true) {
   const n = Number(value);
-  if (value === '' || value == null || !Number.isFinite(n) || n < 0 || (!allowZero && n === 0) || Math.abs(n - roundQty(n)) > 0.0000001) {
+  if (!['string', 'number'].includes(typeof value) || (typeof value === 'string' && !value.trim()) || !Number.isFinite(n) || n < 0 || (!allowZero && n === 0) || Math.abs(n - roundQty(n)) > 0.0000001) {
     throw new Error(`${name} must be ${allowZero ? 'a non-negative' : 'a positive'} number with at most 3 decimals`);
   }
   return roundQty(n);
@@ -25,9 +25,32 @@ export function receiptQuantities(line, pending) {
 }
 
 export function transferState(items, openCases) {
-  const pending = roundQty(items.reduce((sum, row) => sum + Number(row.dispatched_qty) - Number(row.received_qty) - Number(row.short_qty) + Number(row.excess_qty), 0));
-  if (pending < 0) throw new Error('Transfer quantities do not reconcile');
+  const pending = roundQty(items.reduce((sum, row) => {
+    const outstanding = roundQty(quantity(row.dispatched_qty) - quantity(row.received_qty) - quantity(row.short_qty) + quantity(row.excess_qty));
+    if (outstanding < 0) throw new Error('Transfer line quantities do not reconcile');
+    return sum + outstanding;
+  }, 0));
   return pending > 0 ? 'partially_received' : openCases > 0 ? 'under_dispute' : 'closed';
+}
+
+export function requestSignature(value) {
+  const normalize = (input) => {
+    if (Array.isArray(input)) return input.map(normalize);
+    if (input && typeof input === 'object') return Object.fromEntries(Object.keys(input).sort()
+      .filter(key => key !== 'requestKey' && input[key] !== undefined)
+      .map(key => [key, normalize(input[key])]));
+    return input;
+  };
+  return JSON.stringify(normalize(value));
+}
+
+export function transferPrices(item, allocation = {}) {
+  const positive = (value, fallback = 0) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
+  return {
+    costPrice: allocation.costPrice == null ? Number(item.cost_price || 0) : Number(allocation.costPrice),
+    mrp: positive(item.destination_mrp, positive(item.mrp, positive(allocation.mrp))),
+    sellingPrice: positive(item.selling_price, positive(allocation.sellingPrice)),
+  };
 }
 
 export function splitReceipt(allocations, count, offset = 0) {

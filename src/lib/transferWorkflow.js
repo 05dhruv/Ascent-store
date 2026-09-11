@@ -1,5 +1,5 @@
 import { allocateBatchStock, receiveBatchStock } from '@/lib/inventoryBatching';
-import { quantity, roundQty, receiptQuantities, splitReceipt, transferState } from '@/lib/movementRules.mjs';
+import { quantity, roundQty, receiptQuantities, splitReceipt, transferState, requestSignature, transferPrices } from '@/lib/movementRules.mjs';
 
 function required(value, label) {
   const text = String(value || '').trim();
@@ -14,15 +14,16 @@ export async function transferAction(client, transfer, action, body, user) {
   const previous = await client.query('SELECT action, details FROM inventory_transfer_events WHERE transfer_id=$1 AND request_key=$2', [id, requestKey]);
   if (previous.rows.length) {
     if (previous.rows[0].action !== action) throw new Error('Request identifier already used for a different action');
-    const signature=JSON.stringify({...body,requestKey:undefined});
-    if(previous.rows[0].details.requestSignature!==signature) throw new Error('Request identifier reused with different quantities or details');
+    const signature=requestSignature(body);
+    const saved=previous.rows[0].details.requestSignature;
+    if(!saved || requestSignature(JSON.parse(saved))!==signature) throw new Error('Request identifier reused with different quantities or details');
     return { replay: true };
   }
   if (transfer.workflow_version !== 2) throw new Error('Historical transfers cannot enter the new dispatch/receipt workflow');
   if (Number(transfer.source_id) === Number(transfer.destination_id)) throw new Error('Source and destination must be different');
   const items = (await client.query('SELECT * FROM stock_transfer_items WHERE stock_transfer_id=$1 ORDER BY id FOR UPDATE', [id])).rows;
   if (!items.length) throw new Error('Transfer has no items');
-  const details = { requestSignature:JSON.stringify({...body,requestKey:undefined}), remarks: body.remarks || '', evidence: body.evidence || '', actorName: user.name || '', ...(['dispatch'].includes(action) ? { vehicle: body.vehicle, challan: body.challan, transporter: body.transporter, driver: body.driver, eta: body.eta } : {}) };
+  const details = { requestSignature:requestSignature(body), remarks: body.remarks || '', evidence: body.evidence || '', actorName: user.name || '', ...(['dispatch'].includes(action) ? { vehicle: body.vehicle, challan: body.challan, transporter: body.transporter, driver: body.driver, eta: body.eta } : {}) };
   let state = transfer.workflow_status;
   if (action === 'approve') {
     if (state !== 'submitted') throw new Error('Only submitted transfers can be approved');
@@ -117,12 +118,15 @@ export async function transferAction(client, transfer, action, body, user) {
       const base=splitReceipt(item.meta?.batchAllocations || [],roundQty(c.received-c.excess),offset);
       if(c.excess) base.push({qty:c.excess,costPrice:item.cost_price,batchNo:`EXCESS-${id}-${item.id}`,mrp:item.destination_mrp,sellingPrice:item.selling_price});
       let receivedOffset=0;
+      let usablePrices = null;
       for(const [bucket,count] of [['active',c.accepted],['damaged',c.damaged],['rejected',c.rejected]]) {
         for(const allocation of splitReceipt(base,count,receivedOffset)) {
+          const prices = transferPrices(item, allocation);
+          if(bucket === 'active' && !usablePrices) usablePrices = prices;
           const batch=await receiveBatchStock(client,{stockInId:id,stockInItemId:item.id,productId:item.product_id,storeId:transfer.destination_id,
-            qty:allocation.qty,costPrice:allocation.costPrice||item.cost_price,batchNo:allocation.batchNo,mfgDate:allocation.mfgDate,expiryDate:allocation.expiryDate,
+            qty:allocation.qty,costPrice:prices.costPrice,batchNo:allocation.batchNo,mfgDate:allocation.mfgDate,expiryDate:allocation.expiryDate,
             sourceType:'stock_transfer',movementReferenceType:'stock_transfer_receipt',meta:{workflowVersion:2,actorId:user.id,receiptId:receipt.id,transferId:id,
-              transactionId:transfer.transaction_id,condition:bucket,sourceBatchId:allocation.batchId||null,mrp:item.destination_mrp||allocation.mrp||item.mrp,sellingPrice:item.selling_price||allocation.sellingPrice}});
+              transactionId:transfer.transaction_id,condition:bucket,sourceBatchId:allocation.batchId||null,mrp:prices.mrp,sellingPrice:prices.sellingPrice}});
           if(bucket!=='active') await client.query('UPDATE inventory_batches SET status=$1 WHERE id=$2',[bucket,batch.id]);
         }
         receivedOffset=roundQty(receivedOffset+count);
@@ -134,7 +138,10 @@ export async function transferAction(client, transfer, action, body, user) {
       await client.query(`UPDATE stock_transfer_items SET received_qty=received_qty+$1,accepted_qty=accepted_qty+$2,damaged_qty=damaged_qty+$3,
         rejected_qty=rejected_qty+$4,short_qty=short_qty+$5,excess_qty=excess_qty+$6 WHERE id=$7`,[c.received,c.accepted,c.damaged,c.rejected,c.short,c.excess,item.id]);
       if(c.accepted) await client.query(`INSERT INTO product_saleability(product_id,store_id,is_active,selling_price,mrp,low_stock_value,created_at,updated_at)
-        VALUES($1,$2,true,$3,$4,0,NOW(),NOW()) ON CONFLICT(product_id,store_id) DO UPDATE SET is_active=true,updated_at=NOW()`,[item.product_id,transfer.destination_id,item.selling_price||0,item.destination_mrp||item.mrp||0]);
+        VALUES($1,$2,true,$3,$4,0,NOW(),NOW()) ON CONFLICT(product_id,store_id) DO UPDATE SET is_active=true,
+        selling_price=CASE WHEN COALESCE(product_saleability.selling_price,0)>0 THEN product_saleability.selling_price ELSE EXCLUDED.selling_price END,
+        mrp=CASE WHEN COALESCE(product_saleability.mrp,0)>0 THEN product_saleability.mrp ELSE EXCLUDED.mrp END,
+        updated_at=NOW()`,[item.product_id,transfer.destination_id,usablePrices?.sellingPrice||0,usablePrices?.mrp||0]);
     }
     state=await receiptState(client,id);
     await client.query('UPDATE stock_transfer SET received_at=NOW(),received_by=$2 WHERE id=$1',[id,user.id]);
@@ -142,6 +149,7 @@ export async function transferAction(client, transfer, action, body, user) {
     if(!['dispatched','partially_received'].includes(state)) throw new Error('Excess approval requires an outstanding transfer');
     required(body.remarks,'Excess explanation');
     if(!body.items?.length) throw new Error('Select excess lines');
+    if(new Set(body.items.map(line => Number(line.id))).size !== body.items.length) throw new Error('Duplicate excess approval line');
     details.items=body.items.map(line=>{
       if(!items.some(x=>Number(x.id)===Number(line.id))) throw new Error('Unknown transfer line');
       return {id:Number(line.id),qty:quantity(line.qty,'Approved excess',false)};

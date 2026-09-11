@@ -71,6 +71,10 @@ export default function RootPage() {
       try {
         const params = new URLSearchParams(getMonthRange());
         const res = await fetchAuthEndpoint(`/api/dashboard/stats?${params.toString()}`);
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          throw new Error('Dashboard API returned a non-JSON response');
+        }
         const json = await res.json();
 
         if (!cancelled && res.ok && json?.success) {

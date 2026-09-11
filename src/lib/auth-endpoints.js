@@ -1,4 +1,11 @@
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+// Keep browser requests on this Next.js application unless a separate auth
+// backend has been deliberately configured.  NEXT_PUBLIC_BACKEND_URL is also
+// used by sibling local projects, so using it as an automatic 404 fallback can
+// mix applications and turn a local API error into an unrelated HTML response.
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_ENABLE_AUTH_API_FALLBACK === "true"
+    ? process.env.NEXT_PUBLIC_AUTH_BACKEND_URL || ""
+    : "";
 const BACKEND_TIMEOUT_MS = 4000;
 
 function normalizePath(path) {

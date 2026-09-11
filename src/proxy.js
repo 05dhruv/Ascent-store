@@ -8,6 +8,7 @@ const publicApiRoutes = [
   '/api/auth/login',
   '/api/auth/logout',
   '/api/auth/me',
+  '/api/auth/password-change-status',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
   '/api/health',

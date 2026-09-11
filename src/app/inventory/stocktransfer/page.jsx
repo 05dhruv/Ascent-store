@@ -700,20 +700,20 @@ export default function StockTransferPage() {
       );
       const yesNoOptions = ["Yes", "No"];
       const headers = [
-        "Source",
-        "Destination",
+        "Source Warehouse / Yard",
+        "Destination Site / Store",
         "Barcode",
-        "SKU",
-        "Product Name",
-        "Quantity",
-        "MRP On Destination",
-        "Selling Price On Destination",
-        "Cost/Unit",
-        "Invoice Date",
-        "Invoice Number",
-        "Other Charges",
-        "Remarks",
-        "Apply Taxes",
+        "Material Code",
+        "Material Name",
+        "Requested Quantity",
+        "Reference Rate at Site",
+        "Issue Rate at Site",
+        "Estimated Cost / Unit",
+        "Dispatch Date",
+        "Delivery Challan No",
+        "Freight / Other Charges",
+        "Site / Dispatch Remarks",
+        "Apply GST",
       ];
       const rows = [headers];
 
@@ -736,8 +736,8 @@ export default function StockTransferPage() {
       ];
       applyTextFormatToColumns(worksheet, headers, [
         "Barcode",
-        "SKU",
-        "Invoice Number",
+        "Material Code",
+        "Delivery Challan No",
       ]);
 
       const optionGroups = [
@@ -768,7 +768,7 @@ export default function StockTransferPage() {
             errorTitle: "Invalid source",
             error: "Select a source from the dropdown.",
             promptTitle: "Source",
-            prompt: "Select source store or warehouse.",
+            prompt: "Select the main warehouse, yard, or source site.",
           },
           {
             range: "B2:B501",
@@ -776,15 +776,15 @@ export default function StockTransferPage() {
             errorTitle: "Invalid destination",
             error: "Select a destination from the dropdown.",
             promptTitle: "Destination",
-            prompt: "Select destination store or warehouse.",
+            prompt: "Select the receiving construction site or store.",
           },
           {
             range: "N2:N501",
             formula: optionFormula(optionGroups, "yes_no"),
             errorTitle: "Invalid tax option",
             error: "Select Yes or No.",
-            promptTitle: "Apply Taxes",
-            prompt: "Choose whether tax should be applied.",
+            promptTitle: "Apply GST",
+            prompt: "Choose whether GST should be applied.",
           },
         ],
         "xl/worksheets/sheet1.xml",
@@ -830,7 +830,7 @@ export default function StockTransferPage() {
       const identifiersBySource = new Map();
       for (const row of rows) {
         const sourceId = resolveLocationId(
-          getBulkField(row, ["source_id", "source"]),
+          getBulkField(row, ["source_id", "source_warehouse_yard", "source"]),
           locations,
         );
         if (!sourceId) continue;
@@ -841,9 +841,9 @@ export default function StockTransferPage() {
           product_names: [],
         };
         identifiers.barcodes.push(getBulkField(row, ["barcode", "bar_code"]));
-        identifiers.skus.push(getBulkField(row, ["sku"]));
+        identifiers.skus.push(getBulkField(row, ["material_code", "sku"]));
         identifiers.product_names.push(
-          getBulkField(row, ["product_name", "product"]),
+          getBulkField(row, ["material_name", "product_name", "product"]),
         );
         identifiersBySource.set(key, identifiers);
       }
@@ -870,27 +870,28 @@ export default function StockTransferPage() {
       for (const row of rows) {
         const rowNumber = Number(row.__row_index || 0) + 2;
         const sourceId = resolveLocationId(
-          getBulkField(row, ["source_id", "source"]),
+          getBulkField(row, ["source_id", "source_warehouse_yard", "source"]),
           locations,
         );
         const destinationId = resolveLocationId(
-          getBulkField(row, ["destination_id", "destination"]),
+          getBulkField(row, ["destination_id", "destination_site_store", "destination"]),
           locations,
         );
         const barcode = getBulkField(row, ["barcode", "bar_code"]);
-        const sku = getBulkField(row, ["sku"]);
-        const productName = getBulkField(row, ["product_name", "product"]);
-        const qty = toNumber(getBulkField(row, ["quantity", "qty"]), 0);
+        const sku = getBulkField(row, ["material_code", "sku"]);
+        const productName = getBulkField(row, ["material_name", "product_name", "product"]);
+        const qty = toNumber(getBulkField(row, ["requested_quantity", "quantity", "qty"]), 0);
         const invoiceDate = getRowDate(
-          getBulkField(row, ["invoice_date", "date"]),
+          getBulkField(row, ["dispatch_date", "invoice_date", "date"]),
         );
         const invoiceNumber = getBulkField(row, [
+          "delivery_challan_no",
           "invoice_number",
           "invoice_no",
         ]);
-        const otherCharges = toNumber(getBulkField(row, ["other_charges"]), 0);
-        const remarks = getBulkField(row, ["remarks", "remark"]);
-        const applyTaxes = toBoolean(getBulkField(row, ["apply_taxes"]), true);
+        const otherCharges = toNumber(getBulkField(row, ["freight_other_charges", "other_charges"]), 0);
+        const remarks = getBulkField(row, ["site_dispatch_remarks", "remarks", "remark"]);
+        const applyTaxes = toBoolean(getBulkField(row, ["apply_gst", "apply_taxes"]), true);
 
         const sourceExists = locations.some(
           (location) => String(location.id) === String(sourceId),
@@ -984,6 +985,7 @@ export default function StockTransferPage() {
 
           const costPrice = toNumber(
             getBulkField(row, [
+              "estimated_cost_unit",
               "cost_unit",
               "cost_per_unit",
               "cost_price",
@@ -993,6 +995,7 @@ export default function StockTransferPage() {
           );
           const mrp = toNumber(
             getBulkField(row, [
+              "reference_rate_at_site",
               "mrp",
               "mrp_on_destination",
               "mrp_on_destination_store",
@@ -1002,6 +1005,7 @@ export default function StockTransferPage() {
           );
           const sellingPrice = toNumber(
             getBulkField(row, [
+              "issue_rate_at_site",
               "selling_price",
               "selling_price_on_destination",
               "destination_selling_price",

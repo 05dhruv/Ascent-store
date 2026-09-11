@@ -11,7 +11,7 @@ Open **Inventory → Material Movement / Receipts** (`/inventory/movement-tracke
 5. The assigned destination user enters incremental received, accepted, damaged, rejected and final-short quantities, with acknowledgement/proof. A later delivery stays pending; it should not be recorded as short.
 6. Accepted quantity is usable. Damaged/rejected stock is isolated. Short/excess/damaged/rejected receipts open cases. Source-authorized users resolve cases with reason/evidence. All pending quantities and cases must be settled before closure.
 
-Excess requires a source approval event before receipt. Enter per-line excess on the tracker, add explanation and approve it. The receiver uses that event ID; each approval is single-use. Resolution records the investigation/claim; it does not automatically make damaged goods usable.
+Excess requires a source approval event before receipt. Enter per-line excess on the tracker, add explanation and approve it. The receiver selects the available approval from the receipt screen; each approval is single-use. Resolution records the investigation/claim; it does not automatically make damaged goods usable.
 
 Receipt retries use request identifiers. Reusing an identifier with changed data is rejected. Submitted, dispatched and received documents cannot be edited through the old transfer edit endpoint. An undispatched request can be cancelled; a physical return uses a separate transfer.
 
@@ -23,7 +23,7 @@ Posted GRNs cannot be edited or deleted. Use controlled adjustments/vendor retur
 
 ## Reports
 
-The movement tracker provides transfer quantities/status/ETA/cases, current location stock by condition/reservation, and movement ledger with actor and reference. Filter by location, project, date and material/document search; export displayed rows to CSV. Reports explicitly flag the 500-row limit; narrow filters for complete exports. Stock buckets are current balances and are independent of the date filter.
+The movement tracker provides transfer quantities/status/ETA/cases, current location stock by condition/reservation, and movement ledger with actor and reference. Filter by location, project, date and material/document search; export displayed rows to CSV. Reports explicitly flag the 500-row limit; narrow filters for complete exports. Stock buckets are current balances and are independent of the date filter. The stock screen separates usable, reserved, quarantine, damaged, rejected, expired and inactive material. Usable stock excludes every other bucket.
 
 Historical transfers are labelled historical. No receipt quantities or dispatch evidence are fabricated for previously confirmed instant transfers. The ledger's recorded running balance follows retained historical entries; reconcile legacy corrections/openings before treating it as a certified opening balance.
 

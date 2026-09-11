@@ -48,6 +48,10 @@ export default function HomePage() {
       try {
         setLoading(true);
         const res = await fetchAuthEndpoint('/api/dashboard/stats');
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          throw new Error('Dashboard API returned a non-JSON response');
+        }
         const json = await res.json();
         if (res.ok && json.success) {
           setStats(json.data);
