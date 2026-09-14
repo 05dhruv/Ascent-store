@@ -26,16 +26,25 @@ function mapRoleRow(row) {
   };
 }
 
+async function validateConstructionPermissions(permissions, { allowWildcard = false } = {}) {
+  const unique = [...new Set(permissions.map((permission) => String(permission).trim()).filter(Boolean))];
+  if (allowWildcard && unique.length === 1 && unique[0] === '*') return { permissions: unique };
+  if (!unique.length || unique.includes('*')) return { error: 'Select one or more valid permissions' };
+  return { permissions: unique };
+}
+
 export async function GET(request) {
   try {
     await ensureRolesSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
+    const permissionCheck = requirePermission(auth.user, 'TEAM_MANAGE', 'ROLE_MANAGE', 'MANAGE_ROLES', 'MANAGE_USERS', 'VIEW_USERS', 'TEAM_VIEW');
+    if (permissionCheck.error) return permissionCheck.error;
 
     const res = await query(
-      `SELECT id, role_name, permissions, description, created_at
-       FROM roles
-       ORDER BY created_at DESC, id DESC`
+      `SELECT r.id, COALESCE(r.role_name, r.name) AS role_name, r.permissions, r.description, r.created_at
+       FROM roles r
+       ORDER BY r.created_at DESC, r.id DESC`
     );
 
     return NextResponse.json(res.rows.map(mapRoleRow));
@@ -50,7 +59,7 @@ export async function POST(request) {
     await ensureRolesSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_ROLES');
+    const permissionCheck = requirePermission(auth.user, 'ROLE_MANAGE', 'MANAGE_ROLES', 'TEAM_MANAGE');
     if (permissionCheck.error) return permissionCheck.error;
 
     const body = await request.json();
@@ -66,11 +75,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Permission is required' }, { status: 400 });
     }
 
+    const validatedPermissions = await validateConstructionPermissions(permissions);
+    if (validatedPermissions.error) return NextResponse.json({ error: validatedPermissions.error }, { status: 400 });
+
     const res = await query(
-      `INSERT INTO roles (role_name, permissions, description, meta, created_at, updated_at)
-       VALUES ($1, $2::jsonb, $3, $4::jsonb, NOW(), NOW())
+      `INSERT INTO roles (role_name, name, permissions, description, meta, created_at, updated_at)
+       VALUES ($1, $1, $2::jsonb, $3, $4::jsonb, NOW(), NOW())
        RETURNING id, role_name, permissions, description, created_at`,
-      [roleName, JSON.stringify(permissions), description || null, JSON.stringify(body)]
+      [roleName, JSON.stringify(validatedPermissions.permissions), description || null, JSON.stringify(body)]
     );
 
     return NextResponse.json(mapRoleRow(res.rows[0]), { status: 201 });
@@ -80,7 +92,7 @@ export async function POST(request) {
     }
 
     console.error('[employee roles POST]', err.message);
-    return NextResponse.json({ error: 'Failed to create role' }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'Failed to create role' }, { status: 500 });
   }
 }
 
@@ -89,7 +101,7 @@ export async function PUT(request) {
     await ensureRolesSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_ROLES');
+    const permissionCheck = requirePermission(auth.user, 'ROLE_MANAGE', 'MANAGE_ROLES', 'TEAM_MANAGE');
     if (permissionCheck.error) return permissionCheck.error;
 
     const body = await request.json();
@@ -114,16 +126,22 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Only Super Admin (wildcard permission) can edit Super Admin role' }, { status: 403 });
     }
 
+    const validatedPermissions = await validateConstructionPermissions(permissions, {
+      allowWildcard: roleName === 'super_admin' && Array.isArray(auth.user.permissions) && auth.user.permissions.includes('*'),
+    });
+    if (validatedPermissions.error) return NextResponse.json({ error: validatedPermissions.error }, { status: 400 });
+
     const res = await query(
       `UPDATE roles
        SET role_name = $1,
+           name = $1,
            permissions = $2::jsonb,
            description = $3,
            meta = $4::jsonb,
            updated_at = NOW()
        WHERE id = $5
        RETURNING id, role_name, permissions, description, created_at`,
-      [roleName, JSON.stringify(permissions), description || null, JSON.stringify(body), id]
+      [roleName, JSON.stringify(validatedPermissions.permissions), description || null, JSON.stringify(body), id]
     );
 
     if (res.rowCount === 0) {
@@ -137,7 +155,7 @@ export async function PUT(request) {
     }
 
     console.error('[employee roles PUT]', err.message);
-    return NextResponse.json({ error: 'Failed to update role' }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'Failed to update role' }, { status: 500 });
   }
 }
 
@@ -147,7 +165,7 @@ export async function DELETE(request) {
     await ensureRolesSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_ROLES');
+    const permissionCheck = requirePermission(auth.user, 'ROLE_MANAGE', 'MANAGE_ROLES', 'TEAM_MANAGE');
     if (permissionCheck.error) return permissionCheck.error;
 
     const url = new URL(request.url);

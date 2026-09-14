@@ -176,7 +176,7 @@ export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onCl
             const active = isItemActive(item.href);
             return (
               <Link
-                key={item.href}
+                key={`${item.href}-${item.label}`}
                 href={item.href}
                 ref={active ? activeLinkRef : null}
                 onClick={() => onClose?.()}
@@ -282,7 +282,7 @@ export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onCl
                     const active = isItemActive(item.href);
                     return (
                       <Link
-                        key={item.href}
+                        key={`${item.href}-${item.label}`}
                         href={item.href}
                         ref={active ? activeLinkRef : null}
                         onClick={() => onClose?.()}

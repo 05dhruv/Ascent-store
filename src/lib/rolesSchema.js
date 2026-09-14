@@ -2,7 +2,7 @@ import { query } from '@/lib/db';
 import { ensurePermissionsSchema } from '@/lib/permissionsSchema';
 import { makeSchemaEnsurer } from '@/lib/schemaGuard';
 
-const ROLES_SCHEMA_VERSION = 2;
+const ROLES_SCHEMA_VERSION = 4;
 
 const ADMIN_PERMISSIONS = [
   'ACCESS_DASHBOARD',
@@ -78,6 +78,10 @@ export const ensureRolesSchema = makeSchemaEnsurer('roles', ROLES_SCHEMA_VERSION
     ALTER TABLE roles ALTER COLUMN name DROP NOT NULL;
     ALTER TABLE roles ALTER COLUMN role_name SET NOT NULL;
 
+    ALTER TABLE roles DROP CONSTRAINT IF EXISTS valid_role_name;
+    ALTER TABLE roles DROP CONSTRAINT IF EXISTS roles_role_name_check;
+    ALTER TABLE roles DROP CONSTRAINT IF EXISTS roles_name_check;
+
     CREATE UNIQUE INDEX IF NOT EXISTS roles_role_name_unique_idx
       ON roles (role_name);
   `);
@@ -99,6 +103,29 @@ export const ensureRolesSchema = makeSchemaEnsurer('roles', ROLES_SCHEMA_VERSION
          updated_at = NOW()`,
     [JSON.stringify(ADMIN_PERMISSIONS), JSON.stringify(MANAGER_PERMISSIONS)]
   );
+
+  await query(`
+    INSERT INTO roles (role_name, name, permissions, description, meta, created_at, updated_at)
+    VALUES
+      ('Construction Manager', 'Construction Manager',
+       '["DASHBOARD_VIEW","PROJECT_VIEW","PROJECT_CREATE","PROJECT_EDIT","SITE_VIEW","SITE_CREATE","SITE_EDIT","WAREHOUSE_VIEW","MATERIAL_VIEW","PROCUREMENT_VIEW","PURCHASE_ORDER_CREATE","PURCHASE_ORDER_APPROVE","STOCK_VIEW","SITE_REQUEST_APPROVE","TRANSFER_VIEW","TRANSFER_APPROVE","REPORT_VIEW"]'::jsonb,
+       'Plans projects and approves procurement, site requests and transfers.', '{"system": true, "scope": "construction"}'::jsonb, NOW(), NOW()),
+      ('Warehouse In-charge', 'Warehouse In-charge',
+       '["WAREHOUSE_VIEW","MATERIAL_VIEW","STOCK_VIEW","GRN_CREATE","TRANSFER_VIEW","TRANSFER_CREATE","TRANSFER_DISPATCH","MATERIAL_RETURN_CREATE"]'::jsonb,
+       'Receives materials and dispatches approved warehouse-to-site transfers.', '{"system": true, "scope": "construction"}'::jsonb, NOW(), NOW()),
+      ('Site Engineer', 'Site Engineer',
+       '["PROJECT_VIEW","SITE_VIEW","MATERIAL_VIEW","STOCK_VIEW","SITE_REQUEST_CREATE","TRANSFER_VIEW","TRANSFER_RECEIVE","MATERIAL_ISSUE_CREATE","MATERIAL_RETURN_CREATE"]'::jsonb,
+       'Raises site material requests, receives transfers and records material use.', '{"system": true, "scope": "construction"}'::jsonb, NOW(), NOW()),
+      ('Stock Auditor', 'Stock Auditor',
+       '["WAREHOUSE_VIEW","MATERIAL_VIEW","STOCK_VIEW","STOCK_AUDIT","REPORT_VIEW","AUDIT_LOG_VIEW"]'::jsonb,
+       'Verifies stock, posts audit counts and reviews the movement trail.', '{"system": true, "scope": "construction"}'::jsonb, NOW(), NOW())
+    ON CONFLICT (role_name) DO UPDATE
+      SET name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          permissions = EXCLUDED.permissions,
+          meta = roles.meta || EXCLUDED.meta,
+          updated_at = NOW()
+  `);
 
 });
 

@@ -1,7 +1,7 @@
 import { query } from "@/lib/db";
 import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 
-const PERMISSIONS_SCHEMA_VERSION = 2;
+const PERMISSIONS_SCHEMA_VERSION = 3;
 
 export const ensurePermissionsSchema = makeSchemaEnsurer("permissions", PERMISSIONS_SCHEMA_VERSION, async () => {
   await query(`
@@ -426,7 +426,46 @@ export const ensurePermissionsSchema = makeSchemaEnsurer("permissions", PERMISSI
     ],
   ];
 
-  for (const d of defaults) {
+  const constructionDefaults = [
+    ["CONSTRUCTION", "BOTH", "DASHBOARD_VIEW", "Dashboard View", "View the construction dashboard"],
+    ["CONSTRUCTION", "BOTH", "TEAM_VIEW", "View Team", "View employee records and access assignments"],
+    ["CONSTRUCTION", "BOTH", "TEAM_MANAGE", "Manage Team", "Create, edit, deactivate and assign employees"],
+    ["CONSTRUCTION", "BOTH", "ROLE_MANAGE", "Manage Roles & Permissions", "Create and edit construction roles and their permissions"],
+    ["CONSTRUCTION", "BOTH", "PROJECT_VIEW", "View Projects", "View assigned projects and project register"],
+    ["CONSTRUCTION", "BOTH", "PROJECT_CREATE", "Create Projects", "Create a construction project"],
+    ["CONSTRUCTION", "BOTH", "PROJECT_EDIT", "Edit Projects", "Edit project details and status"],
+    ["CONSTRUCTION", "BOTH", "SITE_VIEW", "View Sites", "View assigned sites and site stores"],
+    ["CONSTRUCTION", "BOTH", "SITE_CREATE", "Create Sites", "Create site stores under a project"],
+    ["CONSTRUCTION", "BOTH", "SITE_EDIT", "Edit Sites", "Edit site store and site in-charge details"],
+    ["CONSTRUCTION", "BOTH", "WAREHOUSE_VIEW", "View Warehouses", "View assigned warehouse details"],
+    ["CONSTRUCTION", "BOTH", "WAREHOUSE_CREATE", "Create Warehouses", "Create a central warehouse"],
+    ["CONSTRUCTION", "BOTH", "WAREHOUSE_EDIT", "Edit Warehouses", "Edit warehouse details and employee assignments"],
+    ["CONSTRUCTION", "BOTH", "MATERIAL_VIEW", "View Material Master", "View construction materials and specifications"],
+    ["CONSTRUCTION", "BOTH", "MATERIAL_CREATE", "Create Materials", "Create individual Material Master records"],
+    ["CONSTRUCTION", "BOTH", "MATERIAL_EDIT", "Edit Materials", "Edit Material Master records"],
+    ["CONSTRUCTION", "BOTH", "MATERIAL_IMPORT", "Import Material Master", "Create Material Master records from Excel"],
+    ["CONSTRUCTION", "BOTH", "PROCUREMENT_VIEW", "View Procurement", "View suppliers, purchase orders and GRNs"],
+    ["CONSTRUCTION", "BOTH", "PURCHASE_ORDER_CREATE", "Create Purchase Orders", "Create purchase orders for materials"],
+    ["CONSTRUCTION", "BOTH", "PURCHASE_ORDER_APPROVE", "Approve Purchase Orders", "Approve or reject purchase orders"],
+    ["CONSTRUCTION", "BOTH", "GRN_CREATE", "Create Warehouse Receipt (GRN)", "Record material receipt at a warehouse"],
+    ["CONSTRUCTION", "BOTH", "GRN_APPROVE", "Approve Warehouse Receipt (GRN)", "Confirm a warehouse receipt and post stock"],
+    ["CONSTRUCTION", "BOTH", "STOCK_VIEW", "View Stock", "View assigned warehouse and site-store stock"],
+    ["CONSTRUCTION", "BOTH", "SITE_REQUEST_CREATE", "Create Site Requests", "Raise a material request from an assigned site"],
+    ["CONSTRUCTION", "BOTH", "SITE_REQUEST_APPROVE", "Approve Site Requests", "Approve or reject site material requests"],
+    ["CONSTRUCTION", "BOTH", "TRANSFER_VIEW", "View Transfers", "View assigned warehouse-to-site transfers"],
+    ["CONSTRUCTION", "BOTH", "TRANSFER_CREATE", "Create Transfers", "Create a warehouse-to-site transfer"],
+    ["CONSTRUCTION", "BOTH", "TRANSFER_APPROVE", "Approve Transfers", "Approve or reject a material transfer before dispatch"],
+    ["CONSTRUCTION", "BOTH", "TRANSFER_DISPATCH", "Dispatch Transfers", "Dispatch approved material transfers"],
+    ["CONSTRUCTION", "BOTH", "TRANSFER_RECEIVE", "Receive Transfers", "Receive material at an assigned site store"],
+    ["CONSTRUCTION", "BOTH", "MATERIAL_ISSUE_CREATE", "Issue Material to Work", "Issue material from a site store to work activity"],
+    ["CONSTRUCTION", "BOTH", "MATERIAL_RETURN_CREATE", "Return Material", "Record return of unused material to site store"],
+    ["CONSTRUCTION", "BOTH", "STOCK_ADJUST", "Adjust Stock", "Post approved stock adjustments"],
+    ["CONSTRUCTION", "BOTH", "STOCK_AUDIT", "Conduct Stock Audit", "Create and confirm stock verification"],
+    ["CONSTRUCTION", "BOTH", "REPORT_VIEW", "View Construction Reports", "View stock, movement, procurement and audit reports"],
+    ["CONSTRUCTION", "BOTH", "AUDIT_LOG_VIEW", "View Audit Trail", "View material movement and access audit logs"],
+  ];
+
+  for (const d of [...defaults, ...constructionDefaults]) {
     await query(
       `INSERT INTO permissions (permission_for_org, permission_for_interface, permission_name, name, display_name, description, meta, created_at, updated_at)
        VALUES ($1, $2, $3, $3, $4, $5, $6::jsonb, NOW(), NOW())
@@ -435,7 +474,7 @@ export const ensurePermissionsSchema = makeSchemaEnsurer("permissions", PERMISSI
            name = EXCLUDED.permission_name,
            description = EXCLUDED.description,
            updated_at = NOW()`,
-      [d[0], d[1], d[2], d[3], d[4], JSON.stringify({ seeded: true })],
+      [d[0], d[1], d[2], d[3], d[4], JSON.stringify({ seeded: true, scope: d[0] === "CONSTRUCTION" ? "construction" : "legacy" })],
     );
   }
 

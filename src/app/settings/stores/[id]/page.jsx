@@ -37,13 +37,33 @@ function documentName(doc) {
 }
 
 const DOCUMENT_FIELDS = [
-  { key: "agreement", label: "Agreement" },
-  { key: "aadhaar", label: "Aadhaar" },
-  { key: "panCard", label: "PAN Card" },
-  { key: "rentAgreement", label: "Electricity Bill / Rent Agreement" },
+  { key: "siteWorkOrder", label: "Work Order / Sanction Letter" },
+  { key: "siteLayoutPlan", label: "Site Storage Layout / Plot Plan" },
+  { key: "safetyClearance", label: "Safety & Environmental Clearance" },
+  { key: "landLeaseAgreement", label: "Site Land / Lease Agreement" },
+  { key: "inchargeIdProof", label: "Site In-Charge ID (Aadhaar / PAN)" },
+  { key: "agreement", label: "Agreement (Legacy)" },
+  { key: "aadhaar", label: "Aadhaar (Legacy)" },
+  { key: "panCard", label: "PAN Card (Legacy)" },
+  { key: "rentAgreement", label: "Electricity Bill / Rent Agreement (Legacy)" },
 ];
 
-const INTERIOR_LABELS = {
+const FACILITY_LABELS = {
+  cementGodown: "Cement Godown (Moisture-Proof & Raised Plinth)",
+  steelYard: "Steel & Rebar Fabrication Yard",
+  aggregateBins: "Aggregates & Sand Storage Bins",
+  coveredShed: "Covered Tool & Hardware Store Room",
+  fuelChemicalStore: "Fuel, Paint & Chemical Storage Area (Hazardous)",
+  weighbridge: "Weighbridge / Heavy Platform Weighing Scale",
+  materialHandlingEquip: "Material Handling Equipment (Hydra/Forklift/Hoist)",
+  cctvSecurity: "CCTV Surveillance & 24x7 Security Gate",
+  backupGenerator: "Backup Diesel Generator (DG Set) & Power Backup",
+  fireSafetyStation: "Fire Safety Equipment & Hydrant Points",
+  materialTestingLab: "On-site Material QA & Testing Desk",
+  siteOfficeInventory: "Site Office Computer, Printer & Barcode Setup",
+  safetyBarricading: "Perimeter Barricading & Safety Warning Signages",
+  firstAidStation: "First Aid & Emergency Safety Station",
+  // Legacy labels
   ac: "AC",
   refrigerator: "Refrigerator",
   deepFreezer: "Deep Freezer",
@@ -51,25 +71,26 @@ const INTERIOR_LABELS = {
   sealingMachine: "Sealing Machine",
   weighingMachine: "Weighing Machine",
   palletBoard: "Pallet Board",
-  bloombellBundle: "Bloombell Bundle",
-  bumbWell: "Bumb Well",
-  fireExtinguisher: "Fire Extinguisher",
-  ledBoard: "LED Board",
   posMachine: "POS Machine",
-  billingThermalPrinterScanner: "Billing Thermal Printer Scanner",
-  billingCounter: "Billing Counter",
-  shoppingBasket: "Shopping Basket",
-  cart: "Cart",
 };
 
-function interiorItemsForDisplay(items = {}) {
-  return Object.entries(INTERIOR_LABELS)
+const STORE_TYPE_LABELS = {
+  MAIN_SITE_STORE: "Main Project Site Store",
+  CENTRAL_WAREHOUSE: "Central / Regional Materials Yard",
+  STEEL_FABRICATION_YARD: "Steel & Rebar Fabrication Yard",
+  TRANSIT_SUB_STORE: "Transit / Sub-Store",
+  BATCHING_PLANT_STORE: "Batching & Ready-Mix Plant Store",
+  SITE_MATERIAL_SHED: "Covered Material Shed",
+};
+
+function facilityItemsForDisplay(items = {}) {
+  return Object.entries(FACILITY_LABELS)
     .filter(([key]) => items?.[key]?.enabled)
     .map(([key, label]) => {
       const item = items[key] || {};
       return [
         label,
-        `${Number(item.units || 0)} x ${formatMoney(item.amount || 0)} = ${formatMoney(item.total || 0)}`,
+        `${Number(item.units || 1)} unit(s) x ${formatMoney(item.amount || 0)} = ${formatMoney(item.total || (Number(item.units || 1) * Number(item.amount || 0)))}`,
       ];
     });
 }
@@ -95,9 +116,9 @@ export default function StoreDetailsPage() {
         if (res.ok && json.success) {
           setStore(json.data.store);
         } else {
-          setError(json.message || "Unable to load store");
+          setError(json.message || "Unable to load site store");
         }
-      } catch (e) {
+      } catch {
         if (mounted) setError("Network error");
       } finally {
         if (mounted) setLoading(false);
@@ -128,6 +149,12 @@ export default function StoreDetailsPage() {
     }
   };
 
+  const storeTypeDisplay = STORE_TYPE_LABELS[store?.meta?.franchiseType] || store?.meta?.franchiseType || "Main Site Store";
+
+  const presentDocuments = DOCUMENT_FIELDS.filter(
+    (field) => store?.meta?.documents?.[field.key],
+  );
+
   return (
     <MainLayout>
       <div className="flex items-center justify-between mb-4">
@@ -137,22 +164,22 @@ export default function StoreDetailsPage() {
               href="/settings/stores"
               className="text-blue-600 hover:underline"
             >
-              Settings
+              Site Stores
             </Link>{" "}
-            <span className="mx-1">/</span> Store Details
+            <span className="mx-1">/</span> Site Store Details
           </div>
-          <h1 className="text-xl font-bold text-gray-900">Store Details</h1>
+          <h1 className="text-xl font-bold text-gray-900">Site Store Details</h1>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push(`/settings/stores/${params.id}/edit`)}
-            className="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 shadow-sm transition"
           >
-            Edit
+            Edit Site Store
           </button>
           <button
             onClick={() => router.push("/settings/stores")}
-            className="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50"
+            className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50"
           >
             Back
           </button>
@@ -160,143 +187,178 @@ export default function StoreDetailsPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-gray-500">Loading...</p>
+        <p className="text-sm text-gray-500">Loading site store...</p>
       ) : error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       ) : store ? (
         <div className="space-y-5">
-          <section className="rounded-xl border border-green-200 bg-white p-5">
+          <section className="rounded-xl border border-emerald-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold text-green-700">
-                  {store.name}
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Created on{" "}
-                  {formatIndianDateTime(store.created_at, "—")}
+                <div className="flex items-center gap-2">
+                  <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded">
+                    {storeTypeDisplay}
+                  </span>
+                  <h2 className="text-lg font-bold text-emerald-800">
+                    {store.name}
+                  </h2>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Registered on {formatIndianDateTime(store.created_at, "—")}
                 </p>
               </div>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${store.is_active ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
-              >
-                {store.is_active ? "Active" : "Inactive"}
-              </span>
+              <div className="flex items-center gap-3">
+                <div className="text-right text-xs text-gray-600">
+                  <div>Site Code: <strong>{store.meta?.storeCode || store.meta?.shortCode || "—"}</strong></div>
+                  <div>Project: <strong>{store.meta?.projectName || "Standalone"}</strong></div>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${store.is_active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}
+                >
+                  {store.is_active ? "Active" : "Inactive"}
+                </span>
+              </div>
             </div>
           </section>
 
-          <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
-            <h3 className="mb-4 text-[15px] font-semibold text-blue-700">
-              Basic Information
+          <section className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
+            <h3 className="mb-4 text-sm font-bold text-blue-700 uppercase tracking-wide">
+              Site Location & Project Assignment
             </h3>
             <InfoGrid
               items={[
-                ["Store Code", store.meta?.storeCode || store.meta?.shortCode],
-                ["Store Name", store.name],
+                ["Site Store Code", store.meta?.storeCode || store.meta?.shortCode],
+                ["Site Store Name", store.name],
+                ["Associated Project", store.meta?.projectName ? `${store.meta.projectName} (${store.meta?.projectCode || ""})` : "Standalone Site Store"],
+                ["Site Storage Format", storeTypeDisplay],
+                ["Location Type", store.meta?.locationType || "Project Site Store"],
                 ["Address Line 1", store.address_line1],
                 ["Address Line 2", store.address_line2],
-                ["City", store.city],
+                ["City / District", store.city],
                 ["State", store.state],
                 ["Pincode", store.pincode],
                 ["Country", store.country],
-                ["Location Type", store.meta?.locationType],
-                ["Pan Number", store.meta?.panNumber],
+                ["GPS Coordinates", store.meta?.deliveryLatitude && store.meta?.deliveryLongitude ? `${store.meta.deliveryLatitude}, ${store.meta.deliveryLongitude}` : "—"],
+                ["Service / Supply Radius", `${store.meta?.deliveryRadiusKm || 10} km`],
+                ["PAN Number", store.meta?.panNumber],
               ]}
             />
           </section>
 
-          <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
-            <h3 className="mb-4 text-[15px] font-semibold text-blue-700">
-              Store Information
+          <section className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
+            <h3 className="mb-4 text-sm font-bold text-blue-700 uppercase tracking-wide">
+              Site In-Charge & Storage Specifications
             </h3>
             <InfoGrid
               items={[
-                ["Franchise Owner Name", store.manager_name],
-                ["Mobile Number", store.manager_mobile],
-                ["E-mail Address", store.manager_email],
-                ["Opening Time", store.opening_time],
-                ["Closing Time", store.closing_time],
-                ["Users", store.meta?.users],
-                ["Store Capacity", store.meta?.storeCapacity],
+                ["Site In-Charge / Store Keeper", store.manager_name],
+                ["In-Charge Mobile Number", store.manager_mobile],
+                ["In-Charge Email Address", store.manager_email],
+                ["Site Gate Opening Time", store.opening_time],
+                ["Site Gate Closing Time", store.closing_time],
                 [
-                  "Store Area",
+                  "Site Storage Area",
                   store.meta?.storeAreaSqFt
                     ? `${store.meta.storeAreaSqFt} sq ft`
                     : store.meta?.storeArea,
                 ],
-                ["Store Format", store.meta?.storeFormat],
+                ["Storage Category", store.meta?.storeFormat],
                 [
-                  "Cost per sq ft",
+                  "Estimated Cost / sq ft",
                   store.meta?.costPerSqFt
                     ? formatMoney(store.meta.costPerSqFt)
-                    : "",
+                    : "—",
                 ],
                 [
-                  "Total Amount",
+                  "Storage Facility Valuation",
                   store.meta?.totalStoreAmount
                     ? formatMoney(store.meta.totalStoreAmount)
-                    : "",
+                    : "—",
                 ],
-                ["Franchise Type", store.meta?.franchiseType],
                 [
-                  "Interior Grand Total",
+                  "Storage Infrastructure Total",
                   store.meta?.interiorGrandTotal
                     ? formatMoney(store.meta.interiorGrandTotal)
-                    : "",
+                    : "—",
                 ],
                 [
                   "Voucher Validation",
-                  store.meta?.enableVoucherValidation ? "Yes" : "No",
+                  store.meta?.enableVoucherValidation ? "Enabled" : "Disabled",
                 ],
-                ["Automatic Print", store.meta?.automaticPrint ? "Yes" : "No"],
+                ["Auto MRN Print", store.meta?.automaticPrint ? "Enabled" : "Disabled"],
                 [
-                  "Store Stock Alert",
-                  store.meta?.enableStoreStockAlert ? "Yes" : "No",
+                  "Min-Max Stock Alert",
+                  store.meta?.enableStoreStockAlert ? "Enabled" : "Disabled",
                 ],
                 [
-                  "Online Billing Only",
+                  "Direct Site Requisition Only",
                   store.meta?.enableStoreOnlineBillingOnly ? "Yes" : "No",
                 ],
               ]}
             />
           </section>
 
-          <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
-            <h3 className="mb-4 text-[15px] font-semibold text-blue-700">
-              Franchise Documents
-            </h3>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {DOCUMENT_FIELDS.map((field) => {
-                const document = store.meta?.documents?.[field.key];
-                const name = documentName(document);
-                return (
-                  <div
-                    key={field.key}
-                    className="rounded-lg border border-gray-200 bg-white p-4"
-                  >
-                    <div className="text-[12px] font-medium text-gray-500">
-                      {field.label}
-                    </div>
-                    <div className="mt-1 min-h-[1.25rem] break-words text-sm font-semibold text-gray-900">
-                      {name || "-"}
-                    </div>
-                    {name ? (
-                      <button
-                        type="button"
-                        onClick={() => openDocumentPreview(field)}
-                        disabled={previewLoadingKey === field.key}
-                        className="mt-3 text-xs font-semibold text-blue-700 hover:underline disabled:text-gray-400"
-                      >
-                        {previewLoadingKey === field.key
-                          ? "Loading Preview..."
-                          : "Show Preview"}
-                      </button>
-                    ) : null}
-                  </div>
-                );
-              })}
+          <section className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wide">
+                Site Storage Infrastructure & Handling Facilities
+              </h3>
+              <span className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                Equipment Total: {formatMoney(store.meta?.interiorGrandTotal || 0)}
+              </span>
             </div>
+            <InfoGrid
+              items={
+                facilityItemsForDisplay(store.meta?.interiorItems).length
+                  ? facilityItemsForDisplay(store.meta?.interiorItems)
+                  : [["Configured Facilities", "No special infrastructure/facilities recorded"]]
+              }
+            />
+          </section>
+
+          <section className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
+            <h3 className="mb-4 text-sm font-bold text-blue-700 uppercase tracking-wide">
+              Site & Project Documents
+            </h3>
+            {presentDocuments.length > 0 ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {presentDocuments.map((field) => {
+                  const document = store.meta?.documents?.[field.key];
+                  const name = documentName(document);
+                  return (
+                    <div
+                      key={field.key}
+                      className="rounded-lg border border-gray-200 bg-white p-4"
+                    >
+                      <div className="text-[12px] font-medium text-gray-500">
+                        {field.label}
+                      </div>
+                      <div className="mt-1 min-h-[1.25rem] break-words text-sm font-semibold text-gray-900">
+                        {name || "-"}
+                      </div>
+                      {name ? (
+                        <button
+                          type="button"
+                          onClick={() => openDocumentPreview(field)}
+                          disabled={previewLoadingKey === field.key}
+                          className="mt-3 text-xs font-semibold text-blue-700 hover:underline disabled:text-gray-400"
+                        >
+                          {previewLoadingKey === field.key
+                            ? "Loading Preview..."
+                            : "👁 Show Document"}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 italic bg-white p-4 rounded-lg border border-gray-200">
+                No site layout or project sanction documents uploaded.
+              </p>
+            )}
             {previewError ? (
               <p className="mt-3 text-sm font-medium text-red-600">
                 {previewError}
@@ -304,75 +366,26 @@ export default function StoreDetailsPage() {
             ) : null}
           </section>
 
-          <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-[15px] font-semibold text-blue-700">
-                Interior
-              </h3>
-              <span className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-                Grand Total: {formatMoney(store.meta?.interiorGrandTotal || 0)}
-              </span>
-            </div>
-            <InfoGrid
-              items={
-                interiorItemsForDisplay(store.meta?.interiorItems).length
-                  ? interiorItemsForDisplay(store.meta?.interiorItems)
-                  : [["Selected Items", "No interior items selected"]]
-              }
-            />
-          </section>
-
-          <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
-            <h3 className="mb-4 text-[15px] font-semibold text-blue-700">
-              Receipt Settings
+          <section className="rounded-xl border border-gray-200 bg-gray-50/50 p-5">
+            <h3 className="mb-4 text-sm font-bold text-blue-700 uppercase tracking-wide">
+              Tax, GST & Material Requisition Prefixes
             </h3>
             <InfoGrid
               items={[
+                ["GST Number", store.meta?.gstNumber],
+                ["PAN Number", store.meta?.panNumber],
                 ["CIN", store.meta?.cin],
                 ["TIN", store.meta?.tin],
-                ["Service Tax Number", store.meta?.serviceTaxNumber],
-                ["GST Number", store.meta?.gstNumber],
-                [
-                  "Customer GST Order Prefix",
-                  store.meta?.customerGstOrderPrefix,
-                ],
-                ["FSSAI License Number", store.meta?.fssaiLicenseNumber],
-                ["Tax Information", store.meta?.taxInformation],
-              ]}
-            />
-          </section>
-
-          <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
-            <h3 className="mb-4 text-[15px] font-semibold text-blue-700">
-              Custom Order Prefix
-            </h3>
-            <InfoGrid
-              items={[
-                [
-                  "Custom Store Order Prefix",
-                  store.meta?.customStoreOrderPrefix,
-                ],
-                [
-                  "Refund Custom Store Order Prefix",
-                  store.meta?.refundCustomStoreOrderPrefix,
-                ],
-                [
-                  "NC Custom Store Order Prefix",
-                  store.meta?.ncCustomStoreOrderPrefix,
-                ],
-                [
-                  "NC Refund Custom Store Order Prefix",
-                  store.meta?.ncRefundCustomStoreOrderPrefix,
-                ],
-                [
-                  "RWI Custom Store Order Prefix",
-                  store.meta?.rwiCustomStoreOrderPrefix,
-                ],
+                ["MRN (Receipt) Prefix", store.meta?.customStoreOrderPrefix || "MRN"],
+                ["MIN (Issue) Prefix", store.meta?.ncCustomStoreOrderPrefix || "MIN"],
+                ["STR (Transfer) Prefix", store.meta?.rwiCustomStoreOrderPrefix || "STR"],
+                ["Tax Rule Information", store.meta?.taxInformation],
               ]}
             />
           </section>
         </div>
       ) : null}
+
       {previewDocument?.dataUrl ? (
         <DocumentPreviewModal
           label={previewLabel}
@@ -394,29 +407,29 @@ function DocumentPreviewModal({ label, document, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-4xl overflow-hidden rounded-lg bg-white shadow-2xl"
+        className="w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+        <div className="flex items-center justify-between gap-3 border-b px-4 py-3 bg-gray-50">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-bold text-gray-900">
-              {label} Preview
+              {label}
             </h3>
             <p className="truncate text-xs text-gray-500">{document.name}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
           >
-            Hide Preview
+            Close
           </button>
         </div>
-        <div className="h-[70vh] bg-gray-50 p-3">
+        <div className="h-[70vh] bg-gray-100 p-3">
           {isImage ? (
             <img
               src={document.dataUrl}

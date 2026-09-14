@@ -72,7 +72,7 @@ function formatReceiptDateTime(value) {
 }
 
 const DEFAULT_RECEIPT_CONFIG = {
-  businessName: "Buyzaar Sync",
+  businessName: "Ascent Sync",
   subtitle: "Return Product Receipt",
   headerText: "",
   footerText: "Thank you. Visit again.",

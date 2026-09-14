@@ -33,7 +33,7 @@ export async function GET() {
        FROM permissions p
        LEFT JOIN employees e ON e.permissions @> jsonb_build_array(p.permission_name)
        GROUP BY p.id, p.permission_for_org, p.permission_for_interface, p.permission_name, p.display_name, p.description, p.created_at
-       ORDER BY p.created_at DESC, p.id DESC`
+       ORDER BY p.permission_name ASC`
     );
 
     return NextResponse.json(res.rows.map(mapPermissionRow));

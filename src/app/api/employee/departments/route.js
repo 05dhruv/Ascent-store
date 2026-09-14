@@ -131,7 +131,7 @@ export async function DELETE(request) {
     await ensureEmployeeDepartmentsSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_USERS');
+    const permissionCheck = requirePermission(auth.user, 'TEAM_MANAGE');
     if (permissionCheck.error) return permissionCheck.error;
 
     const url = new URL(request.url);

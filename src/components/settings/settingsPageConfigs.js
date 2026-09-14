@@ -14,8 +14,8 @@ const paymentModeOptions = [
 export const settingsPageConfigs = {
   businessInfo: {
     type: 'business-info',
-    title: 'Business Info',
-    description: 'Manage legal name, GSTIN, logo, contact, and registration details.',
+    title: 'Company Profile',
+    description: 'Manage company legal name, GSTIN, logo, office contact and registration details.',
     fields: [
       { key: 'legalName', label: 'Legal Name' },
       { key: 'gstin', label: 'GSTIN' },
@@ -26,13 +26,13 @@ export const settingsPageConfigs = {
   },
   appSettings: {
     type: 'app-settings',
-    title: 'App Settings',
-    description: 'Configure app-level defaults and operational preferences.',
+    title: 'Platform Settings',
+    description: 'Configure construction workflow defaults, notifications and operational preferences.',
     fields: [
       { key: 'timezone', label: 'Timezone', defaultValue: 'Asia/Kolkata' },
       { key: 'currency', label: 'Currency', defaultValue: 'INR' },
       { key: 'dateFormat', label: 'Date Format', defaultValue: 'DD/MM/YY' },
-      { key: 'allowOfflineBilling', label: 'Allow Offline Billing', type: 'checkbox', defaultValue: true },
+      { key: 'allowOfflineBilling', label: 'Allow Offline Field Entries', type: 'checkbox', defaultValue: true },
     ],
   },
   chainAttributes: {
@@ -59,8 +59,8 @@ export const settingsPageConfigs = {
   },
   customizeReceiptPrint: {
     type: 'customize-receipt-print',
-    title: 'Customize Receipt Print',
-    description: 'Customize receipt header, footer, copies, and print sections.',
+    title: 'GRN & Transfer Print Layout',
+    description: 'Customize GRN, site transfer and material issue document header, footer, copies and print sections.',
     fields: [
       { key: 'headerText', label: 'Header Text', type: 'textarea' },
       { key: 'footerText', label: 'Footer Text', type: 'textarea' },
@@ -94,18 +94,18 @@ export const settingsPageConfigs = {
   },
   billingRemarks: {
     type: 'billing-remarks',
-    title: 'Remarks Settings',
-    description: 'Create reusable billing, return, and order remarks.',
+    title: 'Material Movement Reasons',
+    description: 'Create reusable reasons for material issue, return, damage, shortage and stock adjustment.',
     fields: [
-      { key: 'remarkType', label: 'Remark Type', type: 'select', options: [{ label: 'Billing', value: 'billing' }, { label: 'Return', value: 'return' }, { label: 'Order', value: 'order' }] },
-      { key: 'remarkText', label: 'Remark Text', type: 'textarea' },
+      { key: 'remarkType', label: 'Movement Type', type: 'select', options: [{ label: 'Material Issue', value: 'issue' }, { label: 'Material Return', value: 'return' }, { label: 'Damage / Shortage', value: 'discrepancy' }, { label: 'Stock Adjustment', value: 'adjustment' }] },
+      { key: 'remarkText', label: 'Reason / Remarks', type: 'textarea' },
       { key: 'requiresApproval', label: 'Requires Approval', type: 'checkbox' },
     ],
   },
   systemAttributes: {
     type: 'system-attributes',
-    title: 'System Attributes',
-    description: 'Maintain shared system attributes used across modules.',
+    title: 'Material Master Fields',
+    description: 'Maintain standard attributes used for construction materials and specifications.',
     fields: [
       { key: 'attributeGroup', label: 'Attribute Group' },
       { key: 'dataType', label: 'Data Type', type: 'select', options: [{ label: 'Text', value: 'text' }, { label: 'Number', value: 'number' }, { label: 'Boolean', value: 'boolean' }, { label: 'Date', value: 'date' }] },
@@ -115,10 +115,10 @@ export const settingsPageConfigs = {
   },
   customAttributes: {
     type: 'custom-attributes',
-    title: 'Custom Attributes',
-    description: 'Configure custom attributes for records and workflows.',
+    title: 'Custom Material Fields',
+    description: 'Configure custom fields for material specifications and construction workflows.',
     fields: [
-      { key: 'module', label: 'Module' },
+      { key: 'module', label: 'Applies To (Material / Site / Transfer)' },
       { key: 'fieldType', label: 'Field Type', type: 'select', options: [{ label: 'Text', value: 'text' }, { label: 'Number', value: 'number' }, { label: 'Dropdown', value: 'dropdown' }, { label: 'Date', value: 'date' }] },
       { key: 'options', label: 'Dropdown Options', type: 'textarea' },
       { key: 'required', label: 'Required', type: 'checkbox' },
@@ -209,8 +209,8 @@ export const settingsPageConfigs = {
   },
   measurementUnit: {
     type: 'measurement-unit',
-    title: 'Measurement Unit',
-    description: 'Maintain inventory units of measurement.',
+    title: 'Construction Measurement Units',
+    description: 'Maintain units such as bag, kg, MT, CUM, sqm, metre, litre and nos.',
     fields: [
       { key: 'symbol', label: 'Symbol' },
       { key: 'unitType', label: 'Unit Type', type: 'select', options: [{ label: 'Count', value: 'count' }, { label: 'Weight', value: 'weight' }, { label: 'Volume', value: 'volume' }, { label: 'Length', value: 'length' }] },
@@ -220,8 +220,8 @@ export const settingsPageConfigs = {
   },
   inventorySystemAttributes: {
     type: 'inventory-system-attributes',
-    title: 'Inventory System Attributes',
-    description: 'Configure system inventory attributes and defaults.',
+    title: 'Stock Tracking Fields',
+    description: 'Configure batch, serial, quality, condition and stock-control defaults.',
     fields: [
       { key: 'attributeGroup', label: 'Attribute Group' },
       { key: 'trackingMode', label: 'Tracking Mode' },
@@ -231,8 +231,8 @@ export const settingsPageConfigs = {
   },
   inventoryCustomAttributes: {
     type: 'inventory-custom-attributes',
-    title: 'Inventory Custom Attributes',
-    description: 'Create custom inventory fields for stock operations.',
+    title: 'Custom Stock Fields',
+    description: 'Create custom inspection and validation fields for site stock operations.',
     fields: [
       { key: 'appliesTo', label: 'Applies To' },
       { key: 'fieldType', label: 'Field Type' },
@@ -242,32 +242,32 @@ export const settingsPageConfigs = {
   },
   applicationDeviceSettings: {
     type: 'application-device-settings',
-    title: 'Application Device Settings',
-    description: 'Configure device-level application behavior.',
+    title: 'Mobile & Scanner Settings',
+    description: 'Configure mobile, barcode scanner and offline field-entry behaviour.',
     storeScoped: true,
     fields: [
       { key: 'deviceType', label: 'Device Type' },
       { key: 'syncInterval', label: 'Sync Interval Minutes', type: 'number' },
       { key: 'allowOffline', label: 'Allow Offline', type: 'checkbox', defaultValue: true },
-      { key: 'printerRequired', label: 'Printer Required', type: 'checkbox' },
+      { key: 'printerRequired', label: 'Document Printer Required', type: 'checkbox' },
     ],
   },
   storeDeviceMap: {
     type: 'store-device-map',
-    title: 'Store Device Map',
-    description: 'Map devices to stores and counters.',
+    title: 'Device Assignment',
+    description: 'Map a device to a warehouse or site store.',
     storeScoped: true,
     fields: [
       { key: 'deviceId', label: 'Device ID' },
       { key: 'deviceName', label: 'Device Name' },
-      { key: 'counterName', label: 'Counter Name' },
+      { key: 'counterName', label: 'Warehouse / Site Store' },
       { key: 'isPrimary', label: 'Primary Device', type: 'checkbox' },
     ],
   },
   deviceDataSync: {
     type: 'device-data-sync',
-    title: 'Device Data Sync',
-    description: 'Configure sync jobs and data sync preferences.',
+    title: 'Data Sync Controls',
+    description: 'Configure sync jobs and preferences for warehouse and field devices.',
     storeScoped: true,
     fields: [
       { key: 'syncType', label: 'Sync Type' },
@@ -278,8 +278,8 @@ export const settingsPageConfigs = {
   },
   deviceSyncLogs: {
     type: 'device-sync-logs',
-    title: 'Device Sync Logs',
-    description: 'Record device sync log markers and notes.',
+    title: 'Sync Activity Log',
+    description: 'Review device sync status, failures and field notes.',
     storeScoped: true,
     fields: [
       { key: 'deviceId', label: 'Device ID' },
@@ -296,7 +296,7 @@ export function getSettingPageConfig(key) {
     ...config,
     breadcrumbs: [
       { label: 'Home', href: '/home' },
-      { label: 'Settings', href: '/settings' },
+      { label: 'Construction Settings', href: '/settings' },
       { label: config.title },
     ],
   };

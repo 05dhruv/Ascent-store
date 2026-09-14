@@ -105,7 +105,7 @@ export async function GET(request, { params }) {
   try {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, "MANAGE_CATALOG");
+    const permissionCheck = requirePermission(auth.user, "MATERIAL_VIEW", "MATERIAL_EDIT");
     if (permissionCheck.error) return permissionCheck.error;
     const resolvedParams = await params;
     const productId = Number(resolvedParams?.id);
@@ -219,7 +219,7 @@ export async function PUT(request, { params }) {
     await ensureProductImageSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, "MANAGE_CATALOG");
+    const permissionCheck = requirePermission(auth.user, "MATERIAL_EDIT");
     if (permissionCheck.error) return permissionCheck.error;
     const resolvedParams = await params;
     const productId = Number(resolvedParams?.id);
@@ -363,7 +363,7 @@ export async function DELETE(request, { params }) {
     await ensureProductImageSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, "MANAGE_CATALOG");
+    const permissionCheck = requirePermission(auth.user, "MATERIAL_EDIT");
     if (permissionCheck.error) return permissionCheck.error;
 
     const resolvedParams = await params;

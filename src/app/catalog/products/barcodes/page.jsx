@@ -120,7 +120,7 @@ const BARCODE_IMAGE_WIDTH_MM = 40;
 const BARCODE_IMAGE_HEIGHT_MM = 7.4;
 const BARCODE_PRINTER_DPI = 203;
 const BARCODE_DOTS_PER_MM = BARCODE_PRINTER_DPI / 25.4;
-const DEFAULT_LABEL_STORE_NAME = "The Buyzaar Mart";
+const DEFAULT_LABEL_STORE_NAME = "Ascent Sync";
 const DEFAULT_LABEL_FSSAI_NO = "22725925002074";
 
 function mmToDots(value) {
@@ -1103,7 +1103,7 @@ export default function ProductBarcodePrintPage() {
           <button
             onClick={printLabels}
             disabled={!resolvedProducts.length || printing}
-            className="rounded-lg bg-red-700 px-5 py-2.5 font-semibold text-white disabled:opacity-50"
+            className="rounded-lg bg-orange-600 px-5 py-2.5 font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
           >
             {printing ? "Printing..." : "Direct Print"}
           </button>
@@ -1206,7 +1206,7 @@ export default function ProductBarcodePrintPage() {
                 type="button"
                 disabled={hasPendingExpirySelection}
                 onClick={() => setExpiryModalOpen(false)}
-                className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50"
               >
                 Apply
               </button>

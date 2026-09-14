@@ -87,41 +87,48 @@ export default function InventoryShell({
         ))}
       </div>
 
-      <div className={`${compactMobile ? 'mb-3 gap-2 rounded-2xl p-3 sm:mb-5 sm:gap-4 sm:rounded-3xl sm:p-5' : 'mb-5 gap-4 rounded-3xl p-4 sm:p-5'} flex flex-col items-start justify-between border border-slate-200 bg-white/85 shadow-[0_1px_12px_rgba(15,23,42,0.04)] md:flex-row`}>
-        <div className="min-w-0">
-          <h1 className={`${compactMobile ? 'text-[19px] sm:text-[28px]' : 'text-[24px] sm:text-[28px]'} font-black leading-tight tracking-tight text-slate-900`}>{title}</h1>
-          <p className={`${compactMobile ? 'mt-0.5 text-[11px] sm:mt-1 sm:text-[12.5px]' : 'mt-1 text-[12.5px]'} text-slate-400`}>{subtitle}</p>
-        </div>
-
-        {actions.length > 0 && (
-          <div className="flex w-full flex-wrap items-center gap-3 md:w-auto md:flex-shrink-0">
-            {actions.map((action, index) => {
-              const className = `flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-medium transition-colors sm:flex-none ${
-                  index === actions.length - 1 && action.primary
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                    : 'border border-indigo-200 text-indigo-600 hover:bg-indigo-50'
-                }`;
-              if (action.href) {
-                return (
-                  <Link key={action.label} href={action.href} className={className}>
-                    {action.label}
-                  </Link>
-                );
-              }
-              return (
-                <button
-                  key={action.label}
-                  type={action.type || 'button'}
-                  onClick={action.onClick}
-                  disabled={Boolean(action.disabled)}
-                  className={`${className} disabled:cursor-not-allowed disabled:opacity-50`}
-                >
-                  {action.label}
-                </button>
-              );
-            })}
+      <div className={`${compactMobile ? 'mb-3 rounded-2xl p-3 sm:mb-4 sm:rounded-2xl sm:p-4' : 'mb-5 rounded-2xl p-4 sm:p-5'} border border-slate-200/90 bg-white shadow-sm`}>
+        <div className="flex flex-col gap-3">
+          <div className="min-w-0">
+            <h1 className={`${compactMobile ? 'text-[17px] sm:text-[20px]' : 'text-[20px] sm:text-[24px]'} font-bold leading-tight tracking-tight text-slate-900`}>{title}</h1>
+            {subtitle && (
+              <p className={`${compactMobile ? 'mt-0.5 text-[11px] sm:text-[12px]' : 'mt-1 text-[13px]'} text-slate-500 leading-normal`}>{subtitle}</p>
+            )}
           </div>
-        )}
+
+          {actions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+              {actions.map((action, index) => {
+                const isPrimary = action.primary !== undefined ? Boolean(action.primary) : (index === actions.length - 1 && action.primary !== false);
+                const className = `inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[12.5px] font-medium transition-all duration-150 ${
+                  isPrimary
+                    ? 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm active:scale-[0.99]'
+                    : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 shadow-sm active:scale-[0.99]'
+                }`;
+                if (action.href) {
+                  return (
+                    <Link key={action.label} href={action.href} className={className}>
+                      {action.icon && <i className={action.icon} />}
+                      <span>{action.label}</span>
+                    </Link>
+                  );
+                }
+                return (
+                  <button
+                    key={action.label}
+                    type={action.type || 'button'}
+                    onClick={action.onClick}
+                    disabled={Boolean(action.disabled)}
+                    className={`${className} disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {action.icon && <i className={action.icon} />}
+                    <span>{action.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {stats.length > 0 && (

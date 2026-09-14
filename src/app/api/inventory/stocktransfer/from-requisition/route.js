@@ -19,7 +19,7 @@ export async function POST(request) {
 
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_INVENTORY');
+    const permissionCheck = requirePermission(auth.user, 'TRANSFER_CREATE');
     if (permissionCheck.error) return permissionCheck.error;
 
     const body = await request.json().catch(() => ({}));

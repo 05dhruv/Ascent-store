@@ -170,9 +170,6 @@ export async function PUT(request, { params }) {
     if (managerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(managerEmail)) {
       return errorResponse("Enter a valid e-mail address", 422);
     }
-    if (!isMinimalStore && !String(body.gstNumber || "").trim()) {
-      return errorResponse("GST number is required", 422);
-    }
 
     const existing = await query(
       "SELECT meta FROM stores WHERE id = $1 LIMIT 1",
@@ -211,9 +208,6 @@ export async function PUT(request, { params }) {
 
     const meta = mergeStoreMeta(existing.rows[0].meta, body);
     const storeCode = getStoreCode(meta);
-    if (!isMinimalStore && !storeCode) {
-      return errorResponse("Store code is required", 422);
-    }
     if (storeCode) {
       const duplicateQuery = buildStoreCodeDuplicateQuery(storeCode, storeId);
       const duplicate = await query(duplicateQuery.sql, duplicateQuery.params);
@@ -262,7 +256,27 @@ export async function PUT(request, { params }) {
       return notFoundError("Store not found");
     }
 
-    return successResponse({ store: update.rows[0] }, "Store updated");
+    const updatedStore = update.rows[0];
+
+    const projectId = Number(body.projectId || meta.projectId);
+    if (projectId) {
+      try {
+        const { ensureConstructionSchema } = await import("@/lib/constructionSchema");
+        await ensureConstructionSchema();
+        const siteCode = String(storeCode || `SITE-${storeId}`).trim().toUpperCase();
+        await query(
+          `INSERT INTO construction_sites (project_id, site_code, name, address, store_id, status)
+           VALUES ($1, $2, $3, $4, $5, 'active')
+           ON CONFLICT (project_id, site_code) 
+           DO UPDATE SET store_id = EXCLUDED.store_id, name = EXCLUDED.name, address = EXCLUDED.address, updated_at = NOW()`,
+          [projectId, siteCode, name, addressLine1, storeId]
+        );
+      } catch (siteErr) {
+        console.error("[stores PUT link construction site]", siteErr);
+      }
+    }
+
+    return successResponse({ store: updatedStore }, "Store updated");
   } catch (err) {
     return errorResponse(err.message || "Unable to update store");
   }

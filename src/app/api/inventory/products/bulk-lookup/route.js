@@ -24,19 +24,24 @@ function toQty(value) {
 }
 
 function cleanValues(values, compact = false) {
-  return Array.from(
-    new Set(
-      (Array.isArray(values) ? values : [])
-        .map((value) =>
-          String(value || "")
-            .trim()
-            .replace(/^'+/, "")
-            .toLowerCase(),
-        )
-        .map((value) => (compact ? value.replace(/[^a-z0-9]+/g, "") : value))
-        .filter(Boolean),
-    ),
-  ).slice(0, 10000);
+  const result = new Set();
+  for (const value of Array.isArray(values) ? values : []) {
+    const raw = String(value || "")
+      .trim()
+      .replace(/^'+/, "")
+      .toLowerCase();
+    if (!raw) continue;
+    const cleaned = compact ? raw.replace(/[^a-z0-9]+/g, "") : raw;
+    if (cleaned) result.add(cleaned);
+
+    const digitsOnly = raw.replace(/\D/g, "");
+    if (digitsOnly) {
+      result.add(digitsOnly);
+      result.add(digitsOnly.replace(/0+/g, "0"));
+      result.add(digitsOnly.replace(/^0+/, ""));
+    }
+  }
+  return Array.from(result).slice(0, 10000);
 }
 
 async function reconcileMissingStockInBatches(storeId, barcodes, skus, names) {
@@ -45,8 +50,13 @@ async function reconcileMissingStockInBatches(storeId, barcodes, skus, names) {
        SELECT p.id
        FROM products p
        WHERE LOWER(TRIM(REGEXP_REPLACE(COALESCE(p.barcode, ''), '^''+', ''))) = ANY($2::text[])
+          OR REGEXP_REPLACE(LOWER(TRIM(COALESCE(p.barcode, ''))), '[^a-z0-9]+', '', 'g') = ANY($2::text[])
+          OR REGEXP_REPLACE(LOWER(TRIM(COALESCE(p.barcode, ''))), '0+', '0', 'g') = ANY($2::text[])
+          OR LTRIM(REGEXP_REPLACE(COALESCE(p.barcode, ''), '[^0-9]+', '', 'g'), '0') = ANY($2::text[])
           OR LOWER(TRIM(REGEXP_REPLACE(COALESCE(p.sku, ''), '^''+', ''))) = ANY($3::text[])
+          OR REGEXP_REPLACE(LOWER(TRIM(COALESCE(p.sku, ''))), '[^a-z0-9]+', '', 'g') = ANY($3::text[])
           OR LOWER(REGEXP_REPLACE(COALESCE(p.name, ''), '[^a-zA-Z0-9]+', '', 'g')) = ANY($4::text[])
+          OR LOWER(TRIM(p.name)) = ANY($4::text[])
      ), missing_items AS (
        SELECT sii.id AS stock_in_item_id, sii.stock_in_id, sii.product_id,
               si.destination_id AS store_id,
@@ -339,8 +349,13 @@ export async function POST(request) {
          SELECT p.*
          FROM products p
          WHERE LOWER(TRIM(REGEXP_REPLACE(COALESCE(p.barcode, ''), '^''+', ''))) = ANY($2::text[])
+            OR REGEXP_REPLACE(LOWER(TRIM(COALESCE(p.barcode, ''))), '[^a-z0-9]+', '', 'g') = ANY($2::text[])
+            OR REGEXP_REPLACE(LOWER(TRIM(COALESCE(p.barcode, ''))), '0+', '0', 'g') = ANY($2::text[])
+            OR LTRIM(REGEXP_REPLACE(COALESCE(p.barcode, ''), '[^0-9]+', '', 'g'), '0') = ANY($2::text[])
             OR LOWER(TRIM(REGEXP_REPLACE(COALESCE(p.sku, ''), '^''+', ''))) = ANY($3::text[])
+            OR REGEXP_REPLACE(LOWER(TRIM(COALESCE(p.sku, ''))), '[^a-z0-9]+', '', 'g') = ANY($3::text[])
             OR LOWER(REGEXP_REPLACE(COALESCE(p.name, ''), '[^a-zA-Z0-9]+', '', 'g')) = ANY($4::text[])
+            OR LOWER(TRIM(p.name)) = ANY($4::text[])
        ), stock AS (
          SELECT ib.product_id,
                 SUM(ib.available_qty) AS available_qty,
@@ -375,8 +390,13 @@ export async function POST(request) {
          SELECT p.id, p.name, COALESCE(p.sku, '') AS sku, COALESCE(p.barcode, '') AS barcode
          FROM products p
          WHERE LOWER(TRIM(REGEXP_REPLACE(COALESCE(p.barcode, ''), '^''+', ''))) = ANY($2::text[])
+            OR REGEXP_REPLACE(LOWER(TRIM(COALESCE(p.barcode, ''))), '[^a-z0-9]+', '', 'g') = ANY($2::text[])
+            OR REGEXP_REPLACE(LOWER(TRIM(COALESCE(p.barcode, ''))), '0+', '0', 'g') = ANY($2::text[])
+            OR LTRIM(REGEXP_REPLACE(COALESCE(p.barcode, ''), '[^0-9]+', '', 'g'), '0') = ANY($2::text[])
             OR LOWER(TRIM(REGEXP_REPLACE(COALESCE(p.sku, ''), '^''+', ''))) = ANY($3::text[])
+            OR REGEXP_REPLACE(LOWER(TRIM(COALESCE(p.sku, ''))), '[^a-z0-9]+', '', 'g') = ANY($3::text[])
             OR LOWER(REGEXP_REPLACE(COALESCE(p.name, ''), '[^a-zA-Z0-9]+', '', 'g')) = ANY($4::text[])
+            OR LOWER(TRIM(p.name)) = ANY($4::text[])
        )
        SELECT DISTINCT ON (mp.id)
               mp.id AS product_id, mp.name, mp.sku, mp.barcode,

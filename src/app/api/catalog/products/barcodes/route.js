@@ -19,8 +19,8 @@ export async function POST(request) {
 
     const permissionCheck = requirePermission(
       auth.user,
-      "VIEW_CATALOG",
-      "MANAGE_CATALOG",
+      "MATERIAL_VIEW",
+      "MATERIAL_EDIT",
     );
     if (permissionCheck.error) return permissionCheck.error;
 

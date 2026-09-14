@@ -152,10 +152,10 @@ export async function GET(request) {
 
     const permissionCheck = requirePermission(
       auth.user,
-      "VIEW_CATALOG",
-      "MANAGE_CATALOG",
-      "MANAGE_STOCK_REQUISITION",
-      "CREATE_STORE_PURCHASE_ORDER",
+      "MATERIAL_VIEW",
+      "MATERIAL_CREATE",
+      "MATERIAL_EDIT",
+      "MATERIAL_IMPORT",
     );
     if (permissionCheck.error) return permissionCheck.error;
 
@@ -195,7 +195,7 @@ export async function GET(request) {
     const storeCostOnly =
       auth.user.permissions?.includes("CREATE_STORE_PURCHASE_ORDER") &&
       !auth.user.permissions?.some((permission) =>
-        ["VIEW_CATALOG", "MANAGE_CATALOG", "*"].includes(permission),
+        ["MATERIAL_VIEW", "MATERIAL_CREATE", "MATERIAL_EDIT", "MATERIAL_IMPORT", "*"].includes(permission),
       );
     if (storeCostOnly && !requestedStoreId && !allAssignedStores) {
       return errorResponse(
@@ -425,7 +425,7 @@ export async function POST(request) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, "MANAGE_CATALOG");
+    const permissionCheck = requirePermission(auth.user, "MATERIAL_CREATE");
     if (permissionCheck.error) return permissionCheck.error;
 
     const body = await request.json();

@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import CatalogDataPage from "@/components/CatalogDataPage";
-import SearchableMultiSelect from "@/components/SearchableMultiSelect";
 import SearchableSelect from "@/components/SearchableSelect";
 import { useUser } from "@/hooks/useUser";
 import { fetchAllCatalogProducts } from "@/lib/productPagination";
 import {
   OPTIONS_SHEET_NAME,
   addOptionNamedRanges,
+  applyTextFormatToColumns,
   buildOptionsSheet,
   hideOptionsSheet,
   optionFormula,
@@ -41,13 +41,22 @@ const INVENTORY_METHOD_OPTIONS = ["direct", "indirect"];
 const STOCK_ITEM_TYPE_OPTIONS = ["unbatched", "batched"];
 // This is a UI-only value. It is deliberately never sent as a store ID.
 const ALL_ASSIGNED_STORES_VALUE = "__all_assigned_stores__";
-const ASCENT_TEMPLATE_HEADERS = [
+const MATERIAL_MASTER_TEMPLATE_HEADERS = [
+  "Material Code",
   "Material Name",
-  "Opening Quantity",
-  "Estimated Rate / Unit",
-  "Opening Material Value",
-  "Unit of Measure",
   "Specification / Grade",
+  "Category",
+  "Make / Brand",
+  "Manufacturer",
+  "HSN / SAC Code",
+  "Unit of Measure",
+  "Estimated Purchase Rate",
+  "Reference Rate",
+  "Issue Rate",
+  "Reorder Level",
+  "Barcode / QR",
+  "Supplier / Internal SKU",
+  "Remarks",
 ];
 const BULK_EDIT_HEADERS = [
   "Product ID",
@@ -96,12 +105,12 @@ const bulkFieldLabels = {
   brand_id: "Brand",
   department_id: "Department",
   tax_id: "Tax",
-  mrp: "MRP",
-  selling_price: "Selling Price",
-  cost_price: "Cost Price",
+  mrp: "Reference Rate",
+  selling_price: "Issue Rate",
+  cost_price: "Estimated Purchase Rate",
   unit: "Unit",
   is_active: "Status",
-  allow_discount_on_pos: "Allow Discount On POS",
+  allow_discount_on_pos: "Require Rate Approval",
   include_tax: "Price Includes Tax",
   inventory_method: "Inventory Method",
   stock_item_type: "Stock Item Type",
@@ -235,7 +244,6 @@ export default function ProductsPage() {
       setStoreId(assignedStoreIds[0]);
     }
   }, [assignedStoreIds, isStoreRestricted, storeId, userLoading]);
-  const [templateWarehouseOpen, setTemplateWarehouseOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [bulkEditSaving, setBulkEditSaving] = useState(false);
   const [bulkEditIds, setBulkEditIds] = useState([]);
@@ -243,13 +251,12 @@ export default function ProductsPage() {
   const [bulkEditFields, setBulkEditFields] = useState({});
   const [bulkActionContext, setBulkActionContext] = useState(null);
   const [bulkSheetOpen, setBulkSheetOpen] = useState(false);
+  const [bulkSheetMode, setBulkSheetMode] = useState("update");
   const [bulkSheetBusy, setBulkSheetBusy] = useState(false);
-  const [bulkSheetBrandIds, setBulkSheetBrandIds] = useState([]);
   const [bulkSheetRows, setBulkSheetRows] = useState([]);
   const [bulkSheetPreview, setBulkSheetPreview] = useState(null);
   const [bulkSheetNotice, setBulkSheetNotice] = useState(null);
   const bulkSheetFileRef = useRef(null);
-  const defaultTemplateDownloadRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -309,7 +316,7 @@ export default function ProductsPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">Store</label>
+          <label className="mb-1 block text-xs font-medium text-gray-600">Site Store</label>
           <SearchableSelect
             value={storeId}
             onChange={(value) => {
@@ -317,19 +324,19 @@ export default function ProductsPage() {
               setStoreId(value);
             }}
             placeholder={isStoreRestricted ? "Select assigned store" : "ALL"}
-            searchPlaceholder="Search store..."
+            searchPlaceholder="Search site store..."
             options={storeOptions}
           />
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-600">
-            Department
+            Material Group
           </label>
           <SearchableSelect
             value={departmentId}
             onChange={setDepartmentId}
             placeholder="ALL"
-            searchPlaceholder="Search department..."
+            searchPlaceholder="Search material group..."
             options={departments.map((item) => ({
               value: item.id,
               label: item.name,
@@ -338,13 +345,13 @@ export default function ProductsPage() {
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-600">
-            Brand
+            Make / Brand
           </label>
           <SearchableSelect
             value={brandId}
             onChange={setBrandId}
             placeholder="ALL"
-            searchPlaceholder="Search brand..."
+            searchPlaceholder="Search make..."
             options={brands.map((item) => ({
               value: item.id,
               label: item.name,
@@ -388,11 +395,20 @@ export default function ProductsPage() {
     setBulkEditFields({});
   };
 
-  const openBulkEdit = ({ selectedIds, showToast, refresh }) => {
-    setBulkEditIds(selectedIds);
+  const openBulkEdit = ({ showToast, refresh } = {}) => {
+    setBulkEditIds([]);
     setBulkActionContext({ showToast, refresh });
+    setBulkSheetMode("update");
     setBulkSheetOpen(true);
-    setBulkSheetBrandIds([]);
+    setBulkSheetRows([]);
+    setBulkSheetPreview(null);
+    setBulkSheetNotice(null);
+  };
+
+  const openMaterialCreateImport = ({ showToast, refresh } = {}) => {
+    setBulkActionContext({ showToast, refresh });
+    setBulkSheetMode("create");
+    setBulkSheetOpen(true);
     setBulkSheetRows([]);
     setBulkSheetPreview(null);
     setBulkSheetNotice(null);
@@ -424,60 +440,112 @@ export default function ProductsPage() {
     "Stock Item Type": product.stock_item_type || "unbatched",
   });
 
-  const selectedWarehouse = warehouses.find(
-    (warehouse) => String(warehouse.id) === String(warehouseId),
-  );
-  const isAscentWarehouse = !!selectedWarehouse?.isAscent;
+  const isMaterialCreateMode = bulkSheetMode === "create";
 
-  const downloadAscentTemplate = async (targetWarehouseId = warehouseId) => {
-    if (!targetWarehouseId) {
-      bulkActionContext?.showToast?.("Select Ascent warehouse first", "error");
-      return;
-    }
+  const downloadMaterialMasterTemplate = async () => {
     setBulkSheetBusy(true);
     try {
-      const response = await fetch(
-        `/api/catalog/products/ascent-template?warehouse_id=${encodeURIComponent(targetWarehouseId)}`,
-        { cache: "no-store" },
-      );
-      const json = await response.json().catch(() => ({}));
-      if (!response.ok || !json.success)
-        throw new Error(
-          json.message || json.error || "Unable to prepare Ascent template",
-        );
-      const existingRows = (json.data?.records || []).map((row) => [
-        row.name,
-        row.quantity,
-        row.rate,
-        row.value,
-        row.unit,
-        row.size,
-      ]);
-      const rowCount = Math.max(existingRows.length + 100, 101);
-      const rows = [ASCENT_TEMPLATE_HEADERS, ...existingRows];
-      while (rows.length < rowCount) rows.push(["", "", "", "", "", ""]);
+      const [freshBrands, freshCategories, freshManufacturers] =
+        await Promise.all([
+          fetchCatalogOptions("/api/catalog/brands", brands),
+          fetchCatalogOptions("/api/catalog/categories", categories),
+          fetchCatalogOptions("/api/catalog/manufacturers", []),
+        ]);
+
+      const rows = [MATERIAL_MASTER_TEMPLATE_HEADERS];
+      while (rows.length <= 100) rows.push(Array(MATERIAL_MASTER_TEMPLATE_HEADERS.length).fill(""));
       const worksheet = XLSX.utils.aoa_to_sheet(rows);
-      for (let index = 2; index <= rowCount; index += 1) {
-        worksheet[`D${index}`] = { t: "n", f: `B${index}*C${index}` };
-      }
-      worksheet["!cols"] = [
-        { wch: 36 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 16 },
-        { wch: 12 },
-        { wch: 18 },
-      ];
+      worksheet["!cols"] = MATERIAL_MASTER_TEMPLATE_HEADERS.map((header) => ({
+        wch: header === "Material Name" ? 34 : Math.max(15, Math.min(28, header.length + 3)),
+      }));
+
+      applyTextFormatToColumns(worksheet, MATERIAL_MASTER_TEMPLATE_HEADERS, [
+        "Material Code",
+        "HSN / SAC Code",
+        "Barcode / QR",
+        "Supplier / Internal SKU",
+      ]);
+
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Ascent Products");
-      XLSX.writeFile(
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Material Master");
+
+      const optionGroups = [
+        {
+          key: "categories",
+          name: "MaterialMasterCategories",
+          values: sortOptions(
+            uniqueOptions(freshCategories.map((item) => item.name)),
+          ),
+        },
+        {
+          key: "brands",
+          name: "MaterialMasterBrands",
+          values: sortOptions(
+            uniqueOptions(freshBrands.map((item) => item.name)),
+          ),
+        },
+        {
+          key: "manufacturers",
+          name: "MaterialMasterManufacturers",
+          values: sortOptions(
+            uniqueOptions(freshManufacturers.map((item) => item.name)),
+          ),
+        },
+        {
+          key: "units",
+          name: "MaterialMasterUnits",
+          values: UNIT_OPTIONS,
+        },
+      ];
+
+      const rowLimit = 5001;
+      const validations = [
+        ["Category", "categories"],
+        ["Make / Brand", "brands"],
+        ["Manufacturer", "manufacturers"],
+        ["Unit of Measure", "units"],
+      ]
+        .map(([header, optionKey]) => {
+          const columnIndex = MATERIAL_MASTER_TEMPLATE_HEADERS.indexOf(header);
+          const formula = optionFormula(optionGroups, optionKey);
+          if (columnIndex < 0 || !formula) return null;
+          const column = XLSX.utils.encode_col(columnIndex);
+          return { range: `${column}2:${column}${rowLimit}`, formula };
+        })
+        .filter(Boolean);
+
+      XLSX.utils.book_append_sheet(
         workbook,
-        `ascent-product-update-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        buildOptionsSheet(optionGroups),
+        OPTIONS_SHEET_NAME,
       );
-      bulkActionContext?.showToast?.("Ascent template downloaded");
+      addOptionNamedRanges(workbook, optionGroups);
+      hideOptionsSheet(workbook);
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet([
+          ["Field", "Guidance"],
+          ["Material Name", "Required. Example: OPC Cement 53 Grade"],
+          ["Unit of Measure", `Select from dropdown: ${UNIT_OPTIONS.join(", ")}`],
+          ["Category", "Select from dropdown (synced with System Categories) or enter a new one."],
+          ["Make / Brand", "Select from dropdown (synced with System Brands) or enter a new one."],
+          ["Manufacturer", "Optional dropdown (synced with System Manufacturers)."],
+          ["Rates", "Optional numeric values. Physical stock is added separately through Warehouse Stock In / GRN."],
+          ["Reorder Level", "Optional minimum quantity for alerts at the selected warehouse."],
+        ]),
+        "Instructions",
+      );
+
+      await saveWorkbookWithValidations(
+        workbook,
+        `ascent-sync-material-master-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        validations,
+      );
+      bulkActionContext?.showToast?.("Material Master template downloaded");
     } catch (error) {
       bulkActionContext?.showToast?.(
-        error.message || "Failed to download Ascent template",
+        error.message || "Failed to download Material Master template",
         "error",
       );
     } finally {
@@ -485,42 +553,20 @@ export default function ProductsPage() {
     }
   };
 
-  const openTemplateWarehousePicker = (downloadDefaultTemplate) => {
-    defaultTemplateDownloadRef.current = downloadDefaultTemplate;
-    setTemplateWarehouseOpen(true);
-  };
-
-  const chooseTemplateWarehouse = async (warehouse) => {
-    setWarehouseId(String(warehouse.id));
-    setTemplateWarehouseOpen(false);
-    if (warehouse.isAscent) {
-      await downloadAscentTemplate(warehouse.id);
-      return;
-    }
-    defaultTemplateDownloadRef.current?.();
-  };
-
-  const downloadBulkEditSheet = async ({ brandOnly = false } = {}) => {
-    if (brandOnly && !bulkSheetBrandIds.length) {
-      bulkActionContext?.showToast?.(
-        "Select at least one brand first",
-        "error",
-      );
-      return;
-    }
-
-    setBulkSheetBusy(true);
+  const downloadBulkEditSheet = async () => {
     try {
       const products = await fetchAllCatalogProducts({
         pageSize: 1000,
         params: {
-          brand_ids: brandOnly ? bulkSheetBrandIds.join(",") : "",
+          department_id: departmentId,
+          brand_id: brandId,
+          category_id: categoryId,
         },
         fetchOptions: { cache: "no-store" },
       });
       if (!products.length) {
         bulkActionContext?.showToast?.(
-          "No products found to download",
+          "No materials found to download",
           "error",
         );
         return;
@@ -551,7 +597,7 @@ export default function ProductsPage() {
                   : Math.max(12, Math.min(24, header.length + 2)),
       }));
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Product Master");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Material Master");
       const optionGroups = [
         {
           key: "brands",
@@ -635,20 +681,14 @@ export default function ProductsPage() {
       );
       addOptionNamedRanges(workbook, optionGroups);
       hideOptionsSheet(workbook);
-      const selectedBrands = brands.filter((brand) =>
-        bulkSheetBrandIds.includes(String(brand.id)),
-      );
-      const suffix = !brandOnly
-        ? "full"
-        : selectedBrands.length === 1
-          ? selectedBrands[0].name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()
-          : `${bulkSheetBrandIds.length}-brands`;
+      const selectedFilters = [departmentId && "group", brandId && "brand", categoryId && "category"].filter(Boolean);
+      const suffix = selectedFilters.length ? selectedFilters.join("-") : "full";
       await saveWorkbookWithValidations(
         workbook,
-        `product-master-bulk-edit-${suffix}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        `material-master-bulk-update-${suffix}-${new Date().toISOString().slice(0, 10)}.xlsx`,
         validations,
       );
-      bulkActionContext?.showToast?.("Bulk edit sheet downloaded");
+      bulkActionContext?.showToast?.("Material update sheet downloaded");
     } catch (err) {
       bulkActionContext?.showToast?.(
         err.message || "Failed to download bulk edit sheet",
@@ -671,35 +711,68 @@ export default function ProductsPage() {
     try {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-      const firstSheet = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheet];
-      const rows = XLSX.utils.sheet_to_json(worksheet, {
-        defval: "",
-        raw: false,
-      });
-      if (!rows.length) {
+      if (!workbook.SheetNames || !workbook.SheetNames.length) {
         setBulkSheetNotice({
           type: "error",
-          message: "Uploaded sheet has no product rows",
+          message: "Uploaded Excel file contains no worksheets",
         });
         return;
       }
 
-      if (isAscentWarehouse) {
+      // Pick the Material Master sheet, or first non-options/instructions sheet
+      let targetSheetName = workbook.SheetNames.find(
+        (name) => /material|product|item|master|sheet1/i.test(name) && !/option|instruction/i.test(name)
+      );
+      if (!targetSheetName) {
+        targetSheetName = workbook.SheetNames.find(
+          (name) => !/^_?options|instructions/i.test(name)
+        ) || workbook.SheetNames[0];
+      }
+
+      const worksheet = workbook.Sheets[targetSheetName];
+      const rawRows = XLSX.utils.sheet_to_json(worksheet, {
+        defval: "",
+        raw: false,
+      });
+
+      // Filter out empty rows where all cells are blank
+      const rows = rawRows.filter((r) =>
+        r && typeof r === "object" && Object.values(r).some((v) => v !== null && v !== undefined && String(v).trim() !== "")
+      );
+
+      if (!rows.length) {
+        setBulkSheetNotice({
+          type: "error",
+          message: "Uploaded sheet contains no material rows with data",
+        });
+        return;
+      }
+
+      if (isMaterialCreateMode) {
         const response = await fetch("/api/catalog/products/ascent-template", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ warehouse_id: warehouseId, rows }),
+          body: JSON.stringify({ rows, preview: true, warehouse_id: warehouseId }),
         });
         const json = await response.json().catch(() => ({}));
-        if (!response.ok || !json.success)
-          throw new Error(
-            json.message || json.error || "Failed to upload Ascent template",
-          );
-        bulkActionContext?.refresh?.();
+        if (!response.ok || !json.success) {
+          let errText = json.message || json.error || "Failed to preview Material Master";
+          if (Array.isArray(json.errors) && json.errors.length > 0) {
+            const issues = json.errors
+              .map((e) => (typeof e === "string" ? e : e.message))
+              .filter(Boolean);
+            if (issues.length > 0) {
+              errText = `${errText}:\n• ${issues.slice(0, 8).join("\n• ")}${issues.length > 8 ? `\n...and ${issues.length - 8} more issues` : ""}`;
+            }
+          }
+          throw new Error(errText);
+        }
+        const data = json.data || {};
+        setBulkSheetRows(rows);
+        setBulkSheetPreview(data);
         setBulkSheetNotice({
-          type: "success",
-          message: `${json.data?.processed || rows.length} Ascent product(s) saved.`,
+          type: (data.toCreate || data.changed || 0) > 0 ? "success" : "warning",
+          message: `Preview ready: ${data.toCreate || data.changed || 0} new material(s) ready to create${data.existing ? `, ${data.existing} already exist in system` : ""}${data.skipped ? `, ${data.skipped} duplicate(s) in sheet.` : "."}`,
         });
         return;
       }
@@ -741,6 +814,34 @@ export default function ProductsPage() {
     setBulkSheetBusy(true);
     setBulkSheetNotice(null);
     try {
+      if (isMaterialCreateMode) {
+        const response = await fetch("/api/catalog/products/ascent-template", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: bulkSheetRows, preview: false, warehouse_id: warehouseId }),
+        });
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok || !json.success) {
+          let errText = json.message || json.error || "Failed to create Material Master";
+          if (Array.isArray(json.errors) && json.errors.length > 0) {
+            const issues = json.errors
+              .map((e) => (typeof e === "string" ? e : e.message))
+              .filter(Boolean);
+            if (issues.length > 0) {
+              errText = `${errText}:\n• ${issues.slice(0, 8).join("\n• ")}${issues.length > 8 ? `\n...and ${issues.length - 8} more issues` : ""}`;
+            }
+          }
+          throw new Error(errText);
+        }
+        bulkActionContext?.refresh?.();
+        bulkActionContext?.showToast?.(
+          `${json.data?.created || 0} Material Master record(s) created successfully!`,
+        );
+        closeBulkReview();
+        closeBulkSheet();
+        return;
+      }
+
       const response = await fetch("/api/catalog/products/bulk", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -751,7 +852,7 @@ export default function ProductsPage() {
         setBulkSheetNotice({
           type: "error",
           message:
-            json.message || json.error || "Failed to update product master",
+            json.message || json.error || "Failed to update Material Master",
         });
         return;
       }
@@ -761,13 +862,13 @@ export default function ProductsPage() {
       setBulkSheetRows([]);
       bulkActionContext?.refresh?.();
       bulkActionContext?.showToast?.(
-        `Product master updated successfully: ${data.updated || 0} updated, ${data.unchanged || 0} unchanged, ${data.skipped || 0} skipped.`,
+        `Material Master updated: ${data.updated || 0} updated, ${data.unchanged || 0} unchanged, ${data.skipped || 0} skipped.`,
       );
       closeBulkSheet();
     } catch (err) {
       setBulkSheetNotice({
         type: "error",
-        message: err.message || "Failed to update product master",
+        message: err.message || "Failed to update Material Master",
       });
     } finally {
       setBulkSheetBusy(false);
@@ -923,70 +1024,15 @@ export default function ProductsPage() {
 
   return (
     <>
-      {templateWarehouseOpen &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div className="fixed inset-0 z-[1100] flex items-end bg-slate-950/55 sm:items-center sm:justify-center sm:p-4">
-            <button
-              type="button"
-              aria-label="Close warehouse selection"
-              className="absolute inset-0 cursor-default"
-              onClick={() => setTemplateWarehouseOpen(false)}
-            />
-            <div className="relative z-10 flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:max-w-md sm:rounded-2xl">
-              <div className="border-b border-slate-100 px-5 py-4">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Choose warehouse
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Select the warehouse for the product template.
-                </p>
-              </div>
-              <div className="max-h-[58vh] space-y-2 overflow-y-auto p-4">
-                {warehouses.map((warehouse) => (
-                  <button
-                    key={warehouse.id}
-                    type="button"
-                    onClick={() => chooseTemplateWarehouse(warehouse)}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 hover:border-blue-400 hover:bg-blue-50"
-                  >
-                    <span>{warehouse.name}</span>
-                    <span className="shrink-0 text-xs font-medium text-slate-500">
-                      {warehouse.isAscent
-                        ? "Ascent template"
-                        : "Normal template"}
-                    </span>
-                  </button>
-                ))}
-                {!warehouses.length && (
-                  <p className="py-6 text-center text-sm text-slate-500">
-                    No warehouse is assigned to you.
-                  </p>
-                )}
-              </div>
-              <div className="border-t border-slate-100 p-4">
-                <button
-                  type="button"
-                  onClick={() => setTemplateWarehouseOpen(false)}
-                  className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-
       {bulkEditOpen && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-2xl">
             <div className="border-b border-gray-100 px-6 py-4">
               <h2 className="text-lg font-semibold text-gray-900">
-                Bulk Edit Products
+                Bulk Update Materials
               </h2>
               <p className="mt-1 text-sm text-gray-500">
-                Updating {bulkEditIds.length} selected product(s). Only checked
+                Updating {bulkEditIds.length} selected material(s). Only checked
                 fields will be changed.
               </p>
             </div>
@@ -1063,19 +1109,21 @@ export default function ProductsPage() {
             <div className="flex max-h-[min(92vh,820px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-2xl">
               <div className="shrink-0 border-b border-gray-100 bg-white px-5 py-4 sm:px-6">
                 <h2 className="text-lg font-semibold text-gray-900">
-                  Bulk Edit Product Master
+                  {isMaterialCreateMode
+                    ? "Create Material Master from Excel"
+                    : "Edit Material Master from Excel"}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  {isAscentWarehouse
-                    ? "Download the Ascent sheet, fill required values, then upload it here."
-                    : "Download products, edit the Excel, then upload it here. Only matched and changed products will be updated."}
+                  {isMaterialCreateMode
+                    ? "Download the blank template, fill material details, then upload it here."
+                    : "Download a pre-filled master, edit it in Excel, then upload it here. Only matched and changed materials will be updated."}
                 </p>
               </div>
 
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
                 {bulkSheetNotice && (
                   <div
-                    className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+                    className={`rounded-xl border px-4 py-3 text-sm font-medium whitespace-pre-line ${
                       bulkSheetNotice.type === "success"
                         ? "border-green-200 bg-green-50 text-green-800"
                         : bulkSheetNotice.type === "warning"
@@ -1089,72 +1137,54 @@ export default function ProductsPage() {
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                   <h3 className="text-sm font-bold text-slate-900">
-                    Download edit sheet
+                    {isMaterialCreateMode ? "1. Download blank template" : "1. Download pre-filled master"}
                   </h3>
-                  {isAscentWarehouse ? (
+                  {isMaterialCreateMode ? (
                     <div className="mt-3 grid gap-3">
                       <button
                         type="button"
-                        onClick={downloadAscentTemplate}
+                        onClick={downloadMaterialMasterTemplate}
                         disabled={bulkSheetBusy}
                         className="rounded-lg border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                       >
-                        Download Ascent update template
+                        Download blank Excel template
                       </button>
                       <p className="text-xs text-slate-500">
-                        Required: Item Name, Quantity, Rate, Unit (PCS/PKT), and
-                        Size. Value is calculated automatically.
+                        Required: Material Name. Unit defaults to PCS; rates and references are optional.
+                        This creates the master only—no warehouse stock is added.
                       </p>
                     </div>
                   ) : (
                     <div className="mt-3 grid gap-3">
+                      <p className="text-xs text-slate-500">
+                        Uses the Material Group, Make / Brand and Category filters selected on this page.
+                        Leave all filters as ALL to download the complete master.
+                      </p>
                       <button
                         type="button"
-                        onClick={() =>
-                          downloadBulkEditSheet({ brandOnly: false })
-                        }
+                        onClick={downloadBulkEditSheet}
                         disabled={bulkSheetBusy}
                         className="rounded-lg border border-slate-300 px-4 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                       >
-                        Download full product master
+                        Download pre-filled Master Excel
                       </button>
-                      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                        <SearchableMultiSelect
-                          values={bulkSheetBrandIds}
-                          onChange={setBulkSheetBrandIds}
-                          placeholder="Select brands"
-                          searchPlaceholder="Search brands..."
-                          selectionNoun="brands"
-                          options={brands.map((brand) => ({
-                            value: String(brand.id),
-                            label: brand.name,
-                          }))}
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            downloadBulkEditSheet({ brandOnly: true })
-                          }
-                          disabled={bulkSheetBusy}
-                          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                        >
-                          {bulkSheetBrandIds.length > 1
-                            ? `Download ${bulkSheetBrandIds.length} brands`
-                            : "Brand Excel"}
-                        </button>
-                      </div>
                     </div>
                   )}
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                   <h3 className="text-sm font-bold text-slate-900">
-                    Upload edited sheet
+                    {isMaterialCreateMode ? "2. Upload completed template" : "2. Upload edited Excel"}
                   </h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {isAscentWarehouse
+                  <p className="hidden">
+                    {isMaterialCreateMode
                       ? "Required: Item Name, Quantity, Rate, Unit (PCS/PKT), and Size. Value is recalculated from Quantity × Rate."
-                      : "Product ID is preferred for matching. Barcode or SKU will be used as fallback."}
+                      : "Material ID is preferred for matching. Barcode or SKU will be used as fallback."}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {isMaterialCreateMode
+                      ? "This creates Material Master records only. Use Warehouse Stock In / GRN to add actual received quantity."
+                      : "Material ID is preferred for matching. Barcode or SKU will be used as fallback."}
                   </p>
                   <input
                     ref={bulkSheetFileRef}
@@ -1167,9 +1197,13 @@ export default function ProductsPage() {
                     type="button"
                     onClick={() => bulkSheetFileRef.current?.click()}
                     disabled={bulkSheetBusy}
-                    className="mt-3 w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                    className="mt-3 w-full rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-60"
                   >
-                    {bulkSheetBusy ? "Processing..." : "Upload Edited Excel"}
+                    {bulkSheetBusy
+                      ? "Processing..."
+                      : isMaterialCreateMode
+                        ? "Upload Material Master Excel"
+                        : "Upload Updated Excel"}
                   </button>
                 </div>
               </div>
@@ -1200,11 +1234,14 @@ export default function ProductsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">
-                      Review Uploaded Sheet
+                      {isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                        ? "Review New Materials (Material Master)"
+                        : "Review Uploaded Sheet"}
                     </h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      Check edited, non-edited, and warning rows before updating
-                      product master.
+                      {isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                        ? "Review parsed materials and details below, then click Confirm to save them to the database."
+                        : "Check edited, non-edited, and warning rows before updating product master."}
                     </p>
                   </div>
                   <button
@@ -1221,7 +1258,7 @@ export default function ProductsPage() {
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
                 {bulkSheetNotice && (
                   <div
-                    className={`mb-4 rounded-xl border px-4 py-3 text-sm font-medium ${
+                    className={`mb-4 rounded-xl border px-4 py-3 text-sm font-medium whitespace-pre-line ${
                       bulkSheetNotice.type === "success"
                         ? "border-green-200 bg-green-50 text-green-800"
                         : bulkSheetNotice.type === "warning"
@@ -1235,75 +1272,153 @@ export default function ProductsPage() {
 
                 <div className="grid gap-2 sm:grid-cols-3">
                   <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
-                    <p className="text-xs font-medium text-green-700">Edited</p>
+                    <p className="text-xs font-medium text-green-700">
+                      {isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                        ? "New Materials"
+                        : "Edited"}
+                    </p>
                     <p className="text-2xl font-bold text-green-900">
-                      {bulkSheetPreview.changed ||
-                        bulkSheetPreview.updated ||
+                      {bulkSheetPreview.toCreate ??
+                        bulkSheetPreview.changed ??
+                        bulkSheetPreview.updated ??
                         0}
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <p className="text-xs font-medium text-slate-600">
-                      Non-edited
+                      {isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                        ? "Already Exists in DB"
+                        : "Non-edited"}
                     </p>
                     <p className="text-2xl font-bold text-slate-900">
-                      {bulkSheetPreview.unchanged || 0}
+                      {bulkSheetPreview.existing ??
+                        bulkSheetPreview.unchanged ??
+                        0}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-                    <p className="text-xs font-medium text-red-700">
-                      Warning / skipped
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p className="text-xs font-medium text-amber-700">
+                      {isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                        ? "Duplicates in Sheet"
+                        : "Warning / skipped"}
                     </p>
-                    <p className="text-2xl font-bold text-red-900">
+                    <p className="text-2xl font-bold text-amber-900">
                       {bulkSheetPreview.skipped || 0}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-4 max-h-[48vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  {(bulkSheetPreview.rows || []).slice(0, 120).map((row) => (
+                  {(bulkSheetPreview.rows || []).slice(0, 120).map((row, idx) => (
                     <div
-                      key={`${row.row}-${row.productId || row.barcode}`}
-                      className={`rounded-xl border px-3 py-2 ${
-                        row.status === "changed" || row.status === "updated"
-                          ? "border-green-200 bg-green-50/80"
+                      key={`${row.row}-${row.productId || row.barcode || row.name || idx}`}
+                      className={`rounded-xl border px-3.5 py-2.5 ${
+                        row.status === "new" ||
+                        row.status === "changed" ||
+                        row.status === "updated"
+                          ? "border-green-200 bg-green-50/70"
                           : row.status === "skipped"
-                            ? "border-red-200 bg-red-50/80"
+                            ? "border-amber-200 bg-amber-50/70"
                             : "border-slate-200 bg-white"
                       }`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <p className="text-sm font-semibold text-slate-900">
-                            Row {row.row}: {row.productName || "-"}
+                            Row {row.row}: {row.name || row.productName || "-"}
                           </p>
-                          <p className="text-xs text-slate-500">
-                            Barcode/SKU: {row.barcode || "-"}
-                          </p>
+                          {(row.code || row.barcode || row.sku) && (
+                            <p className="text-xs text-slate-500">
+                              {row.code ? `Code: ${row.code}` : ""}
+                              {row.code && (row.barcode || row.sku) ? " | " : ""}
+                              {row.barcode || row.sku
+                                ? `Barcode/SKU: ${row.barcode || row.sku}`
+                                : ""}
+                            </p>
+                          )}
                         </div>
                         <span
-                          className={`rounded-full px-2 py-1 text-[11px] font-bold uppercase ${
-                            row.status === "changed" || row.status === "updated"
+                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ${
+                            row.status === "new" ||
+                            row.status === "changed" ||
+                            row.status === "updated"
                               ? "bg-green-100 text-green-700"
                               : row.status === "skipped"
-                                ? "bg-red-100 text-red-700"
+                                ? "bg-amber-100 text-amber-700"
                                 : "bg-slate-200 text-slate-700"
                           }`}
                         >
-                          {row.status === "updated"
-                            ? "Updated"
-                            : row.status === "changed"
-                              ? "Edited"
-                              : row.status === "skipped"
-                                ? "Warning"
-                                : "Non-edited"}
+                          {row.statusLabel ||
+                            (row.status === "new"
+                              ? "New"
+                              : row.status === "updated"
+                                ? "Updated"
+                                : row.status === "changed"
+                                  ? "Edited"
+                                  : row.status === "skipped"
+                                    ? "Duplicate"
+                                    : "Exists")}
                         </span>
                       </div>
-                      {row.error && (
-                        <p className="mt-2 text-xs font-medium text-red-700">
-                          {row.error}
+
+                      {(row.unit ||
+                        row.category ||
+                        row.brand ||
+                        row.costPrice > 0 ||
+                        row.issueRate > 0 ||
+                        row.referenceRate > 0 ||
+                        row.reorderLevel > 0) && (
+                        <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-700">
+                          {row.unit && (
+                            <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
+                              Unit: <b>{row.unit}</b>
+                            </span>
+                          )}
+                          {row.category && (
+                            <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
+                              Category: <b>{row.category}</b>
+                            </span>
+                          )}
+                          {row.brand && (
+                            <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
+                              Brand: <b>{row.brand}</b>
+                            </span>
+                          )}
+                          {row.costPrice > 0 && (
+                            <span className="rounded bg-emerald-50 px-2 py-0.5 font-medium text-emerald-800">
+                              Cost: <b>₹{row.costPrice}</b>
+                            </span>
+                          )}
+                          {row.issueRate > 0 && (
+                            <span className="rounded bg-blue-50 px-2 py-0.5 font-medium text-blue-800">
+                              Issue: <b>₹{row.issueRate}</b>
+                            </span>
+                          )}
+                          {row.referenceRate > 0 && (
+                            <span className="rounded bg-purple-50 px-2 py-0.5 font-medium text-purple-800">
+                              Ref: <b>₹{row.referenceRate}</b>
+                            </span>
+                          )}
+                          {row.reorderLevel > 0 && (
+                            <span className="rounded bg-amber-50 px-2 py-0.5 font-medium text-amber-800">
+                              Min Qty: <b>{row.reorderLevel}</b>
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {(row.note || row.error) && (
+                        <p
+                          className={`mt-1.5 text-xs font-medium ${
+                            row.error || row.status === "skipped"
+                              ? "text-amber-700"
+                              : "text-slate-600"
+                          }`}
+                        >
+                          {row.error || row.note}
                         </p>
                       )}
+
                       {row.changes?.length > 0 && (
                         <div className="mt-2 grid gap-1 text-xs text-slate-700 sm:grid-cols-2">
                           {row.changes.slice(0, 6).map((change) => (
@@ -1346,11 +1461,21 @@ export default function ProductsPage() {
                       type="button"
                       onClick={confirmBulkEditUpload}
                       disabled={
-                        bulkSheetBusy || !(bulkSheetPreview.changed > 0)
+                        bulkSheetBusy ||
+                        (isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                          ? (bulkSheetPreview.toCreate ?? bulkSheetPreview.changed ?? 0) === 0 &&
+                            (bulkSheetPreview.rows || []).length === 0
+                          : !(bulkSheetPreview.changed > 0))
                       }
                       className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {bulkSheetBusy ? "Updating..." : "Confirm Update"}
+                      {bulkSheetBusy
+                        ? isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                          ? "Creating Materials..."
+                          : "Updating..."
+                        : isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                          ? "Confirm & Create Materials"
+                          : "Confirm Update"}
                     </button>
                   )}
                 </div>
@@ -1363,15 +1488,15 @@ export default function ProductsPage() {
       <CatalogDataPage
         endpoint="/api/catalog/products"
         breadcrumbs={[
-          { label: "Catalog", href: "/catalog" },
-          { label: "Product", href: "/catalog/products" },
-          { label: "Products" },
+          { label: "Materials", href: "/catalog/products" },
+          { label: "Material Master", href: "/catalog/products" },
+          { label: "Materials" },
         ]}
-        title="Products"
-        description="Manage all products in your catalog."
+        title="Material Master"
+        description="Manage construction materials, specifications, rates and availability."
         columns={columns}
         filters={filters}
-        createLabel={canManageCatalog ? "Create Product" : null}
+        createLabel={canManageCatalog ? "Create Material" : null}
         onCreateClick={
           canManageCatalog
             ? () => (window.location.href = "/catalog/products/create")
@@ -1414,30 +1539,16 @@ export default function ProductsPage() {
         onDelete={(row) => {
           /* delete handled by CatalogDataPage */
         }}
-        totalLabel="Product(s)"
-        emptyMessage="No products found"
-        bulkImportType="products"
-        onDownloadTemplate={openTemplateWarehousePicker}
+        totalLabel="Material(s)"
+        emptyMessage="No materials found"
         customBulkActions={canManageCatalog ? [
           {
-            label: "Bulk Edit Selected",
-            action: openBulkEdit,
+            label: "Create Material Master (Excel)",
+            action: openMaterialCreateImport,
           },
           {
-            label: "View / Download Barcodes",
-            action: ({ selectedIds, showToast }) => {
-              if (!selectedIds.length) {
-                showToast(
-                  "Select products to view or download barcodes",
-                  "error",
-                );
-                return;
-              }
-              window.open(
-                `/catalog/products/barcodes?ids=${selectedIds.join(",")}`,
-                "_blank",
-              );
-            },
+            label: "Edit Material Master (Excel)",
+            action: openBulkEdit,
           },
         ] : []}
         extraQueryParams={{

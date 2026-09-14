@@ -33,8 +33,9 @@ export async function GET(request) {
 
     const permissionCheck = requirePermission(
       auth.user,
-      "VIEW_INVENTORY",
-      "MANAGE_INVENTORY",
+      "STOCK_VIEW",
+      "GRN_CREATE",
+      "GRN_APPROVE",
     );
     if (permissionCheck.error) return permissionCheck.error;
 
@@ -103,6 +104,7 @@ export async function GET(request) {
           templateWhere.push(`p.category_id = $${categoryIdParam}`);
         }
       }
+
       const selectTemplateProducts = (whereParts, params) =>
         query(
           `SELECT
@@ -566,7 +568,7 @@ export async function POST(request) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, "MANAGE_INVENTORY");
+    const permissionCheck = requirePermission(auth.user, "GRN_CREATE");
     if (permissionCheck.error) return permissionCheck.error;
 
     const payload = await request.json();

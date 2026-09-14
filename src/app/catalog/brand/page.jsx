@@ -4,7 +4,7 @@ import CatalogDataPage from '@/components/CatalogDataPage';
 
 const columns = [
   { key: 'sno', label: 'S. No.', sortable: true },
-  { key: 'name', label: 'Brand Name', sortable: true },
+  { key: 'name', label: 'Make / Brand', sortable: true },
   { key: 'manufacturer', label: 'Manufacturer', sortable: true },
   { key: 'category', label: 'Category', sortable: true },
   { key: 'margin', label: 'Margin (%)', sortable: true },
@@ -16,20 +16,20 @@ export default function BrandPage() {
     <CatalogDataPage
       endpoint="/api/catalog/brands"
       breadcrumbs={[
-        { label: 'Catalog', href: '/catalog' },
-        { label: 'Product Classification', href: '/catalog/category' },
-        { label: 'Brand' },
+          { label: 'Materials', href: '/catalog/products' },
+          { label: 'Material Classification', href: '/catalog/category' },
+          { label: 'Makes / Brands' },
       ]}
-      title="Brand"
-      description="Manage all brands associated with your products."
+        title="Makes / Brands"
+        description="Manage approved makes and brands for construction materials."
       columns={columns}
       createLabel="Create Brand"
       onCreateClick={() => window.location.href = '/catalog/brand/create'}
       showRowActions={true}
       onEdit={(row) => window.location.href = `/catalog/brand/${row.id}/edit`}
       onDelete={(row) => {}}
-      totalLabel="Brand(s)"
-      emptyMessage="No brands found"
+        totalLabel="Make / Brand(s)"
+        emptyMessage="No makes or brands found"
       mapRecord={(record, index, page, pageSize) => ({
         id: record.id,
         sno: (page - 1) * pageSize + index + 1,

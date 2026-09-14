@@ -1,14 +1,16 @@
 import { getClient, query } from '@/lib/db';
 import { ensureConstructionSchema } from '@/lib/constructionSchema';
+import { ensureUsersTable } from '@/lib/userAuth';
 import { requireAuth, requirePermission, canAccessAllStores } from '@/lib/api-protection';
 import { errorResponse, successResponse, validationError } from '@/lib/api-response';
 
 export async function GET(request) {
   const auth = await requireAuth(request);
   if (auth.error) return auth.error;
-  const access=requirePermission(auth.user,'VIEW_INVENTORY','MANAGE_INVENTORY','MANAGE_STORES');
+  const access=requirePermission(auth.user,'PROJECT_VIEW','PROJECT_CREATE','PROJECT_EDIT','SITE_VIEW','SITE_CREATE','SITE_EDIT');
   if(access.error)return access.error;
   try {
+    await ensureUsersTable();
     await ensureConstructionSchema();
     const result = await query(`
       SELECT p.*, COUNT(s.id)::int AS site_count
@@ -28,7 +30,7 @@ export async function GET(request) {
 export async function POST(request) {
   const auth = await requireAuth(request);
   if (auth.error) return auth.error;
-  const access=requirePermission(auth.user,'MANAGE_STORES');
+  const access=requirePermission(auth.user,'PROJECT_CREATE');
   if(access.error)return access.error;
   const body = await request.json().catch(() => ({}));
   const name = String(body.name || '').trim();
@@ -39,6 +41,7 @@ export async function POST(request) {
 
   const client = await getClient();
   try {
+    await ensureUsersTable();
     await ensureConstructionSchema();
     await client.query('BEGIN');
     const project = await client.query(
@@ -51,19 +54,33 @@ export async function POST(request) {
     let site = null;
     const siteName = String(body.siteName || '').trim();
     if (siteName) {
+      const siteAccess = requirePermission(auth.user, 'SITE_CREATE');
+      if (siteAccess.error) return siteAccess.error;
       const siteCode = String(body.siteCode || `${projectCode}-SITE`).trim().toUpperCase();
       const store = await client.query(
-        `INSERT INTO stores (name, location_type, created_at)
-         VALUES ($1, 'construction_site', NOW()) RETURNING id`,
-        [siteName],
+        `INSERT INTO stores (name, meta, location_type, created_at)
+         VALUES ($1, jsonb_build_object('locationType', 'construction_site', 'siteCode', $2), 'construction_site', NOW())
+         RETURNING id`,
+        [siteName, siteCode],
       );
       const siteResult = await client.query(
-        `INSERT INTO construction_sites (project_id, site_code, name, address, store_id)
-         VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-        [project.rows[0].id, siteCode, siteName, body.siteAddress || body.address || null, store.rows[0].id],
+        `INSERT INTO construction_sites (project_id, site_code, name, address, store_id, site_engineer_id)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [project.rows[0].id, siteCode, siteName, body.siteAddress || body.address || null, store.rows[0].id,
+          Number(body.siteEngineerId) || null],
       );
       site = siteResult.rows[0];
       await client.query('UPDATE stores SET construction_site_id=$1 WHERE id=$2', [site.id, store.rows[0].id]);
+      const siteEngineerId = Number(body.siteEngineerId);
+      if (Number.isInteger(siteEngineerId) && siteEngineerId > 0) {
+        await client.query(
+          `INSERT INTO user_stores (user_id, store_id, is_active, created_at, updated_at)
+           VALUES ($1, $2, TRUE, NOW(), NOW())
+           ON CONFLICT (user_id, store_id) DO UPDATE
+           SET is_active = TRUE, updated_at = NOW()`,
+          [siteEngineerId, store.rows[0].id],
+        );
+      }
     }
     await client.query('COMMIT');
     return successResponse({ project: project.rows[0], site }, 'Construction project created', 201);

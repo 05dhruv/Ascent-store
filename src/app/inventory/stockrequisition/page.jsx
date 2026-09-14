@@ -7,16 +7,16 @@ import { formatIndianDateTime } from "@/lib/dateUtils";
 import { fetchAllCatalogProducts } from "@/lib/productPagination";
 
 const tableHeaders = [
-  "Fulfillment Center",
+  "Source Warehouse",
   "Destination",
-  "Requisition ID",
-  "Requisition Time",
+  "Request ID",
+  "Request Time",
   "Total Item Number",
   "User",
   "Mail To",
   "Remarks",
   "Status",
-  "Fulfillment Status",
+  "Transfer Status",
   "Approval Status",
   "Action",
 ];
@@ -284,7 +284,9 @@ export default function StockRequisitionPage() {
       const data = await res.json();
       if (!res.ok || !data.success)
         throw new Error(data.message || "Fulfillment failed");
-      alert(`Stock transfer ${data.transactionId} created and stock moved.`);
+      alert(
+        `Transfer ${data.transactionId} created. Stock will move only after approval, picking and dispatch.`,
+      );
       await loadRecords();
     } catch (err) {
       alert(err.message || "Fulfillment failed");
@@ -292,16 +294,16 @@ export default function StockRequisitionPage() {
   };
 
   const tableData = filteredRecords.map((row) => ({
-    "Fulfillment Center": row.sourceName || "-",
+    "Source Warehouse": row.sourceName || "-",
     Destination: row.destinationName || "-",
-    "Requisition ID": row.transactionId,
-    "Requisition Time": formatDate(row.createdAt),
+    "Request ID": row.transactionId,
+    "Request Time": formatDate(row.createdAt),
     "Total Item Number": row.totalItems,
     User: row.requestedBy || "-",
     "Mail To": row.mailTo || "-",
     Remarks: row.remarks || "-",
     Status: row.status,
-    "Fulfillment Status": row.fulfillmentStatus,
+    "Transfer Status": row.fulfillmentStatus,
     "Approval Status": row.approvalStatus,
     Action: (
       <div className="flex items-center gap-2">
@@ -350,7 +352,7 @@ export default function StockRequisitionPage() {
                 onClick={() => fulfillByTransfer(row)}
                 className="rounded border border-blue-200 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-50"
               >
-                Fulfill Transfer
+                Create Transfer
               </button>
             </>
           )}
@@ -366,12 +368,12 @@ export default function StockRequisitionPage() {
   return (
     <>
       <InventoryShell
-        breadcrumb={[{ label: "Inventory" }, { label: "Stock Requisition" }]}
-        title="Stock Requisition"
-        subtitle="Store replenishment requests saved in the database."
+        breadcrumb={[{ label: "Material Movement" }, { label: "Site Request" }]}
+        title="Site Material Request"
+        subtitle="Request material from a warehouse to a construction site."
         actions={[
           {
-            label: "Request Stocks",
+            label: "New Site Request",
             primary: true,
             onClick: () => setShowModal(true),
           },
@@ -389,7 +391,7 @@ export default function StockRequisitionPage() {
           <div className="w-full max-w-4xl rounded-xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
               <h2 className="text-lg font-bold text-gray-900">
-                Request Stocks
+                New Site Material Request
               </h2>
               <button
                 onClick={() => setShowModal(false)}
@@ -403,7 +405,7 @@ export default function StockRequisitionPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold text-gray-600">
-                    Fulfillment Center
+                    Source Warehouse
                   </span>
                   <select
                     value={form.sourceId}

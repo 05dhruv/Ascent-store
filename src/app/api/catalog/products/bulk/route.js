@@ -506,7 +506,7 @@ export async function PATCH(request) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, "MANAGE_CATALOG");
+    const permissionCheck = requirePermission(auth.user, "MATERIAL_IMPORT");
     if (permissionCheck.error) return permissionCheck.error;
 
     const body = await request.json();

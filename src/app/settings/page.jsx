@@ -5,138 +5,88 @@ import MainLayout from '@/components/MainLayout';
 
 const SETTING_CARDS = [
   {
-    label: 'Business info',
-    desc: 'Legal name, GSTIN, logo, contact.',
+    label: 'Company profile',
+    desc: 'Company name, GSTIN, logo and office contacts.',
     href: '/settings/business-info',
   },
   {
-    label: 'Stores',
-    desc: 'Branches, addresses, GST registration per store.',
-    href: '/settings/stores',
+    label: 'Projects & site stores',
+    desc: 'Create projects and their site stores for material receipt, issue and tracking.',
+    href: '/construction/projects',
   },
   {
     label: 'Warehouses',
-    desc: 'Central warehouses and storage rules.',
+    desc: 'Central warehouses, address, contact and assigned employees.',
     href: '/settings/warehouses',
   },
   {
-    label: 'Receipts (print)',
-    desc: 'Print templates and layout.',
-    href: '/settings/receipts-print',
+    label: 'Team & access',
+    desc: 'Create employees and define their roles, permissions, site and warehouse access.',
+    href: '/employee/staff',
   },
   {
-    label: 'KOT printers',
-    desc: 'Kitchen printer routing and format.',
-    href: '/settings/kot-printers',
-  },
-  {
-    label: 'System attributes',
-    desc: 'Built-in fields on products and orders.',
-    href: '/settings/system-attributes',
-  },
-  {
-    label: 'Custom attributes',
-    desc: 'Your own fields on products and orders.',
-    href: '/settings/custom-attributes',
-  },
-  {
-    label: 'Regions',
-    desc: 'Geography groupings for reporting.',
+    label: 'Regions & zones',
+    desc: 'Group projects and sites for reporting and access mapping.',
     href: '/settings/regions',
   },
   {
-    label: 'Rooms & tables',
-    desc: 'Dine-in floor plan and table assignments.',
-    href: '/settings/rooms-tables',
+    label: 'Material master fields',
+    desc: 'Manage standard fields used for construction materials.',
+    href: '/settings/system-attributes',
   },
   {
-    label: 'Remarks',
-    desc: 'Void and refund reason list.',
+    label: 'Custom material fields',
+    desc: 'Add company-specific fields such as grade, thickness or source.',
+    href: '/settings/custom-attributes',
+  },
+  {
+    label: 'Material movement reasons',
+    desc: 'Reasons for issues, returns, damage, shortages and adjustments.',
     href: '/settings/billing/remarks',
   },
   {
-    label: 'Sales targets',
-    desc: 'Monthly goals per store and per staff.',
-    href: '/settings/sales-targets',
-  },
-  {
-    label: 'App settings',
-    desc: 'POS app behaviour and feature toggles.',
+    label: 'Platform settings',
+    desc: 'Workflow defaults, notifications and feature controls.',
     href: '/settings/app-settings',
   },
   {
-    label: 'Store payment modes',
-    desc: 'Per-store payment-mode mapping.',
-    href: '/settings/store-payment-modes',
-  },
-  {
-    label: 'Chain payment settings',
-    desc: 'Chain-wide payment providers and settlement defaults.',
-    href: '/settings/payment/chain-payment-settings',
-  },
-  {
-    label: 'Store payment settings',
-    desc: 'Store-specific merchant IDs, terminals, and toggles.',
-    href: '/settings/payment/store-payment-settings',
-  },
-  {
-    label: 'Refund configuration',
-    desc: 'Refund limits, modes, and approval rules.',
-    href: '/settings/credit-note/refund-configuration',
-  },
-  {
-    label: 'Redemption configuration',
-    desc: 'Credit note and voucher redemption rules.',
-    href: '/settings/credit-note/redemption-configuration',
-  },
-  {
     label: 'Measurement units',
-    desc: 'Inventory units, symbols, and decimal precision.',
+    desc: 'Construction units such as bag, MT, CUM, sqm, metre and nos.',
     href: '/settings/inventory/measurement-unit',
   },
   {
-    label: 'Inventory system attributes',
-    desc: 'Built-in inventory tracking attributes.',
+    label: 'Stock tracking fields',
+    desc: 'Configure batch, serial, quality, condition and stock controls.',
     href: '/settings/inventory/system-attributes',
   },
   {
-    label: 'Inventory custom attributes',
-    desc: 'Custom stock fields and validation rules.',
+    label: 'Custom stock fields',
+    desc: 'Add stock-specific validation and inspection fields.',
     href: '/settings/inventory/custom-attributes',
   },
   {
-    label: 'KOT printer config',
-    desc: 'Store-wise kitchen print routing.',
-    href: '/settings/billing/kot-printer-config',
-  },
-  {
-    label: 'Receipt customization',
-    desc: 'Receipt header, footer, copies, and sections.',
+    label: 'GRN & transfer print layout',
+    desc: 'Set document header, footer, copies and print sections.',
     href: '/settings/billing/customize-receipt-print',
   },
   {
-    label: 'Chain attributes',
-    desc: 'Global billing and workflow attributes.',
-    href: '/settings/billing/chain-attributes',
-  },
-  {
-    label: 'Application device settings',
-    desc: 'Device behavior, sync, and offline rules.',
+    label: 'Mobile & scanner settings',
+    desc: 'Device behaviour, barcode scanning, sync and offline rules.',
     href: '/settings/device-config/application-device-settings',
   },
   {
-    label: 'Store device map',
-    desc: 'Map devices to stores and counters.',
+    label: 'Device assignment',
+    desc: 'Map mobile or scanner devices to a warehouse or site store.',
     href: '/settings/device-config/store-device-map',
   },
   {
-    label: 'Device data sync',
-    desc: 'Sync jobs and frequency preferences.',
+    label: 'Data sync controls',
+    desc: 'Configure sync jobs and frequency for field devices.',
     href: '/settings/device-config/device-data-sync',
   },
   {
-    label: 'Device sync logs',
-    desc: 'Device sync status records and notes.',
+    label: 'Sync activity log',
+    desc: 'Review device sync status, failures and field notes.',
     href: '/settings/device-config/device-sync-logs',
   },
 ];
@@ -148,14 +98,14 @@ export default function SettingsPage() {
       <nav className="flex items-center gap-1.5 text-xs text-gray-500 mb-5">
         <span className="text-blue-500 cursor-pointer hover:underline">Home</span>
         <span>›</span>
-        <span className="text-gray-700 font-medium">Settings</span>
+        <span className="text-gray-700 font-medium">Construction Settings</span>
       </nav>
 
       {/* Header */}
       <div className="mb-7">
-        <h1 className="text-3xl font-bold text-blue-600">Settings</h1>
+        <h1 className="text-3xl font-bold text-blue-600">Construction Settings</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Business info, stores, taxes, receipts, integrations and billing.
+          Configure company, sites, warehouses, materials, stock controls and field-device settings.
         </p>
       </div>
 

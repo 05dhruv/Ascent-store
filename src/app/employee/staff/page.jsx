@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import MainLayout from '@/components/MainLayout';
 import { validatePhoneNumber } from '@/lib/phoneValidator';
@@ -16,6 +17,7 @@ const INITIAL_FORM = {
   confirmPassword: '',
   mobileNumber: '',
   emailAddress: '',
+  roleId: '',
   roleName: '',
   permissions: [],
   regionStore: [],
@@ -58,6 +60,7 @@ function mapEmployeeRow(row) {
     username: row.username || '',
     name: row.name || [row.firstName, row.lastName].filter(Boolean).join(' ').trim(),
     employeeCode: row.employeeCode || '',
+    roleId: row.roleId || row.role_id || null,
     role: row.role || '',
     department: row.department || '',
     employeeType: row.employeeType || '',
@@ -139,18 +142,15 @@ function extractRecords(data) {
 async function fetchStores() {
   try {
     const res = await fetch('/api/stores');
-    
     if (!res.ok) {
       console.warn('Stores API returned status:', res.status);
       return [];
     }
-    
     const contentType = res.headers.get('content-type');
     if (!contentType?.includes('application/json')) {
       console.warn('Invalid content type:', contentType);
       return [];
     }
-    
     return extractRecords(await res.json());
   } catch (err) {
     console.error('Failed to fetch stores:', err.message);
@@ -406,9 +406,11 @@ export default function EmployeeStaffPage() {
   const [passwordRequestsLoading, setPasswordRequestsLoading] = useState(false);
   const [form, setForm] = useState(() => ({ ...INITIAL_FORM }));
   const bulkRef = useRef(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    document.title = 'Employees';
+    document.title = 'Ascent Sync | Team & Access';
   }, []);
 
   const loadPasswordRequests = useCallback(async () => {
@@ -566,6 +568,8 @@ export default function EmployeeStaffPage() {
   };
 
   const handleEdit = (employee) => {
+    fetchRoles().then((data) => { if (Array.isArray(data) && data.length) setRoles(data); });
+    const matchedRole = roles.find((role) => String(role.id) === String(employee.roleId) || (role.roleName || role.role_name)?.toLowerCase() === employee.role?.toLowerCase());
     setForm({
       ...INITIAL_FORM,
       firstName: employee.firstName ?? '',
@@ -576,8 +580,9 @@ export default function EmployeeStaffPage() {
       confirmPassword: '',
       mobileNumber: employee.mobileNumber ?? '',
       emailAddress: employee.emailAddress ?? '',
-      roleName: employee.role || '',
-      permissions: Array.isArray(employee.permissions) ? employee.permissions : [],
+      roleId: String(matchedRole?.id || employee.roleId || ''),
+      roleName: matchedRole?.roleName || matchedRole?.role_name || employee.role || '',
+      permissions: Array.isArray(employee.permissions) && employee.permissions.length ? employee.permissions : (Array.isArray(matchedRole?.permissions) ? matchedRole.permissions : []),
       regionStore: parseMultiValue(employee.regionStore),
       warehouse: parseMultiValue(employee.warehouse),
       departmentId: employee.department ? String(departments.find((d) => (d.departmentName || d.department_name) === employee.department)?.id || '') : '',
@@ -588,7 +593,7 @@ export default function EmployeeStaffPage() {
       dateOfLeaving: employee.dateOfLeaving || '',
       employeeCode: employee.employeeCode ?? '',
       createCustomerSameDetails: Boolean(employee.createCustomerSameDetails),
-      employmentType: employee.employeeType || 'Payroll',
+      employmentType: employee.employmentType || 'Payroll',
       address: employee.address ?? '',
       employmentStatus: employee.employmentStatus || 'Active',
       contractorName: employee.contractorName ?? '',
@@ -629,23 +634,17 @@ export default function EmployeeStaffPage() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (event) => {
+    if (event?.preventDefault) event.preventDefault();
+
     if (!form.firstName.trim()) return alert('First name is required');
+    if (!form.lastName.trim()) return alert('Last name is required');
     if (!form.username.trim()) return alert('Username is required');
     if (!form.mobileNumber.trim()) return alert('Mobile number is required');
     if (!/^\d{10}$/.test(form.mobileNumber)) return alert('Mobile number must be exactly 10 digits');
     if (!form.emailAddress.trim()) return alert('Email address is required');
     if (!isValidEmail(form.emailAddress)) return alert('Enter a valid email address');
-    if (!form.roleName.trim()) return alert('Role is required');
-    if (!editingId && !form.password.trim()) return alert('Password is required');
-    if (!editingId && !form.confirmPassword.trim()) return alert('Confirm password is required');
-    if (form.password && form.password !== form.confirmPassword) return alert('Passwords do not match');
-    if (form.permissions.length === 0) return alert('Select at least one permission');
-
-    const systemRole = form.roleName.trim().toLowerCase().replace(/\s+/g, '_');
-    if ((systemRole === 'admin' || systemRole === 'manager') && form.regionStore.length === 0) {
-      return alert('Select a store for Admin/Manager access');
-    }
+    if (!form.roleId || !form.roleName.trim()) return alert('Select an admin-defined role');
 
     setSaving(true);
     try {
@@ -656,9 +655,9 @@ export default function EmployeeStaffPage() {
         gender: form.gender,
         mobile_number: form.mobileNumber.trim(),
         email_address: form.emailAddress.trim(),
-        role_id: null,
+        role_id: Number(form.roleId),
         role_name: form.roleName.trim(),
-        assigned_stores: form.regionStore.map(Number).filter(Number.isFinite),
+        assigned_stores: [...new Set([...form.regionStore, ...form.warehouse].map(Number).filter(Number.isFinite))],
         permissions: form.permissions,
         region_store: form.regionStore.join(','),
         warehouse: form.warehouse.join(','),
@@ -988,46 +987,61 @@ export default function EmployeeStaffPage() {
       </div>
 
       {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h2 className="text-[16px] font-bold text-gray-900 mb-3">Delete Employee?</h2>
-            <p className="text-[13px] text-gray-600 mb-6">
+      {mounted && deleteConfirm && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150"
+             onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 mb-4 text-red-600">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100/80">
+                <i className="ti ti-alert-triangle text-[22px]" />
+              </div>
+              <div>
+                <h2 className="text-[17px] font-bold text-gray-900">Delete Employee?</h2>
+                <p className="text-xs text-gray-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-[13px] text-gray-600 mb-6 leading-relaxed">
               Are you sure you want to delete this employee? This action cannot be undone.
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
+                type="button"
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 py-2.5 border border-gray-200 rounded-lg text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-[13px] font-semibold text-gray-700 hover:bg-gray-50 transition"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDelete}
-                className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-[13px] font-semibold hover:bg-red-700 transition-colors"
+                className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-[13px] font-semibold hover:bg-red-700 transition shadow-sm"
               >
                 Delete
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Create/Edit Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl p-6 max-h-[92vh] overflow-auto">
-            <div className="flex items-center justify-between mb-5">
+        <div className="fixed inset-0 z-[100] bg-white">
+          <div className="flex h-full flex-col bg-slate-50">
+            <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-8">
+              <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
               <div>
-                <h2 className="text-[16px] font-bold text-gray-900">{editingId ? 'Edit Employee' : 'Create Employee'}</h2>
-                <p className="text-[12.5px] text-gray-500 mt-1">Fill the employee information and save it to the database.</p>
+                <h2 className="text-lg font-bold text-gray-900">{editingId ? 'Edit Employee' : 'Create Employee'}</h2>
+                <p className="mt-1 text-[12.5px] text-gray-500">Admin controls employee ID, login, role, permissions, site access and warehouse access.</p>
               </div>
-              <button onClick={() => { setShowCreate(false); resetForm(); }} className="p-1.5 rounded-lg hover:bg-gray-100">
+              <button onClick={() => { setShowCreate(false); resetForm(); }} className="rounded-lg p-2 hover:bg-gray-100" aria-label="Close employee form">
                 <i className="ti ti-x text-gray-500 text-[16px]" />
               </button>
+              </div>
             </div>
 
-            <div className="border border-gray-200 rounded-xl p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8">
+            <div className="mx-auto w-full max-w-7xl rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
               <h4 className="text-sm text-blue-700 font-semibold mb-6">Staff Information</h4>
 
               <div className="grid grid-cols-2 gap-x-12 gap-y-6">
@@ -1146,41 +1160,52 @@ export default function EmployeeStaffPage() {
                   />
                 </div>
 
+                <SelectField
+                  label="Admin-defined Role"
+                  value={form.roleId}
+                  onChange={(roleId) => {
+                    const selectedRole = roles.find((role) => String(role.id) === String(roleId));
+                    setForm({
+                      ...form,
+                      roleId,
+                      roleName: selectedRole?.roleName || selectedRole?.role_name || '',
+                      permissions: Array.isArray(selectedRole?.permissions) ? selectedRole.permissions : [],
+                    });
+                  }}
+                  options={roleOptions}
+                />
+
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Role <span className="text-red-500">*</span></label>
-                  <input
-                    required
-                    value={form.roleName}
-                    onChange={(event) => setForm({ ...form, roleName: event.target.value })}
-                    placeholder="Enter role name"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
+                  <label className="mb-1.5 block text-[12px] font-semibold text-gray-600">Role permissions</label>
+                  <div className="min-h-[42px] rounded-lg border border-gray-200 bg-slate-50 px-3 py-2">
+                    {form.permissions.length ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {form.permissions.map((permission) => (
+                          <span key={permission} className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-800">
+                            {permissionOptions.find((option) => option.value === permission)?.label || permission}
+                          </span>
+                        ))}
+                      </div>
+                    ) : <span className="text-[12px] text-gray-400">Select an admin-defined role to view its permissions.</span>}
+                  </div>
+                  <p className="mt-1 text-[11px] text-gray-400">Permissions come from the selected role. Edit them only from Roles & Permissions.</p>
                 </div>
 
                 <MultiSelect
-                  label="Permissions"
-                  options={permissionOptions}
-                  value={form.permissions}
-                  onChange={(permissionsSelected) => setForm({ ...form, permissions: permissionsSelected })}
-                  placeholder="Select permissions"
-                  required
-                />
-
-                <MultiSelect
-                  label="Regions & Stores"
+                  label="Assigned Sites & Site Stores"
                   options={storeOptions}
                   value={form.regionStore}
                   onChange={(regionStore) => setForm({ ...form, regionStore })}
-                  placeholder="Select Store/Region"
+                  placeholder="Select sites / site stores"
                   showSelectAll
                 />
 
                 <MultiSelect
-                  label="Warehouse"
+                  label="Assigned Warehouses"
                   options={warehouseOptions}
                   value={form.warehouse}
                   onChange={(warehouse) => setForm({ ...form, warehouse })}
-                  placeholder="Select Warehouse"
+                  placeholder="Select warehouses"
                   showSelectAll
                 />
 
@@ -1208,9 +1233,19 @@ export default function EmployeeStaffPage() {
                   onChange={(userType) => setForm({ ...form, userType })}
                   options={[
                     { value: 'Regular', label: 'Regular' },
-                    { value: 'Sales Person', label: 'Sales Person' },
+                    { value: 'Field User', label: 'Field User' },
                   ]}
                 />
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Employee ID / Code</label>
+                  <input
+                    value={form.employeeCode}
+                    onChange={(event) => setForm({ ...form, employeeCode: event.target.value.toUpperCase() })}
+                    placeholder="Example: ASC-EMP-001"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
 
                 {/* <div>
                   <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Date of Birth</label>
@@ -1302,7 +1337,7 @@ export default function EmployeeStaffPage() {
               </div>
             </div> */}
 
-            <div className="grid grid-cols-2 gap-x-12 gap-y-6 mt-6">
+            <div className="mt-6 grid grid-cols-2 gap-x-12 gap-y-6">
               <div>
                 <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Contractor Name</label>
                 <input
@@ -1324,7 +1359,7 @@ export default function EmployeeStaffPage() {
               />
             </div>
 
-            <div className="flex gap-2 mt-6">
+            <div className="mt-6 flex gap-2">
               <button
                 onClick={() => { setShowCreate(false); resetForm(); }}
                 className="flex-1 py-2.5 border border-gray-200 rounded-lg text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
@@ -1339,6 +1374,7 @@ export default function EmployeeStaffPage() {
                 {saving ? 'Saving...' : editingId ? 'Update' : 'Save'}
               </button>
             </div>
+          </div>
           </div>
         </div>
       )}

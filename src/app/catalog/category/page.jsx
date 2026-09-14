@@ -7,7 +7,7 @@ import { formatIndianDate } from '@/lib/dateUtils';
 
 const columns = [
   { key: 'sno',         label: 'S. No.',        sortable: true  },
-  { key: 'name',        label: 'Name',           sortable: true  },
+  { key: 'name',        label: 'Material Category', sortable: true  },
   { key: 'description', label: 'Description',    sortable: false },
   { key: 'is_active',   label: 'Status',         sortable: true  },
   { key: 'created_at',  label: 'Created At',     sortable: true  },
@@ -110,19 +110,19 @@ export default function CategoryPage() {
 
       <CatalogListPage
         breadcrumbs={[
-          { label: 'Catalog',                href: '/catalog' },
-          { label: 'Category' },
+          { label: 'Materials',               href: '/catalog/products' },
+          { label: 'Material Categories' },
         ]}
-        title="Category"
-        description="Manage product categories. Need Help?"
-        createLabel="Create Category"
+        title="Material Categories"
+        description="Organize construction materials by trade, type and use."
+        createLabel="Create Material Category"
         onCreateClick={() => router.push('/catalog/category/create')}
         bulkOperations={true}
         columns={columns}
         rows={rows}
         loading={loading}
-        totalLabel="Category(s)"
-        emptyMessage="No records found"
+        totalLabel="Material Category(s)"
+        emptyMessage="No material categories found"
         page={page}
         pageSize={pageSize}
         totalPages={totalPages}

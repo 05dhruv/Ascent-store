@@ -128,7 +128,7 @@ export default function RegionsPage() {
 
 		const isEditing = Boolean(form.id);
 		if (!form.name.trim()) {
-			setError('Region name is required');
+			setError('Project region / zone name is required');
 			return;
 		}
 
@@ -197,12 +197,12 @@ export default function RegionsPage() {
 			<div className="flex items-start justify-between gap-4 mb-6">
 				<div>
 					<nav className="flex items-center gap-1.5 text-xs text-gray-500 mb-4">
-						<span className="text-blue-500">Settings</span>
+						<span className="text-blue-500">Construction Settings</span>
 						<span>›</span>
-						<span className="text-gray-700 font-medium">Regions</span>
+						<span className="text-gray-700 font-medium">Project Regions & Zones</span>
 					</nav>
-					<h1 className="text-3xl font-bold text-gray-900">Regions</h1>
-					<p className="text-sm text-gray-500 mt-1">Create regions and assign stores to location groups. Need Help?</p>
+					<h1 className="text-3xl font-bold text-gray-900">Project Regions & Zones</h1>
+					<p className="text-sm text-gray-500 mt-1">Group projects, site stores and warehouses for reporting and access mapping.</p>
 				</div>
 
 				<button
@@ -211,16 +211,16 @@ export default function RegionsPage() {
 					className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
 				>
 					<span className="text-lg leading-none">+</span>
-					Create Region
+					Create Region / Zone
 				</button>
 			</div>
 
 			<div className="mb-4 flex items-center justify-between gap-3">
-				<p className="text-xs text-gray-500">Region list and store mappings are loaded from the database.</p>
+				<p className="text-xs text-gray-500">Region and construction-location mappings are loaded from the database.</p>
 				<input
 					value={search}
 					onChange={(event) => setSearch(event.target.value)}
-					placeholder="Search regions"
+					placeholder="Search regions / zones"
 					className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-blue-500"
 				/>
 			</div>
@@ -229,8 +229,8 @@ export default function RegionsPage() {
 				<div className="border-b border-gray-100 px-5 py-4">
 					<div className="flex items-center justify-between gap-3">
 						<div>
-							<h2 className="text-[15px] font-semibold text-gray-900">Region List</h2>
-							<p className="text-xs text-gray-500 mt-1">Add, edit and delete regions with mapped stores.</p>
+							<h2 className="text-[15px] font-semibold text-gray-900">Region & Zone List</h2>
+							<p className="text-xs text-gray-500 mt-1">Add, edit and delete regions with mapped site stores and warehouses.</p>
 						</div>
 						<span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
 							{filteredRegions.length} region{filteredRegions.length === 1 ? '' : 's'}
@@ -242,20 +242,20 @@ export default function RegionsPage() {
 					<table className="w-full text-left text-sm">
 						<thead className="bg-gray-50 text-gray-600">
 							<tr>
-								<th className="px-5 py-3 font-semibold">Region Name</th>
+								<th className="px-5 py-3 font-semibold">Region / Zone</th>
 								<th className="px-5 py-3 font-semibold">Description</th>
-								<th className="px-5 py-3 font-semibold">Stores</th>
+								<th className="px-5 py-3 font-semibold">Mapped Locations</th>
 								<th className="px-5 py-3 font-semibold text-right">Actions</th>
 							</tr>
 						</thead>
 						<tbody>
 							{loading ? (
 								<tr>
-									<td colSpan={4} className="px-5 py-16 text-center text-gray-400">Loading regions...</td>
+									<td colSpan={4} className="px-5 py-16 text-center text-gray-400">Loading regions and zones...</td>
 								</tr>
 							) : filteredRegions.length === 0 ? (
 								<tr>
-									<td colSpan={4} className="px-5 py-16 text-center text-gray-400">No regions found.</td>
+									<td colSpan={4} className="px-5 py-16 text-center text-gray-400">No regions or zones found.</td>
 								</tr>
 							) : filteredRegions.map((region) => (
 								<tr key={region.id} className="border-t border-gray-100 align-top hover:bg-gray-50/70">
@@ -298,9 +298,9 @@ export default function RegionsPage() {
 						<div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-gray-100 bg-white px-6 py-5">
 							<div>
 								<h2 className="text-xl font-bold text-gray-900">
-									{form.id ? 'Edit Region' : 'Create Region'}
+									{form.id ? 'Edit Region / Zone' : 'Create Region / Zone'}
 								</h2>
-								<p className="text-sm text-gray-500 mt-1">Basic information and mapped stores</p>
+								<p className="text-sm text-gray-500 mt-1">Basic information and mapped site stores / warehouses</p>
 							</div>
 							<button
 								type="button"
@@ -321,12 +321,12 @@ export default function RegionsPage() {
 
 								<div className="space-y-4">
 									<div>
-										<label className="mb-1 block text-sm font-medium text-gray-700">Region Name</label>
+										<label className="mb-1 block text-sm font-medium text-gray-700">Region / Zone Name</label>
 										<input
 											value={form.name}
 											onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
 											className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-											placeholder="Enter region name"
+											placeholder="Example: Noida Cluster / North Zone"
 											required
 										/>
 									</div>
@@ -345,16 +345,16 @@ export default function RegionsPage() {
 
 							<section className="rounded-xl border border-gray-200 p-5">
 								<div className="mb-4 flex items-center justify-between gap-3">
-									<h3 className="text-[15px] font-semibold text-blue-700">Stores List</h3>
+									<h3 className="text-[15px] font-semibold text-blue-700">Site Stores & Warehouses</h3>
 									<input
 										value={storeSearch}
 										onChange={(event) => setStoreSearch(event.target.value)}
-										placeholder="Search store"
+										placeholder="Search site store or warehouse"
 										className="w-full max-w-xs rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-blue-500"
 									/>
 								</div>
 
-								<p className="text-xs text-gray-500 mb-3">Select stores to assign to this region.</p>
+								<p className="text-xs text-gray-500 mb-3">Select site stores and warehouses to assign to this region / zone.</p>
 
 								<div className="max-h-[280px] overflow-auto rounded-lg border border-gray-200">
 									<table className="w-full text-left text-sm">
@@ -364,7 +364,7 @@ export default function RegionsPage() {
 													<span className="sr-only">Select</span>
 												</th>
 												<th className="px-3 py-2 font-semibold">Store ID</th>
-												<th className="px-3 py-2 font-semibold">Store Name</th>
+												<th className="px-3 py-2 font-semibold">Location Name</th>
 											</tr>
 										</thead>
 										<tbody>

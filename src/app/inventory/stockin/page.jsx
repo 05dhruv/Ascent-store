@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import InventoryShell from "@/components/inventory/InventoryShell";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -82,20 +83,20 @@ async function fetchCatalogOptions(endpoint) {
 }
 
 const tableHeaders = [
-  "Transaction ID",
-  "Stock In By",
-  "Stock In Date",
-  "Invoice Number",
-  "Brand",
-  "Vendor Name",
-  "Destination",
+  "GRN / Inward No",
+  "Received By",
+  "Inward Date",
+  "Challan / Invoice No",
+  "Brand / Make",
+  "Supplier / Vendor",
+  "Site / Warehouse",
   "Status",
-  "Invoice Date",
-  "Item Count",
-  "Total Quantity",
-  "Cost",
-  "Reference Transaction Type",
-  "Reference ID",
+  "Challan / Invoice Date",
+  "Material Items",
+  "Received Quantity",
+  "Total Amount",
+  "PO / Ref Type",
+  "PO / Work Order No",
 ];
 
 function formatDate(value) {
@@ -116,27 +117,27 @@ function mapRecordsToTable(records) {
   return (records || []).map((row) => ({
     _id: row.id,
     _status: row.status || "confirmed",
-    "Transaction ID": row.transactionId
+    "GRN / Inward No": row.transactionId
       ? `#${row.transactionId}`
-      : `#STK-${row.id}`,
-    "Stock In By": row.stockInBy || row.stockInByEmail || "—",
-    "Stock In Date": formatDate(row.createdAt),
-    "Invoice Number": row.invoiceNumber || "—",
-    Brand: row.brandNames || "—",
-    "Vendor Name": row.vendorName || "—",
-    Destination: row.destination || "—",
+      : `#GRN-${row.id}`,
+    "Received By": row.stockInBy || row.stockInByEmail || "—",
+    "Inward Date": formatDate(row.createdAt),
+    "Challan / Invoice No": row.invoiceNumber || "—",
+    "Brand / Make": row.brandNames || "—",
+    "Supplier / Vendor": row.vendorName || "—",
+    "Site / Warehouse": row.destination || "—",
     Status:
       row.status === "margin_hold"
         ? "Margin Hold"
         : row.status === "confirmed"
           ? "Confirmed"
           : row.status || "Confirmed",
-    "Invoice Date": formatDate(row.invoiceDate),
-    "Item Count": row.itemCount ?? 0,
-    "Total Quantity": row.totalItems ?? 0,
-    Cost: formatCost(row.cost),
-    "Reference Transaction Type": row.referenceType || "—",
-    "Reference ID": row.referenceId || "—",
+    "Challan / Invoice Date": formatDate(row.invoiceDate),
+    "Material Items": row.itemCount ?? 0,
+    "Received Quantity": row.totalItems ?? 0,
+    "Total Amount": formatCost(row.cost),
+    "PO / Ref Type": row.referenceType || "—",
+    "PO / Work Order No": row.referenceId || "—",
   }));
 }
 
@@ -1031,7 +1032,8 @@ export default function StockInPage() {
   const [editExcelChooserSearch, setEditExcelChooserSearch] = useState("");
   const [selectedStockInEditIds, setSelectedStockInEditIds] = useState({});
 
-  // ── NEW: state for destination picker modal (bulk import flow) ──
+  const [bulkUploadReview, setBulkUploadReview] = useState(null);
+  const [bulkUploadReviewBusy, setBulkUploadReviewBusy] = useState(false);
   const [destinationPickerRows, setDestinationPickerRows] = useState(null);
   const [destinationPickerStores, setDestinationPickerStores] = useState([]);
   const [showDestinationPicker, setShowDestinationPicker] = useState(false);
@@ -1056,20 +1058,20 @@ export default function StockInPage() {
     return editableStockInRows.filter((row) =>
       [
         row._id,
-        row["Transaction ID"],
-        row["Stock In By"],
-        row["Stock In Date"],
-        row["Invoice Number"],
-        row.Brand,
-        row["Vendor Name"],
-        row.Destination,
+        row["GRN / Inward No"],
+        row["Received By"],
+        row["Inward Date"],
+        row["Challan / Invoice No"],
+        row["Brand / Make"],
+        row["Supplier / Vendor"],
+        row["Site / Warehouse"],
         row.Status,
-        row["Invoice Date"],
-        row["Item Count"],
-        row["Total Quantity"],
-        row.Cost,
-        row["Reference Transaction Type"],
-        row["Reference ID"],
+        row["Challan / Invoice Date"],
+        row["Material Items"],
+        row["Received Quantity"],
+        row["Total Amount"],
+        row["PO / Ref Type"],
+        row["PO / Work Order No"],
       ]
         .map((value) => String(value || "").toLowerCase())
         .some((value) => value.includes(query)),
@@ -1403,7 +1405,12 @@ export default function StockInPage() {
           "ean",
           "upc",
         ]);
-        const sku = getBulkField(row, ["sku", "material_code", "sku_code", "barcode_value"]);
+        const sku = getBulkField(row, [
+          "sku",
+          "material_code",
+          "sku_code",
+          "barcode_value",
+        ]);
         const qty = parseBulkNumber(
           getBulkField(
             row,
@@ -1540,13 +1547,25 @@ export default function StockInPage() {
         const costPrice = parseBulkNumber(
           getBulkField(
             row,
-            ["purchase_rate_unit", "cost_unit", "cost_per_unit", "cost_price", "cost"],
+            [
+              "purchase_rate_unit",
+              "cost_unit",
+              "cost_per_unit",
+              "cost_price",
+              "cost",
+            ],
             0,
           ),
         );
-        const mrp = parseBulkNumber(getBulkField(row, ["reference_rate", "mrp"], 0));
+        const mrp = parseBulkNumber(
+          getBulkField(row, ["reference_rate", "mrp"], 0),
+        );
         const sellingPrice = parseBulkNumber(
-          getBulkField(row, ["issue_rate", "selling_price", "sale_price", "sp"], 0),
+          getBulkField(
+            row,
+            ["issue_rate", "selling_price", "sale_price", "sp"],
+            0,
+          ),
         );
         const previewId = `${matchedProduct.id}-${index}`;
         const priceBatchKey = [
@@ -1625,14 +1644,412 @@ export default function StockInPage() {
       if (!file) return;
 
       const rows = await parseBulkSheet(file);
-      window.sessionStorage.setItem(
-        PENDING_STOCK_IN_BULK_KEY,
-        JSON.stringify(rows),
-      );
-      await handleParsedBulkRows(rows, { persistOnMissing: true });
+      if (!Array.isArray(rows) || !rows.length) {
+        alert("No material rows found in the uploaded Excel/CSV file.");
+        return;
+      }
+
+      // Fetch catalog products and stores in parallel
+      const [productsRes, storeList, vendorList] = await Promise.all([
+        fetchAllCatalogProducts({
+          pageSize: 10000,
+          fetchOptions: { cache: "no-store" },
+        }).catch(() => []),
+        stores.length ? stores : fetchStores().catch(() => []),
+        vendors.length
+          ? vendors
+          : fetch("/api/vendors?pageSize=500")
+              .then((r) => r.json())
+              .catch(() => []),
+      ]);
+
+      const allProducts = Array.isArray(productsRes) ? productsRes : [];
+      const allStores = Array.isArray(storeList) ? storeList : [];
+      if (!stores.length && allStores.length) setStores(allStores);
+      const allVendors = Array.isArray(vendorList?.records || vendorList)
+        ? vendorList.records || vendorList
+        : [];
+      if (!vendors.length && allVendors.length) setVendors(allVendors);
+
+      // Build lookup maps
+      const byId = new Map();
+      const bySku = new Map();
+      const byBarcode = new Map();
+      const byName = new Map();
+
+      allProducts.forEach((p) => {
+        const id = String(p.id || "");
+        const productId = String(p.product_id || p.productId || "");
+        const sku = String(p.sku || "")
+          .trim()
+          .toLowerCase();
+        const barcode = String(p.barcode || "")
+          .trim()
+          .toLowerCase();
+        const name = String(p.name || p.productName || "")
+          .trim()
+          .toLowerCase();
+
+        if (id) byId.set(id, p);
+        if (productId) byId.set(productId, p);
+        if (sku) bySku.set(sku, p);
+        if (barcode) byBarcode.set(barcode, p);
+        if (name) byName.set(name, p);
+      });
+
+      let detectedInvoiceNumber = "";
+      let detectedInvoiceDate = "";
+      let detectedVendor = "";
+      let detectedRemarks = "";
+
+      const parsedItems = [];
+
+      rows.forEach((row, rowIndex) => {
+        const pId = getBulkField(row, [
+          "product_id",
+          "material_id",
+          "product_code",
+          "item_code",
+          "code",
+        ]);
+        const pName = getBulkField(row, [
+          "product_name",
+          "material_name",
+          "item_name",
+          "product",
+          "name",
+        ]);
+        const barcode = getBulkField(row, [
+          "barcode",
+          "bar_code",
+          "ean",
+          "upc",
+        ]);
+        const sku = getBulkField(row, [
+          "sku",
+          "material_code",
+          "sku_code",
+          "barcode_value",
+        ]);
+        const category = getBulkField(row, [
+          "category",
+          "material_category",
+          "category_name",
+        ]);
+        const brand = getBulkField(row, [
+          "brand",
+          "brand_make",
+          "make",
+          "brand_name",
+        ]);
+        const unit =
+          getBulkField(row, [
+            "unit",
+            "unit_of_measure",
+            "uom",
+            "uom_name",
+          ]) || "PCS";
+        const stockItemsType =
+          getBulkField(row, [
+            "stock_items_type",
+            "traceability_type",
+            "type",
+          ]) || "BATCHED";
+
+        const rawQty = getBulkField(row, [
+          "quantity",
+          "received_quantity",
+          "qty",
+          "total_qty",
+          "total_quantity",
+          "stock_qty",
+          "stock_in_qty",
+          "stock_in_quantity",
+          "qty_in",
+        ]);
+        const qty = parseBulkNumber(rawQty, 0);
+
+        const costPrice = parseBulkNumber(
+          getBulkField(row, [
+            "purchase_rate_unit",
+            "cost_unit",
+            "cost_per_unit",
+            "cost_price",
+            "cost",
+            "purchase_rate",
+            "rate",
+          ]),
+          0,
+        );
+        const mrp = parseBulkNumber(
+          getBulkField(row, ["reference_rate", "mrp"]),
+          0,
+        );
+        const sellingPrice = parseBulkNumber(
+          getBulkField(row, ["issue_rate", "selling_price", "sale_price", "sp"]),
+          0,
+        );
+
+        const rawBatch = getBulkField(row, BULK_BATCH_KEYS);
+        const rawExpiry = getBulkField(row, BULK_EXPIRY_KEYS);
+        const lineRemarks = getBulkField(row, [
+          "inspection_remarks",
+          "remarks",
+        ]);
+
+        const invNo = getBulkField(row, [
+          "invoice_number",
+          "challan_number",
+          "invoice_no",
+          "challan_no",
+          "bill_no",
+        ]);
+        const invDate = getBulkField(row, [
+          "invoice_date",
+          "challan_date",
+          "bill_date",
+        ]);
+        const vName = getBulkField(row, [
+          "vendor_name",
+          "supplier_name",
+          "vendor",
+          "supplier",
+        ]);
+
+        if (invNo && !detectedInvoiceNumber) detectedInvoiceNumber = invNo;
+        if (invDate && !detectedInvoiceDate)
+          detectedInvoiceDate = normalizeImportDate(invDate) || "";
+        if (vName && !detectedVendor) detectedVendor = vName;
+        if (lineRemarks && !detectedRemarks) detectedRemarks = lineRemarks;
+
+        if (!Number.isFinite(qty) || qty <= 0) return;
+
+        // Try to match product
+        let matched = null;
+        if (pId && byId.has(String(pId))) matched = byId.get(String(pId));
+        else if (sku && bySku.has(sku.toLowerCase().trim()))
+          matched = bySku.get(sku.toLowerCase().trim());
+        else if (barcode && byBarcode.has(barcode.toLowerCase().trim()))
+          matched = byBarcode.get(barcode.toLowerCase().trim());
+        else if (pName && byName.has(pName.toLowerCase().trim()))
+          matched = byName.get(pName.toLowerCase().trim());
+
+        const finalName = matched
+          ? matched.name || matched.productName
+          : pName || sku || barcode || `Material Row ${rowIndex + 1}`;
+        const finalCategory = matched
+          ? matched.category_name || matched.category || category
+          : category || "General";
+        const finalBrand = matched
+          ? matched.brand_name || matched.brand || brand
+          : brand || "";
+        const finalUnit = matched ? matched.unit || unit : unit;
+        const finalCost =
+          costPrice ||
+          (matched ? Number(matched.cost_price || matched.costPerUnit || 0) : 0);
+        const finalMrp = mrp || (matched ? Number(matched.mrp || 0) : 0);
+        const finalSp =
+          sellingPrice ||
+          (matched
+            ? Number(matched.selling_price || matched.sellingPrice || 0)
+            : 0);
+
+        parsedItems.push({
+          rowId: `row-${rowIndex}-${Date.now()}`,
+          index: rowIndex + 1,
+          productId: matched ? matched.id : null,
+          productName: finalName,
+          category: finalCategory,
+          brand: finalBrand,
+          sku: matched ? matched.sku || sku : sku,
+          barcode: matched ? matched.barcode || barcode : barcode,
+          unit: finalUnit,
+          stockItemsType:
+            stockItemsType || (matched?.stock_item_type || "BATCHED"),
+          qty,
+          costPrice: finalCost,
+          mrp: finalMrp,
+          sellingPrice: finalSp,
+          batchNo: rawBatch || "",
+          expiryDate: normalizeImportDate(rawExpiry) || "",
+          remarks: lineRemarks || "",
+          isNew: !matched,
+        });
+      });
+
+      if (!parsedItems.length) {
+        alert(
+          "No materials with a valid quantity (> 0) were found in the uploaded file. Please enter quantity in the template before uploading.",
+        );
+        return;
+      }
+
+      const warehouseStores = allStores.filter(isWarehouseLocation);
+      const defaultStoreId = warehouseStores.length
+        ? String(warehouseStores[0].id)
+        : allStores.length
+          ? String(allStores[0].id)
+          : "";
+
+      setBulkUploadReview({
+        open: true,
+        fileName: file.name,
+        items: parsedItems,
+        selectedMap: Object.fromEntries(
+          parsedItems.map((_, i) => [i, true]),
+        ),
+        destinationId: defaultStoreId,
+        invoiceNumber: detectedInvoiceNumber || "",
+        invoiceDate:
+          detectedInvoiceDate || new Date().toISOString().slice(0, 10),
+        vendorName: detectedVendor || "",
+        remarks: detectedRemarks || "Created from bulk Stock In template",
+      });
     } catch (err) {
       console.error(err);
-      alert("Bulk import failed. Please use a valid Excel/CSV file.");
+      alert(err.message || "Failed to process the uploaded Excel file.");
+    }
+  };
+
+  const handleConfirmBulkUpload = async () => {
+    if (!bulkUploadReview) return;
+    const {
+      items,
+      selectedMap,
+      destinationId,
+      invoiceNumber,
+      invoiceDate,
+      vendorName,
+      remarks,
+    } = bulkUploadReview;
+
+    if (!destinationId) {
+      alert("Please select a Destination Site / Warehouse.");
+      return;
+    }
+
+    const selectedItems = items.filter((_, idx) => selectedMap[idx]);
+    if (!selectedItems.length) {
+      alert("Please select at least one material to inward.");
+      return;
+    }
+
+    setBulkUploadReviewBusy(true);
+    try {
+      // 1. Auto-create any new catalog products that don't exist yet
+      const newItems = selectedItems.filter(
+        (item) => item.isNew || !item.productId,
+      );
+      for (const item of newItems) {
+        try {
+          const createRes = await fetch("/api/catalog/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: item.productName,
+              sku: item.sku || null,
+              barcode: item.barcode || null,
+              category_name: item.category || "General",
+              brand_name: item.brand || null,
+              unit: item.unit || "PCS",
+              cost_price: item.costPrice || 0,
+              mrp: item.mrp || 0,
+              selling_price: item.sellingPrice || 0,
+              stock_item_type: item.stockItemsType || "BATCHED",
+            }),
+          });
+          const createdJson = await createRes.json().catch(() => ({}));
+          if (createRes.ok && createdJson.id) {
+            item.productId = createdJson.id;
+          }
+        } catch (e) {
+          console.warn("Could not auto create product:", item.productName, e);
+        }
+      }
+
+      // 2. Post Stock In draft
+      const draft = await postStockIn({
+        method: "new",
+        destination: String(destinationId).trim(),
+        sourceType: "vendor",
+        vendorNames: vendorName ? [vendorName.trim()] : [],
+        invoiceNumber: invoiceNumber ? invoiceNumber.trim() : null,
+        invoiceDate: invoiceDate || null,
+        remarks: remarks ? remarks.trim() : "Created from bulk Stock In template",
+        applyTaxes: true,
+        addProductsPrefill: true,
+      });
+
+      // 3. Format items payload for stock in
+      const lineItemsPayload = selectedItems.map((item, idx) => {
+        const batchNo =
+          item.batchNo ||
+          `BATCH-${Date.now().toString().slice(-6)}-${idx + 1}`;
+        return {
+          product_id: item.productId,
+          product_name: item.productName,
+          barcode: item.barcode || "",
+          sku: item.sku || "",
+          qty: Number(item.qty || 0),
+          cost_price: Number(item.costPrice || 0),
+          mrp: Number(item.mrp || 0),
+          selling_price: Number(item.sellingPrice || 0),
+          tax_value: 0,
+          batch_no: batchNo,
+          expiry_date: item.expiryDate || null,
+          batches: [
+            {
+              batch_no: batchNo,
+              qty: Number(item.qty || 0),
+              expiry_date: item.expiryDate || null,
+            },
+          ],
+          remarks: item.remarks || "",
+        };
+      });
+
+      // 4. Update items on draft
+      const updateRes = await fetch(
+        `/api/inventory/stockin/${encodeURIComponent(draft.id)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            form: {
+              vendor: vendorName ? vendorName.trim() : null,
+              invoice_number: invoiceNumber ? invoiceNumber.trim() : null,
+              invoice_date: invoiceDate || null,
+              remarks:
+                remarks ? remarks.trim() : "Created from bulk Stock In template",
+              other_charges: 0,
+            },
+            items: lineItemsPayload,
+          }),
+        },
+      );
+      const updateJson = await updateRes.json().catch(() => ({}));
+      if (!updateRes.ok) {
+        throw new Error(
+          updateJson.error || "Unable to save items to stock in draft.",
+        );
+      }
+
+      // 5. Success! Close modal and refresh or navigate
+      setBulkUploadReview(null);
+      setLoadingList(true);
+      fetchStockInList(filters)
+        .then((data) => setTableData(mapRecordsToTable(data)))
+        .catch(() => setTableData([]))
+        .finally(() => setLoadingList(false));
+
+      router.push(
+        `/inventory/stockin/line-items?id=${encodeURIComponent(draft.id)}`,
+      );
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Failed to inward stock from template.");
+    } finally {
+      setBulkUploadReviewBusy(false);
     }
   };
 
@@ -1915,36 +2332,52 @@ export default function StockInPage() {
     try {
       const params = new URLSearchParams({
         template: "products",
-        format: "xlsx",
       });
       if (templateFilters.categoryId) {
         params.set("category_id", templateFilters.categoryId);
       }
-      const res = await fetch(`/api/inventory/stockin?${params.toString()}`, {
-        cache: "no-store",
-      });
+      if (templateFilters.brandIds?.length) {
+        params.set("brand_ids", templateFilters.brandIds.join(","));
+      }
+      const [res, freshBrandsRes, freshCategoriesRes] = await Promise.all([
+        fetch(`/api/inventory/stockin?${params.toString()}`, { cache: "no-store" }),
+        fetch("/api/catalog/brands", { cache: "no-store" }).then((r) => r.json()).catch(() => ({})),
+        fetch("/api/catalog/categories", { cache: "no-store" }).then((r) => r.json()).catch(() => ({})),
+      ]);
+
       if (!res.ok) throw new Error("Unable to create Stock In template.");
-      const fileBlob = await res.blob();
-      if (!fileBlob.size) {
-        alert("No materials found for the selected category.");
-        return;
-      }
-      const fileUrl = URL.createObjectURL(fileBlob);
-      const downloadLink = document.createElement("a");
-      downloadLink.href = fileUrl;
-      downloadLink.download = `Stock In Template ${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      downloadLink.remove();
-      URL.revokeObjectURL(fileUrl);
-      setShowTemplateFilters(false);
-      return;
       const json = await res.json();
-      const records = Array.isArray(json.records) ? json.records : [];
-      if (!records.length) {
-        alert("No products found for the selected brand or category.");
-        return;
+      let records = Array.isArray(json.records) ? json.records : [];
+      if (!records.length && !templateFilters.categoryId && !templateFilters.brandIds?.length) {
+        const catalogRes = await fetch("/api/catalog/products?pageSize=5000", { cache: "no-store" })
+          .then((r) => r.json())
+          .catch(() => ({}));
+        const catalogItems = catalogRes.data?.records || catalogRes.records || [];
+        if (Array.isArray(catalogItems) && catalogItems.length) {
+          records = catalogItems.map((p) => ({
+            id: p.id,
+            productId: p.product_id || p.id,
+            productName: p.name || "",
+            sizeId: p.id,
+            sizeName: "",
+            category: p.category_name || p.category || "",
+            brandId: p.brand_id || "",
+            brand: p.brand_name || p.brand || "",
+            barcode: p.barcode || "",
+            sku: p.sku || "",
+            unit: p.unit || "PCS",
+            stockItemsType: String(p.stock_item_type || "BATCHED").toUpperCase(),
+            costPerUnit: Number(p.cost_price || 0),
+            mrp: Number(p.mrp || 0),
+            sellingPrice: Number(p.selling_price || 0),
+            expiryDate: "",
+          }));
+        }
       }
+
+      const freshBrands = Array.isArray(freshBrandsRes.data?.records) ? freshBrandsRes.data.records : [];
+      const freshCategories = Array.isArray(freshCategoriesRes.data?.records) ? freshCategoriesRes.data.records : [];
+
       const productRows = records.map((product) => ({
         "Product ID": excelText(product.id),
         "Product Name": product.productName,
@@ -1954,7 +2387,7 @@ export default function StockInPage() {
         Brand: product.brand,
         Barcode: excelText(product.barcode),
         SKU: excelText(product.sku),
-        Unit: product.unit || "Piece",
+        Unit: product.unit || "PCS",
         "Stock Items Type": product.stockItemsType || "BATCHED",
         Quantity: "",
         "Cost/Unit": product.costPerUnit,
@@ -2027,6 +2460,7 @@ export default function StockInPage() {
           name: "StockInCategories",
           values: sortOptions(
             uniqueOptions([
+              ...freshCategories.map((c) => c.name),
               ...templateCategories.map((category) => category.name),
               ...records.map((product) => product.category),
             ]),
@@ -2036,7 +2470,10 @@ export default function StockInPage() {
           key: "brands",
           name: "StockInBrands",
           values: sortOptions(
-            uniqueOptions(records.map((product) => product.brand)),
+            uniqueOptions([
+              ...freshBrands.map((b) => b.name),
+              ...records.map((product) => product.brand),
+            ]),
           ),
         },
         {
@@ -2070,6 +2507,15 @@ export default function StockInPage() {
             "LTR",
             "SET",
             "ROLL",
+            "BOX",
+            "PKT",
+            "PAIR",
+            "BUNDLE",
+            "DRUM",
+            "CAN",
+            "TIN",
+            "QUINTAL",
+            "GRAMS",
             ...records.map((product) => product.unit),
           ]),
         },
@@ -2080,6 +2526,7 @@ export default function StockInPage() {
         },
       ];
 
+      const validationRowLimit = Math.max(5001, productRows.length + 500);
       const validations = [
         ["Product ID", "product_ids"],
         ["Product Name", "product_names"],
@@ -2096,16 +2543,20 @@ export default function StockInPage() {
           if (columnIndex < 0) return null;
           const column = XLSX.utils.encode_col(columnIndex);
           const formula =
-            optionKey === "stock_item_types" || optionKey === "units"
+            optionKey === "stock_item_types" ||
+            optionKey === "units" ||
+            optionKey === "categories" ||
+            optionKey === "brands"
               ? optionFormula(optionGroups, optionKey)
               : prefixMatchOptionFormula(optionGroups, optionKey, `${column}2`);
           if (!formula) return null;
           return {
-            range: `${column}2:${column}${Math.max(2, productRows.length + 1)}`,
+            range: `${column}2:${column}${validationRowLimit}`,
             formula,
           };
         })
         .filter(Boolean);
+
       const workbook = XLSX.utils.book_new();
       const {
         worksheet: optionsWorksheet,
@@ -2214,9 +2665,12 @@ export default function StockInPage() {
   return (
     <>
       <InventoryShell
-        breadcrumb={[{ label: "Inventory" }, { label: "Stock In" }]}
-        title="Stock In"
-        subtitle="Stock In transaction history of last 7 days. Need Help?"
+        breadcrumb={[
+          { label: "Material Movement" },
+          { label: "Material Receipt (GRN)" },
+        ]}
+        title="Material Inward & GRN Receipt"
+        subtitle="Receive construction & site materials into store/site warehouse manually or with an Excel template."
         actions={
           isSuperAdmin ||
           (Array.isArray(currentUser?.permissions) &&
@@ -2532,12 +2986,12 @@ export default function StockInPage() {
                         }}
                       />
                     </th>
-                    <th className="px-4 py-3">Transaction</th>
-                    <th className="px-4 py-3">Stock In Date</th>
-                    <th className="px-4 py-3">Invoice</th>
-                    <th className="px-4 py-3">Vendor</th>
-                    <th className="px-4 py-3">Destination</th>
-                    <th className="px-4 py-3 text-right">Items</th>
+                    <th className="px-4 py-3">GRN No</th>
+                    <th className="px-4 py-3">Inward Date</th>
+                    <th className="px-4 py-3">Challan / Invoice</th>
+                    <th className="px-4 py-3">Supplier / Vendor</th>
+                    <th className="px-4 py-3">Site / Warehouse</th>
+                    <th className="px-4 py-3 text-right">Received Qty</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -2560,22 +3014,22 @@ export default function StockInPage() {
                           />
                         </td>
                         <td className="px-4 py-3 font-semibold text-gray-900">
-                          {row["Transaction ID"]}
+                          {row["GRN / Inward No"]}
                         </td>
                         <td className="px-4 py-3 text-gray-700">
-                          {row["Stock In Date"] || "-"}
+                          {row["Inward Date"] || "-"}
                         </td>
                         <td className="px-4 py-3 text-gray-700">
-                          {row["Invoice Number"] || "-"}
+                          {row["Challan / Invoice No"] || "-"}
                         </td>
                         <td className="px-4 py-3 text-gray-700">
-                          {row["Vendor Name"] || "-"}
+                          {row["Supplier / Vendor"] || "-"}
                         </td>
                         <td className="px-4 py-3 text-gray-700">
-                          {row.Destination || "-"}
+                          {row["Site / Warehouse"] || "-"}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                          {row["Total Quantity"] || 0}
+                          {row["Received Quantity"] || 0}
                         </td>
                       </tr>
                     );
@@ -2628,10 +3082,10 @@ export default function StockInPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Delete stock in?
+                    Delete Material Inward / GRN?
                   </h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    {deleteDialog.row?.["Transaction ID"] || "This stock in"}{" "}
+                    {deleteDialog.row?.["GRN / Inward No"] || "This inward entry"}{" "}
                     will be permanently removed if its quantity has not been
                     used.
                   </p>
@@ -2847,144 +3301,382 @@ export default function StockInPage() {
         </div>
       )}
 
-      {bulkPreviewRows.length > 0 && (
-        <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/40 px-4">
-          <div className="flex max-h-[82vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Review Products To Add
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Select only the products that should be added to this stock
-                  in.
-                </p>
+      {bulkUploadReview &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/65 px-4 py-6 sm:py-8">
+            <div className="flex max-h-[min(92vh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-white shadow-2xl">
+              <div className="shrink-0 border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                        <i className="ti ti-file-spreadsheet text-base" />
+                      </span>
+                      <h2 className="text-lg font-bold text-slate-900">
+                        Review & Confirm Material Inward (Excel)
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Uploaded file:{" "}
+                      <span className="font-semibold text-slate-700">
+                        {bulkUploadReview.fileName}
+                      </span>{" "}
+                      · Review details, select destination site, and confirm
+                      inwarding.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBulkUploadReview(null)}
+                    disabled={bulkUploadReviewBusy}
+                    className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+                  >
+                    <i className="ti ti-x text-lg" />
+                  </button>
+                </div>
+
+                {/* Summary Stat Pills */}
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2">
+                    <span className="block text-[11px] font-medium text-slate-500">
+                      Total Materials
+                    </span>
+                    <span className="text-base font-bold text-slate-900">
+                      {bulkUploadReview.items.length}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-blue-200 bg-blue-50/50 px-3 py-2">
+                    <span className="block text-[11px] font-medium text-blue-600">
+                      Total Received Qty
+                    </span>
+                    <span className="text-base font-bold text-blue-900">
+                      {bulkUploadReview.items
+                        .filter((_, i) => bulkUploadReview.selectedMap[i])
+                        .reduce((sum, item) => sum + Number(item.qty || 0), 0)
+                        .toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 px-3 py-2">
+                    <span className="block text-[11px] font-medium text-emerald-600">
+                      Estimated Value
+                    </span>
+                    <span className="text-base font-bold text-emerald-900">
+                      ₹
+                      {bulkUploadReview.items
+                        .filter((_, i) => bulkUploadReview.selectedMap[i])
+                        .reduce(
+                          (sum, item) =>
+                            sum +
+                            Number(item.qty || 0) *
+                              Number(item.costPrice || 0),
+                          0,
+                        )
+                        .toLocaleString("en-IN", {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2,
+                        })}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 px-3 py-2">
+                    <span className="block text-[11px] font-medium text-amber-700">
+                      New In Catalog
+                    </span>
+                    <span className="text-base font-bold text-amber-900">
+                      {
+                        bulkUploadReview.items.filter((item) => item.isNew)
+                          .length
+                      }{" "}
+                      materials
+                    </span>
+                  </div>
+                </div>
+
+                {/* Inward Details Form Controls */}
+                <div className="mt-3 grid gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3 sm:grid-cols-4">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Destination Site / Store *
+                    </label>
+                    <select
+                      value={bulkUploadReview.destinationId}
+                      onChange={(e) =>
+                        setBulkUploadReview((curr) => ({
+                          ...curr,
+                          destinationId: e.target.value,
+                        }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                    >
+                      <option value="">Select Warehouse / Site...</option>
+                      {stores.map((store) => (
+                        <option key={store.id} value={store.id}>
+                          {store.name}{" "}
+                          {isWarehouseLocation(store) ? "(Warehouse)" : "(Store)"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Supplier / Vendor Name
+                    </label>
+                    <input
+                      type="text"
+                      value={bulkUploadReview.vendorName}
+                      onChange={(e) =>
+                        setBulkUploadReview((curr) => ({
+                          ...curr,
+                          vendorName: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. UltraTech / Tata Steel"
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Challan / Invoice No
+                    </label>
+                    <input
+                      type="text"
+                      value={bulkUploadReview.invoiceNumber}
+                      onChange={(e) =>
+                        setBulkUploadReview((curr) => ({
+                          ...curr,
+                          invoiceNumber: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. DC-98431"
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Inward / Challan Date
+                    </label>
+                    <input
+                      type="date"
+                      value={bulkUploadReview.invoiceDate}
+                      onChange={(e) =>
+                        setBulkUploadReview((curr) => ({
+                          ...curr,
+                          invoiceDate: e.target.value,
+                        }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={closeBulkPreview}
-                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-                title="Cancel"
-              >
-                <i className="ti ti-x text-[18px]" />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-50 text-xs uppercase text-gray-500">
-                  <tr>
-                    <th className="w-16 px-4 py-3 text-left">
-                      <label className="inline-flex items-center gap-2">
+
+              {/* Items Table */}
+              <div className="min-h-0 flex-1 overflow-auto px-5 py-3 sm:px-6">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100 text-[11px] font-bold uppercase text-slate-600">
+                    <tr>
+                      <th className="w-10 px-3 py-2.5">
                         <input
                           type="checkbox"
                           checked={
-                            bulkPreviewRows.length > 0 &&
-                            bulkPreviewRows.every(
-                              (row) => bulkPreviewSelected[row.preview_id],
+                            bulkUploadReview.items.length > 0 &&
+                            bulkUploadReview.items.every(
+                              (_, i) => bulkUploadReview.selectedMap[i],
                             )
                           }
-                          onChange={(event) => {
-                            const checked = event.target.checked;
-                            setBulkPreviewSelected(
-                              Object.fromEntries(
-                                bulkPreviewRows.map((row) => [
-                                  row.preview_id,
-                                  checked,
-                                ]),
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setBulkUploadReview((curr) => ({
+                              ...curr,
+                              selectedMap: Object.fromEntries(
+                                curr.items.map((_, i) => [i, checked]),
                               ),
-                            );
+                            }));
                           }}
-                          className="h-4 w-4 rounded border-gray-300"
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span>S.No</span>
-                      </label>
-                    </th>
-                    <th className="px-4 py-3 text-left">Product</th>
-                    <th className="px-4 py-3 text-left">Barcode</th>
-                    <th className="px-4 py-3 text-left">SKU</th>
-                    <th className="px-4 py-3 text-right">Qty</th>
-                    <th className="px-4 py-3 text-right">Cost</th>
-                    <th className="px-4 py-3 text-left">Expiry</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {bulkPreviewRows.map((row, index) => (
-                    <tr
-                      key={row.preview_id}
-                      className={
-                        bulkPreviewSelected[row.preview_id]
-                          ? "bg-white"
-                          : "bg-gray-50 text-gray-400"
-                      }
-                    >
-                      <td className="px-4 py-3">
-                        <label className="inline-flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={!!bulkPreviewSelected[row.preview_id]}
-                            onChange={(event) =>
-                              setBulkPreviewSelected((current) => ({
-                                ...current,
-                                [row.preview_id]: event.target.checked,
-                              }))
-                            }
-                            className="h-4 w-4 rounded border-gray-300"
-                          />
-                          <span>{index + 1}</span>
-                        </label>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {row.product_name ||
-                          row.name ||
-                          `Product ${row.product_id}`}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {row.barcode || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {row.sku || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right">{row.qty}</td>
-                      <td className="px-4 py-3 text-right">
-                        {formatUnitPrice(row.cost_price)}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {formatDate(row.expiry_date)}
-                      </td>
+                      </th>
+                      <th className="px-3 py-2.5">#</th>
+                      <th className="px-3 py-2.5">Material & Category</th>
+                      <th className="px-3 py-2.5">SKU / Code</th>
+                      <th className="px-3 py-2.5">Unit</th>
+                      <th className="px-3 py-2.5">Batch / Lot No</th>
+                      <th className="px-3 py-2.5">Expiry / Warranty</th>
+                      <th className="px-3 py-2.5 text-right">Inward Qty</th>
+                      <th className="px-3 py-2.5 text-right">Rate / Unit (₹)</th>
+                      <th className="px-3 py-2.5 text-right">Total (₹)</th>
+                      <th className="px-3 py-2.5 text-center">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">
-              <span className="text-sm text-gray-600">
-                {
-                  bulkPreviewRows.filter(
-                    (row) => bulkPreviewSelected[row.preview_id],
-                  ).length
-                }{" "}
-                of {bulkPreviewRows.length} selected
-              </span>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={closeBulkPreview}
-                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmBulkPreview}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-                >
-                  OK
-                </button>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {bulkUploadReview.items.map((item, idx) => {
+                      const isSelected = !!bulkUploadReview.selectedMap[idx];
+                      const lineTotal =
+                        Number(item.qty || 0) * Number(item.costPrice || 0);
+
+                      return (
+                        <tr
+                          key={item.rowId || idx}
+                          className={`transition hover:bg-slate-50 ${
+                            isSelected ? "bg-white" : "bg-slate-50/50 opacity-60"
+                          }`}
+                        >
+                          <td className="px-3 py-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setBulkUploadReview((curr) => ({
+                                  ...curr,
+                                  selectedMap: {
+                                    ...curr.selectedMap,
+                                    [idx]: checked,
+                                  },
+                                }));
+                              }}
+                              className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </td>
+                          <td className="px-3 py-2.5 text-slate-400">
+                            {idx + 1}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="font-semibold text-slate-900">
+                              {item.productName}
+                            </div>
+                            <div className="flex flex-wrap gap-1 text-[10px] text-slate-500">
+                              {item.category && (
+                                <span className="rounded bg-slate-100 px-1 py-0.5">
+                                  {item.category}
+                                </span>
+                              )}
+                              {item.brand && (
+                                <span className="rounded bg-slate-100 px-1 py-0.5 font-medium text-slate-700">
+                                  Make: {item.brand}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 font-mono text-[11px] text-slate-600">
+                            {item.sku || item.barcode || "—"}
+                          </td>
+                          <td className="px-3 py-2.5 font-medium text-slate-700">
+                            {item.unit || "PCS"}
+                          </td>
+                          <td className="px-3 py-2.5 font-mono text-[11px] text-slate-600">
+                            {item.batchNo || "Auto Batch"}
+                          </td>
+                          <td className="px-3 py-2.5 text-slate-600">
+                            {item.expiryDate
+                              ? formatIndianDate(item.expiryDate)
+                              : "—"}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-bold text-slate-900">
+                            {Number(item.qty || 0).toLocaleString("en-IN")}
+                          </td>
+                          <td className="px-3 py-2.5 text-right text-slate-700">
+                            ₹{Number(item.costPrice || 0).toLocaleString("en-IN")}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-semibold text-emerald-700">
+                            ₹
+                            {lineTotal.toLocaleString("en-IN", {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 2,
+                            })}
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            {item.isNew ? (
+                              <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                                New Item
+                              </span>
+                            ) : (
+                              <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                                Matched
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="shrink-0 border-t border-slate-100 bg-slate-50 px-5 py-3.5 sm:px-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-xs text-slate-600">
+                    <span className="font-bold text-slate-900">
+                      {
+                        bulkUploadReview.items.filter(
+                          (_, i) => bulkUploadReview.selectedMap[i],
+                        ).length
+                      }
+                    </span>{" "}
+                    of {bulkUploadReview.items.length} materials selected for
+                    inwarding
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBulkUploadReview(null)}
+                      disabled={bulkUploadReviewBusy}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmBulkUpload}
+                      disabled={
+                        bulkUploadReviewBusy ||
+                        !bulkUploadReview.items.some(
+                          (_, i) => bulkUploadReview.selectedMap[i],
+                        )
+                      }
+                      className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 disabled:opacity-60"
+                    >
+                      {bulkUploadReviewBusy ? (
+                        <>
+                          <svg
+                            className="h-3.5 w-3.5 animate-spin"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v8H4z"
+                            />
+                          </svg>
+                          <span>Creating Inward Draft...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="ti ti-check text-sm" />
+                          <span>Confirm & Inward Stock</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {showTemplateFilters && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-6">
@@ -3000,7 +3692,9 @@ export default function StockInPage() {
             </div>
             <div className="space-y-4 p-6">
               <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                Download a construction material receipt template directly. Brand or make is optional and can be filled only when applicable.
+                Download a construction material receipt template directly.
+                Brand or make is optional and can be filled only when
+                applicable.
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-800">

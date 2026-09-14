@@ -125,7 +125,7 @@ export async function POST(request, { params }) {
     const permissionCheck = requirePermission(
       auth.user,
       "MANAGE_STOCK_VALIDATION",
-      "MANAGE_INVENTORY",
+      "STOCK_AUDIT",
     );
     if (permissionCheck.error) return permissionCheck.error;
 

@@ -95,8 +95,26 @@ function normalizeCellValue(value, cell = null, XLSX = null) {
     trimmed.startsWith("'") && trimmed.length > 1 ? trimmed.slice(1) : trimmed;
   if (/^[+-]?\d+(?:\.\d+)?e[+-]?\d+$/i.test(normalized)) {
     const raw = cell?.v;
-    if (typeof raw === "number" && Number.isFinite(raw)) {
-      return Number.isInteger(raw) ? String(raw) : String(raw);
+    if (raw !== undefined && raw !== null) {
+      const rawStr = String(raw).trim();
+      if (!/e/i.test(rawStr)) {
+        return rawStr;
+      }
+      if (typeof raw === "number" && Number.isFinite(raw)) {
+        try {
+          return BigInt(Math.round(raw)).toString();
+        } catch {
+          return String(raw);
+        }
+      }
+    }
+    const num = Number(normalized);
+    if (Number.isFinite(num)) {
+      try {
+        return BigInt(Math.round(num)).toString();
+      } catch {
+        return String(num);
+      }
     }
   }
   return normalized;

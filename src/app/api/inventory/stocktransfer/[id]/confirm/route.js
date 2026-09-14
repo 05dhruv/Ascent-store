@@ -54,7 +54,7 @@ export async function POST(request, { params }) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, "MANAGE_INVENTORY");
+    const permissionCheck = requirePermission(auth.user, "TRANSFER_DISPATCH");
     if (permissionCheck.error) return permissionCheck.error;
     if (!id) {
       return NextResponse.json(

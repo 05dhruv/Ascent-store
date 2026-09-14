@@ -131,7 +131,7 @@ function UserPicker({ users, value, onChange }) {
 
   const label = useMemo(() => {
     const selected = users.filter((user) => value.includes(String(user.id)));
-    if (!selected.length) return 'Select users';
+    if (!selected.length) return 'Select employees';
     if (selected.length <= 2) return selected.map((user) => user.name).join(', ');
     return `${selected.slice(0, 2).map((user) => user.name).join(', ')} +${selected.length - 2}`;
   }, [users, value]);
@@ -149,7 +149,7 @@ function UserPicker({ users, value, onChange }) {
       {open && (
         <div className="absolute z-20 mt-2 max-h-64 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
           {users.length === 0 ? (
-            <div className="px-3 py-2 text-[12.5px] text-gray-400">No users available</div>
+            <div className="px-3 py-2 text-[12.5px] text-gray-400">No employees available</div>
           ) : users.map((user) => {
             const userId = String(user.id);
             const checked = value.includes(userId);
@@ -479,7 +479,7 @@ export default function Page() {
             <thead className="bg-gray-50 text-gray-600">
               <tr>
                 <th className="px-5 py-3 font-semibold">Name</th>
-                <th className="px-5 py-3 font-semibold">Users</th>
+                <th className="px-5 py-3 font-semibold">Assigned employees</th>
                 <th className="px-5 py-3 font-semibold">Mobile</th>
                 <th className="px-5 py-3 font-semibold">Email</th>
                 <th className="px-5 py-3 font-semibold">Address</th>
@@ -545,8 +545,8 @@ export default function Page() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8">
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-[100] bg-slate-50">
+          <div className="flex h-full flex-col">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-gray-100 bg-white px-6 py-5">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">
@@ -566,7 +566,8 @@ export default function Page() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6 px-6 py-6">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8">
+            <form onSubmit={handleSubmit} className="mx-auto w-full max-w-7xl space-y-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
               <section className="rounded-xl border border-gray-200 p-5">
                 <h3 className="mb-4 text-[15px] font-semibold text-blue-700">Warehouse information</h3>
 
@@ -581,14 +582,14 @@ export default function Page() {
                     />
                   </Field>
 
-                  <Field label="Users">
+                  <Field label="Assigned employees">
                     <UserPicker
                       users={users}
                       value={form.userIds}
                       onChange={(userIds) => setForm({ ...form, userIds })}
                     />
                     <p className="mt-1 text-[11.5px] text-gray-400">
-                      {selectedUserLabels.length ? `${selectedUserLabels.length} selected` : 'Select the users who can manage this warehouse'}
+                      {selectedUserLabels.length ? `${selectedUserLabels.length} employee(s) assigned` : 'Select employees who can access and manage this warehouse'}
                     </p>
                   </Field>
 
@@ -622,7 +623,7 @@ export default function Page() {
                       value={form.email}
                       onChange={(event) => setForm({ ...form, email: event.target.value })}
                       className={inputClassName}
-                      placeholder="support@queuebuster.co"
+                      placeholder="warehouse@ascentlimited.com"
                       required
                     />
                   </Field>
@@ -637,7 +638,7 @@ export default function Page() {
                       value={form.addressLine1}
                       onChange={(event) => setForm({ ...form, addressLine1: event.target.value })}
                       className={inputClassName}
-                      placeholder="6th floor, C55, Priska Tower"
+                      placeholder="Warehouse location / logistics gate"
                     />
                   </Field>
                   <Field label="Address Line 2">
@@ -645,7 +646,7 @@ export default function Page() {
                       value={form.addressLine2}
                       onChange={(event) => setForm({ ...form, addressLine2: event.target.value })}
                       className={inputClassName}
-                      placeholder="Sector - 62, Noida"
+                      placeholder="Project / industrial area"
                     />
                   </Field>
 
@@ -690,14 +691,14 @@ export default function Page() {
               </section>
 
               <section className="rounded-xl border border-gray-200 p-5">
-                <h3 className="mb-4 text-[15px] font-semibold text-blue-700">Tax & notifications</h3>
+                <h3 className="mb-4 text-[15px] font-semibold text-blue-700">Compliance & notifications</h3>
                 <div className="space-y-4">
                   <Field label="GST Number">
                     <input
                       value={form.gstNumber}
                       onChange={(event) => setForm({ ...form, gstNumber: event.target.value })}
                       className={inputClassName}
-                      placeholder="247-9758-098"
+                      placeholder="09ABCDE1234F1Z5"
                     />
                   </Field>
 
@@ -732,6 +733,7 @@ export default function Page() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

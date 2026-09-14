@@ -9,7 +9,7 @@ export async function GET(request) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, 'VIEW_INVENTORY', 'MANAGE_INVENTORY');
+    const permissionCheck = requirePermission(auth.user, 'STOCK_VIEW', 'MATERIAL_ISSUE_CREATE', 'MATERIAL_RETURN_CREATE');
     if (permissionCheck.error) return permissionCheck.error;
 
     const params = [];
@@ -92,11 +92,13 @@ export async function POST(request) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_INVENTORY');
-    if (permissionCheck.error) return permissionCheck.error;
-
     const payload = await request.json();
     const method = payload.method || 'stock_out';
+    const permissionCheck = requirePermission(
+      auth.user,
+      ['return_vendor', 'po_return'].includes(method) ? 'MATERIAL_RETURN_CREATE' : 'MATERIAL_ISSUE_CREATE',
+    );
+    if (permissionCheck.error) return permissionCheck.error;
     if (method === 'return_warehouse') {
       return NextResponse.json({ error: 'Use Stock Transfer for internal warehouse returns' }, { status: 403 });
     }

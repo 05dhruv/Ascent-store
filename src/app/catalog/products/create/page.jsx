@@ -11,7 +11,7 @@ import {
 
 const COLOR_OPTIONS = [
   { name: "Red", value: "#ef4444" },
-  { name: "Blue", value: "#B00000" },
+  { name: "Navy", value: "#1A476C" },
   { name: "Green", value: "#539D62" },
   { name: "Orange", value: "#f97316" },
   { name: "Black", value: "#111827" },
@@ -276,7 +276,7 @@ export default function CreateProductPage() {
 
   const validate = () => {
     const nextErrors = {};
-    if (!form.name.trim()) nextErrors.name = "Product name is required";
+    if (!form.name.trim()) nextErrors.name = "Material name is required";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -380,7 +380,7 @@ export default function CreateProductPage() {
         );
       }
 
-      showToast("Product created successfully!");
+      showToast("Material created successfully!");
       const returnTo = new URLSearchParams(window.location.search).get(
         "returnTo",
       );
@@ -431,27 +431,27 @@ export default function CreateProductPage() {
           </Link>
           <span>›</span>
           <Link href="/catalog" className="text-blue-600 hover:underline">
-            Catalog
+          Materials
           </Link>
           <span>›</span>
           <Link
             href="/catalog/products"
             className="text-blue-600 hover:underline"
           >
-            Products
+            Material Master
           </Link>
           <span>›</span>
-          <span className="font-semibold text-gray-700">New product</span>
+          <span className="font-semibold text-gray-700">New material</span>
         </nav>
 
         <div className="flex flex-col gap-4 rounded-2xl bg-white px-6 py-5 shadow-sm ring-1 ring-gray-200 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">
-              Create Product
+              Create Material
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Create a product and customize it with pricing, stores and
-              attributes.
+              Create a construction material with its specification, rates and
+              warehouse/site availability.
             </p>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -480,8 +480,8 @@ export default function CreateProductPage() {
         </div>
 
         <Card
-          title="Product Representation"
-          description="Upload a product picture and choose a marker color."
+          title="Material Reference"
+          description="Upload a material image or product data sheet reference."
         >
           <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
             <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4">
@@ -492,7 +492,7 @@ export default function CreateProductPage() {
                 {imagePreview ? (
                   <img
                     src={imagePreview}
-                    alt="Product preview"
+                    alt="Material preview"
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -515,7 +515,7 @@ export default function CreateProductPage() {
                       />
                     </svg>
                     <span className="text-xs font-medium">
-                      Upload Product Image
+                      Upload Material Image
                     </span>
                   </div>
                 )}
@@ -546,7 +546,7 @@ export default function CreateProductPage() {
 
             <div>
               <p className="mb-2 text-sm font-medium text-gray-700">
-                Choose Color
+                Marker Color
               </p>
               <div className="flex flex-wrap gap-3">
                 {COLOR_OPTIONS.map((color) => (
@@ -571,19 +571,19 @@ export default function CreateProductPage() {
         </Card>
 
         <Card
-          title="Basic Information"
-          description="Provide the product identity and classification information."
+          title="Material Information"
+          description="Provide the material identity, specification and classification."
         >
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="space-y-4 lg:col-span-2">
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <Label required>Product Name</Label>
+                  <Label required>Material Name</Label>
                   <input
                     type="text"
                     value={form.name}
                     onChange={(event) => set("name", event.target.value)}
-                    placeholder="Enter Product Name"
+                    placeholder="e.g. OPC Cement 53 Grade"
                     className={`w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 ${errors.name ? "border-red-400 bg-red-50" : "border-gray-300"}`}
                   />
                   {errors.name && (
@@ -591,22 +591,22 @@ export default function CreateProductPage() {
                   )}
                 </div>
                 <div>
-                  <Label>Product ID</Label>
+                  <Label>Material Code</Label>
                   <input
                     type="text"
                     value={form.product_id}
                     onChange={(event) => set("product_id", event.target.value)}
-                    placeholder="Enter Product ID"
+                    placeholder="e.g. CEM-OPC-53"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <Label>Barcode</Label>
+                  <Label>Barcode / QR Code</Label>
                   <input
                     type="text"
                     value={form.barcode}
                     onChange={(event) => set("barcode", event.target.value)}
-                    placeholder="Enter Barcode"
+                    placeholder="Scan or enter barcode"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
@@ -614,12 +614,12 @@ export default function CreateProductPage() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <Label>SKU</Label>
+                  <Label>Supplier / Internal SKU</Label>
                   <input
                     type="text"
                     value={form.sku}
                     onChange={(event) => set("sku", event.target.value)}
-                    placeholder="Enter SKU"
+                    placeholder="Enter supplier SKU"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
@@ -636,11 +636,11 @@ export default function CreateProductPage() {
               </div>
 
               <div>
-                <Label>Description</Label>
+                <Label>Specification / Grade</Label>
                 <textarea
                   value={form.description}
                   onChange={(event) => set("description", event.target.value)}
-                  placeholder="Description"
+                  placeholder="Grade, size, make requirement, technical specification..."
                   rows={4}
                   className="w-full resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                 />
@@ -676,7 +676,7 @@ export default function CreateProductPage() {
                 />
               </div>
               <div>
-                <Label>Brand</Label>
+                <Label>Preferred Make / Brand</Label>
                 <SearchableSelect
                   value={form.brand_id}
                   onChange={(value) => set("brand_id", value)}
@@ -689,7 +689,7 @@ export default function CreateProductPage() {
                 />
               </div>
               <div>
-                <Label>Manufacturer</Label>
+                <Label>Manufacturer / Supplier Make</Label>
                 <SearchableSelect
                   value={form.manufacturer_id}
                   onChange={(value) => set("manufacturer_id", value)}
@@ -706,8 +706,8 @@ export default function CreateProductPage() {
         </Card>
 
         <Card
-          title="Special Attributes"
-          description="Flags that control catalog and POS behavior."
+          title="Material Attributes"
+          description="Define the consumption unit and operational status."
         >
           <div className="grid gap-4 lg:grid-cols-3">
             <div>
@@ -737,13 +737,13 @@ export default function CreateProductPage() {
                 ))}
               </select>
               <p className="mt-1 text-xs text-gray-500">
-                For weighted items like 650gm apple, select KG and use MBQ 0.65.
+                Use the unit in which the material is purchased, stored and issued.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-4 pt-6">
               {[
                 ["is_active", "Active"],
-                ["is_service", "Service Item"],
+                ["is_service", "Non-stock Service"],
               ].map(([key, label]) => (
                 <label
                   key={key}
@@ -763,14 +763,14 @@ export default function CreateProductPage() {
         </Card>
 
         <Card
-          title="Pricing Information"
-          description="Add prices, GST and product flags."
+          title="Rates & Tax"
+          description="Maintain reference, issue and purchase rates for material control."
         >
           <div className="grid gap-5 lg:grid-cols-2">
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <Label>MRP</Label>
+                  <Label>Reference Rate / Unit</Label>
                   <input
                     type="number"
                     value={form.mrp}
@@ -779,7 +779,7 @@ export default function CreateProductPage() {
                   />
                 </div>
                 <div>
-                  <Label>Selling Price</Label>
+                  <Label>Issue Rate / Unit</Label>
                   <input
                     type="number"
                     value={form.selling_price}
@@ -790,7 +790,7 @@ export default function CreateProductPage() {
                   />
                 </div>
                 <div>
-                  <Label>Cost Price</Label>
+                  <Label>Estimated Purchase Rate / Unit</Label>
                   <input
                     type="number"
                     value={form.cost_price}
@@ -835,9 +835,9 @@ export default function CreateProductPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                ["is_sellable_on_pos", "Is Sellable on POS"],
-                ["allow_variable_pricing", "Allow Variable Pricing"],
-                ["allow_discount_on_pos", "Allow Discount on POS"],
+                ["is_sellable_on_pos", "Can Be Issued to Site"],
+                ["allow_variable_pricing", "Allow Issue Rate Override"],
+                ["allow_discount_on_pos", "Require Rate Approval"],
                 ["include_tax", "GST Included"],
               ].map(([key, label]) => (
                 <label
@@ -855,13 +855,13 @@ export default function CreateProductPage() {
                       {label}
                     </span>
                     <span className="mt-0.5 block text-xs text-gray-500">
-                      {label === "Is Sellable on POS"
-                        ? "Allow product to be sellable on POS"
-                        : label === "Allow Variable Pricing"
-                          ? "Allow product for variable pricing"
-                          : label === "Allow Discount on POS"
-                            ? "Permit admin discount while billing this product"
-                            : "Selling price already includes GST"}
+                      {label === "Can Be Issued to Site"
+                        ? "Allow this material to be issued or transferred to a site"
+                        : label === "Allow Issue Rate Override"
+                          ? "Allow an authorised user to change the issue rate"
+                          : label === "Require Rate Approval"
+                            ? "Require approval when an issue rate differs from the reference rate"
+                            : "Reference rate includes GST"}
                     </span>
                   </span>
                 </label>
@@ -898,20 +898,20 @@ export default function CreateProductPage() {
         </Card>
 
         <Card
-          title="Store Details"
-          description="Enable the product for specific stores and capture per-store values."
+          title="Location Availability"
+          description="Enable this material for a warehouse or site store and maintain location-specific controls."
         >
           <div className="space-y-4">
             <div className="overflow-x-auto rounded-xl border border-gray-200">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                   <tr>
-                    <th className="px-4 py-3 text-left">Store</th>
+                    <th className="px-4 py-3 text-left">Warehouse / Site</th>
                     <th className="px-4 py-3 text-left">Enable</th>
-                    <th className="px-4 py-3 text-left">Selling Price</th>
-                    <th className="px-4 py-3 text-left">M.R.P.</th>
-                    <th className="px-4 py-3 text-left">Low Stock Qty</th>
-                    <th className="px-4 py-3 text-left">MBQ</th>
+                    <th className="px-4 py-3 text-left">Issue Rate</th>
+                    <th className="px-4 py-3 text-left">Reference Rate</th>
+                    <th className="px-4 py-3 text-left">Reorder Level</th>
+                    <th className="px-4 py-3 text-left">Minimum Issue Qty</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
@@ -1015,15 +1015,14 @@ export default function CreateProductPage() {
               </table>
             </div>
             <div className="text-xs text-gray-500">
-              Store rows are saved as product saleability records after the
-              product is created.
+              Location controls are saved after the material is created.
             </div>
           </div>
         </Card>
 
         <Card
-          title="Manage Inventory"
-          description="Define opening stock and inventory behavior; opening stock is posted directly to inventory."
+          title="Material Stock Controls"
+          description="Define opening stock and movement controls; opening stock is posted to the selected warehouse."
         >
           <div className="space-y-5">
             <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
@@ -1032,7 +1031,7 @@ export default function CreateProductPage() {
                   Enable Inventory Controls
                 </p>
                 <p className="text-xs text-gray-500">
-                  Turn this on to configure stock settings for this product.
+                  Turn this on to configure stock settings for this material.
                 </p>
               </div>
               <label className="inline-flex items-center gap-2">
@@ -1051,12 +1050,12 @@ export default function CreateProductPage() {
               <>
                 <div className="grid gap-4 md:grid-cols-4">
                   <div>
-                    <Label>Opening Stock Store</Label>
+                    <Label>Opening Stock Warehouse</Label>
                     <SearchableSelect
                       value={form.inventory_store_id}
                       onChange={(value) => set("inventory_store_id", value)}
-                      placeholder="Select store"
-                      searchPlaceholder="Search store..."
+                      placeholder="Select warehouse or site"
+                      searchPlaceholder="Search location..."
                       options={stores.map((store) => ({
                         value: store.id,
                         label: store.name,
@@ -1077,7 +1076,7 @@ export default function CreateProductPage() {
                     />
                   </div>
                   <div>
-                    <Label>Low Stock Qty</Label>
+                    <Label>Reorder Level</Label>
                     <input
                       type="number"
                       min="0"
@@ -1090,7 +1089,7 @@ export default function CreateProductPage() {
                     />
                   </div>
                   <div>
-                    <Label>MBQ</Label>
+                    <Label>Minimum Issue Qty</Label>
                     <input
                       type="number"
                       min="0"
@@ -1116,10 +1115,10 @@ export default function CreateProductPage() {
                     />
                     <span>
                       <span className="block font-medium text-gray-800">
-                        Product not available for billing if stock is zero
+                        Block material issue when available stock is zero
                       </span>
                       <span className="mt-0.5 block text-xs text-gray-500">
-                        Disable billing when stock reaches zero.
+                        Prevent a warehouse or site issue when usable stock reaches zero.
                       </span>
                     </span>
                   </label>
@@ -1135,10 +1134,10 @@ export default function CreateProductPage() {
                     />
                     <span>
                       <span className="block font-medium text-gray-800">
-                        Disable sales on stock expiry
+                        Block issue after expiry date
                       </span>
                       <span className="mt-0.5 block text-xs text-gray-500">
-                        Prevents billing for expired stock.
+                        Prevents issue of expired or unusable material.
                       </span>
                     </span>
                   </label>
@@ -1183,7 +1182,7 @@ export default function CreateProductPage() {
                           onChange={() => set("stock_item_type", "batched")}
                           className="h-4 w-4 text-blue-600"
                         />
-                        <span>Batched Product</span>
+                        <span>Batch-tracked Material</span>
                       </label>
                       <label className="flex items-center gap-2 text-sm text-gray-700">
                         <input
@@ -1192,7 +1191,7 @@ export default function CreateProductPage() {
                           onChange={() => set("stock_item_type", "unbatched")}
                           className="h-4 w-4 text-blue-600"
                         />
-                        <span>Unbatched Product</span>
+                        <span>Non-batch Material</span>
                       </label>
                     </div>
                   </div>

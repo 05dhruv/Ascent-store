@@ -17,14 +17,14 @@ export function validatePriceSet({ mrp = 0, sellingPrice = 0, costPrice = 0 } = 
   if (Object.values(normalized).some((value) => value < 0)) {
     return { valid: false, error: "MRP, selling price and cost price cannot be negative", values: normalized };
   }
-  if (normalized.mrp > 0 && normalized.sellingPrice > normalized.mrp) {
-    return { valid: false, error: "Selling price cannot be greater than MRP", values: normalized };
+  if (normalized.costPrice > normalized.mrp) {
+    normalized.mrp = Math.max(normalized.mrp, normalized.costPrice);
   }
-  if (normalized.mrp > 0 && normalized.costPrice > normalized.mrp) {
-    return { valid: false, error: "Cost price cannot be greater than MRP", values: normalized };
+  if (normalized.sellingPrice > normalized.mrp) {
+    normalized.mrp = Math.max(normalized.mrp, normalized.sellingPrice);
   }
   if (normalized.mrp === 0 && (normalized.sellingPrice > 0 || normalized.costPrice > 0)) {
-    return { valid: false, error: "MRP is required when selling price or cost price is entered", values: normalized };
+    normalized.mrp = Math.max(normalized.sellingPrice, normalized.costPrice);
   }
   return { valid: true, values: normalized };
 }

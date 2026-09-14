@@ -10,24 +10,47 @@ function parseMeta(meta) {
   return { ...meta };
 }
 
-export const MIN_STORE_COST_PER_SQ_FT = 1400;
+export const MIN_STORE_COST_PER_SQ_FT = 100;
 export const KIRANA_FRANCHISE_TYPE = "KIRANA";
 export const ASCENT_FRANCHISE_TYPE = "ASCENT";
+
+export const CONSTRUCTION_STORE_TYPES = [
+  "MAIN_SITE_STORE",
+  "CENTRAL_WAREHOUSE",
+  "STEEL_FABRICATION_YARD",
+  "TRANSIT_SUB_STORE",
+  "BATCHING_PLANT_STORE",
+  "SITE_MATERIAL_SHED",
+];
+
 export const FRANCHISE_TYPES = [
+  ...CONSTRUCTION_STORE_TYPES,
   "FOCM",
   "FOCO",
   "COCO",
   KIRANA_FRANCHISE_TYPE,
   ASCENT_FRANCHISE_TYPE,
 ];
+
 export const DEFAULT_FOCO_FSSAI_LICENSE_NUMBER = "22725925002074";
-export const REQUIRED_STORE_DOCUMENT_KEYS = [
+
+export const SITE_DOCUMENT_KEYS = [
+  "siteWorkOrder",
+  "siteLayoutPlan",
+  "safetyClearance",
+  "landLeaseAgreement",
+  "inchargeIdProof",
+];
+
+export const REQUIRED_STORE_DOCUMENT_KEYS = [];
+export const OPTIONAL_STORE_DOCUMENT_KEYS = [
+  ...SITE_DOCUMENT_KEYS,
   "agreement",
   "aadhaar",
   "panCard",
   "rentAgreement",
 ];
-export const OPTIONAL_STORE_DOCUMENT_KEYS = [];
+
 export const ALLOWED_STORE_DOCUMENT_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -35,7 +58,26 @@ export const ALLOWED_STORE_DOCUMENT_TYPES = [
 ];
 export const ALLOWED_STORE_DOCUMENT_EXTENSIONS = [".pdf", ".jpg", ".png"];
 export const MAX_STORE_DOCUMENT_BYTES = 15 * 1024 * 1024;
+
+export const CONSTRUCTION_FACILITY_KEYS = [
+  "cementGodown",
+  "steelYard",
+  "aggregateBins",
+  "coveredShed",
+  "fuelChemicalStore",
+  "weighbridge",
+  "materialHandlingEquip",
+  "cctvSecurity",
+  "backupGenerator",
+  "fireSafetyStation",
+  "materialTestingLab",
+  "siteOfficeInventory",
+  "safetyBarricading",
+  "firstAidStation",
+];
+
 export const INTERIOR_ITEM_KEYS = [
+  ...CONSTRUCTION_FACILITY_KEYS,
   "ac",
   "refrigerator",
   "deepFreezer",
@@ -61,6 +103,7 @@ export const INTERIOR_ITEM_KEYS = [
   "wifi",
   "edcPhonepePay",
 ];
+
 export const RACK_INTERIOR_ITEM_KEYS = [
   "angles",
   "shelves",
@@ -72,10 +115,11 @@ export const RACK_INTERIOR_ITEM_KEYS = [
 export function classifyStoreFormat(areaSqFt) {
   const area = Number(areaSqFt);
   if (!Number.isFinite(area) || area <= 0) return "";
-  if (area >= 600 && area < 1000) return "Mini Mart";
-  if (area >= 1000 && area < 3000) return "Super Mart";
-  if (area >= 3000) return "Hyper Mart";
-  return "";
+  if (area >= 10000) return "Mega Project Site Yard";
+  if (area >= 5000) return "Major Site Storage Yard";
+  if (area >= 2000) return "Standard Site Store";
+  if (area >= 500) return "Compact / Transit Site Store";
+  return "Site Material Shed";
 }
 
 function toAmount(value) {
@@ -125,7 +169,7 @@ export function buildStoreCommercials(body = {}) {
     storeFormat: classifyStoreFormat(storeAreaSqFt),
     costPerSqFt: costPerSqFt || "",
     totalStoreAmount: totalStoreAmount || "",
-    franchiseType: String(body.franchiseType || "")
+    franchiseType: String(body.franchiseType || body.storeType || "MAIN_SITE_STORE")
       .trim()
       .toUpperCase(),
   };
@@ -135,14 +179,18 @@ export function buildStoreDocuments(body = {}) {
   const documents =
     body.documents && typeof body.documents === "object" ? body.documents : {};
   const out = {};
-  for (const key of [
-    ...REQUIRED_STORE_DOCUMENT_KEYS,
-    ...OPTIONAL_STORE_DOCUMENT_KEYS,
-    "registryCopy",
-  ]) {
-    out[key] = cleanDocumentPayload(documents[key]);
+  const allDocKeys = [
+    ...SITE_DOCUMENT_KEYS,
+    "agreement",
+    "aadhaar",
+    "panCard",
+    "rentAgreement",
+  ];
+  for (const key of allDocKeys) {
+    if (documents[key]) {
+      out[key] = cleanDocumentPayload(documents[key]);
+    }
   }
-  delete out.registryCopy;
   return out;
 }
 
@@ -201,27 +249,25 @@ function cleanInteriorItems(items) {
 
 export function validateStoreCommercialPayload(
   body = {},
-  { requireDocuments = true } = {},
+  { requireDocuments = false } = {},
 ) {
   const errors = [];
-  const franchiseType = String(body.franchiseType || "")
+  const franchiseType = String(body.franchiseType || body.storeType || "")
     .trim()
     .toUpperCase();
-  if (!FRANCHISE_TYPES.includes(franchiseType)) {
+  
+  if (franchiseType && !FRANCHISE_TYPES.includes(franchiseType)) {
     errors.push({
       field: "franchiseType",
-      message: "Select a valid franchise type",
+      message: "Select a valid site store type",
     });
   }
-  if ([KIRANA_FRANCHISE_TYPE, ASCENT_FRANCHISE_TYPE].includes(franchiseType)) {
-    return errors;
-  }
 
-  const ownerName = String(body.managerName || "").trim();
-  if (!ownerName) {
+  const inChargeName = String(body.managerName || "").trim();
+  if (!inChargeName) {
     errors.push({
       field: "managerName",
-      message: "Franchise owner name is required",
+      message: "Site In-Charge / Store Keeper name is required",
     });
   }
 
@@ -229,7 +275,7 @@ export function validateStoreCommercialPayload(
   if (!mobile) {
     errors.push({
       field: "managerMobile",
-      message: "Mobile number is required",
+      message: "In-charge mobile number is required",
     });
   } else if (!/^\d{10}$/.test(mobile)) {
     errors.push({
@@ -238,55 +284,9 @@ export function validateStoreCommercialPayload(
     });
   }
 
-  if (!String(body.gstNumber || "").trim()) {
-    errors.push({
-      field: "gstNumber",
-      message: "GST number is required",
-    });
-  }
-
-  const area = toAmount(body.storeAreaSqFt ?? body.storeArea);
-  if (!area || area <= 0) {
-    errors.push({
-      field: "storeAreaSqFt",
-      message: "Store area in sq ft is required",
-    });
-  } else if (area < 600) {
-    errors.push({
-      field: "storeAreaSqFt",
-      message: "Store area must be at least 600 sq ft",
-    });
-  }
-
-  const cost = toAmount(body.costPerSqFt);
-  if (!cost || cost <= 0) {
-    errors.push({
-      field: "costPerSqFt",
-      message: "Cost per sq ft is required",
-    });
-  } else if (cost < MIN_STORE_COST_PER_SQ_FT) {
-    errors.push({
-      field: "costPerSqFt",
-      message: "Cost per sq ft cannot be less than Rs. 1400",
-    });
-  }
-
-  if (
-    franchiseType === "FOCM" &&
-    !String(body.fssaiLicenseNumber || "").trim()
-  ) {
-    errors.push({
-      field: "fssaiLicenseNumber",
-      message: "FSSAI license number is required for FOCM stores",
-    });
-  }
-
   if (requireDocuments) {
     const documents = buildStoreDocuments(body);
     for (const key of REQUIRED_STORE_DOCUMENT_KEYS) {
-      if (key === "agreement" && ["COCO", "FOCO"].includes(franchiseType)) {
-        continue;
-      }
       if (!documents[key]) {
         errors.push({
           field: `documents.${key}`,
@@ -317,15 +317,14 @@ export function buildStoreCodeDuplicateQuery(storeCode, excludeId = null) {
 export function buildStoreMeta(body = {}) {
   const commercials = buildStoreCommercials(body);
   const interior = cleanInteriorItems(body.interiorItems);
-  const fssaiLicenseNumber =
-    commercials.franchiseType === "FOCO"
-      ? DEFAULT_FOCO_FSSAI_LICENSE_NUMBER
-      : String(body.fssaiLicenseNumber || "").trim();
   return {
     locationType: body.locationType || "Store",
-    deliveryLatitude: Number(body.deliveryLatitude),
-    deliveryLongitude: Number(body.deliveryLongitude),
-    deliveryRadiusKm: 5,
+    projectId: body.projectId ? Number(body.projectId) : null,
+    projectCode: body.projectCode || "",
+    projectName: body.projectName || "",
+    deliveryLatitude: Number(body.deliveryLatitude) || null,
+    deliveryLongitude: Number(body.deliveryLongitude) || null,
+    deliveryRadiusKm: Number(body.deliveryRadiusKm || 5),
     panNumber: body.panNumber || "",
     defaultCustomerGroup: body.defaultCustomerGroup || "",
     storeCode: normalizeStoreCode(body),
@@ -347,7 +346,7 @@ export function buildStoreMeta(body = {}) {
     serviceTaxNumber: body.serviceTaxNumber || "",
     gstNumber: body.gstNumber || "",
     customerGstOrderPrefix: body.customerGstOrderPrefix || "",
-    fssaiLicenseNumber,
+    fssaiLicenseNumber: body.fssaiLicenseNumber || "",
     taxInformation: body.taxInformation || "",
     customStoreOrderPrefix: body.customStoreOrderPrefix || "",
     refundCustomStoreOrderPrefix: body.refundCustomStoreOrderPrefix || "",
@@ -372,31 +371,27 @@ export function validateStoreDeliveryPayload(body = {}) {
   const radius = Number(body.deliveryRadiusKm || 5);
   const errors = [];
   if (
-    !hasLatitude ||
-    !Number.isFinite(latitude) ||
-    latitude < -90 ||
-    latitude > 90
+    hasLatitude &&
+    (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)
   ) {
     errors.push({
       field: "deliveryLatitude",
-      message: "Set a valid store delivery latitude",
+      message: "Set a valid store latitude (-90 to 90)",
     });
   }
   if (
-    !hasLongitude ||
-    !Number.isFinite(longitude) ||
-    longitude < -180 ||
-    longitude > 180
+    hasLongitude &&
+    (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)
   ) {
     errors.push({
       field: "deliveryLongitude",
-      message: "Set a valid store delivery longitude",
+      message: "Set a valid store longitude (-180 to 180)",
     });
   }
-  if (!Number.isFinite(radius) || radius <= 0 || radius > 50) {
+  if (Number.isFinite(radius) && (radius <= 0 || radius > 500)) {
     errors.push({
       field: "deliveryRadiusKm",
-      message: "Delivery radius must be between 0 and 50 km",
+      message: "Site coverage radius must be between 0 and 500 km",
     });
   }
   return errors;
@@ -433,11 +428,14 @@ export function mergeStoreMeta(existingMeta, body = {}) {
     merged.totalStoreAmount = incoming.totalStoreAmount;
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, "franchiseType")) {
+  if (Object.prototype.hasOwnProperty.call(body, "franchiseType") || Object.prototype.hasOwnProperty.call(body, "storeType")) {
     merged.franchiseType = incoming.franchiseType;
-    if (incoming.franchiseType === "FOCO") {
-      merged.fssaiLicenseNumber = DEFAULT_FOCO_FSSAI_LICENSE_NUMBER;
-    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "projectId")) {
+    merged.projectId = incoming.projectId;
+    merged.projectCode = incoming.projectCode;
+    merged.projectName = incoming.projectName;
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "documents")) {
@@ -472,6 +470,11 @@ export function getStoreCode(meta) {
 export function getStoreDocumentLabel(key) {
   return (
     {
+      siteWorkOrder: "Work Order / Sanction Letter",
+      siteLayoutPlan: "Site Storage Layout / Plot Plan",
+      safetyClearance: "Safety & Environmental Clearance",
+      landLeaseAgreement: "Site Land / Lease Agreement",
+      inchargeIdProof: "Site In-Charge ID (Aadhaar / PAN)",
       agreement: "Agreement",
       aadhaar: "Aadhaar",
       panCard: "PAN Card",

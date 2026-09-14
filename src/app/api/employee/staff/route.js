@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getClient, query } from "@/lib/db";
 import { ensureEmployeesSchema } from "@/lib/employeesSchema";
+import { ensureRolesSchema } from "@/lib/rolesSchema";
 import { ensureUsersTable, normalizePhone } from "@/lib/userAuth";
 import { validatePhoneNumber } from "@/lib/phoneValidator";
 import {
@@ -89,11 +90,48 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
 
-function duplicateMessageFromPgError(err) {
-  const constraint = String(err?.constraint || "").toLowerCase();
-  const detail = String(err?.detail || "").toLowerCase();
+async function getAssignedRole(client, roleId, roleNameFallback) {
+  let result;
+  const id = Number(roleId);
+  if (Number.isInteger(id) && id > 0) {
+    result = await client.query(
+      `SELECT r.id, COALESCE(r.role_name, r.name) AS role_name, r.permissions
+       FROM roles r
+       WHERE r.id = $1`,
+      [id],
+    );
+  }
 
-  if (constraint.includes("username") || detail.includes("(username)=")) {
+  if ((!result || !result.rows.length) && (roleNameFallback || roleId)) {
+    const nameToSearch = String(roleNameFallback || roleId).trim();
+    if (nameToSearch) {
+      result = await client.query(
+        `SELECT r.id, COALESCE(r.role_name, r.name) AS role_name, r.permissions
+         FROM roles r
+         WHERE LOWER(COALESCE(r.role_name, r.name)) = LOWER($1)
+         ORDER BY r.id ASC
+         LIMIT 1`,
+        [nameToSearch],
+      );
+    }
+  }
+
+  if (!result || !result.rows.length) {
+    return { error: "Selected role is not valid or does not exist in the database" };
+  }
+
+  const role = result.rows[0];
+  const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+  return { roleId: role.id, roleName: role.role_name, permissions };
+}
+
+function parseDuplicateKeyError(err) {
+  const detail = String(err?.detail || "");
+  const constraint = String(err?.constraint || "");
+  if (
+    constraint.includes("username") ||
+    detail.includes("(username)=")
+  ) {
     return "Employee username already exists";
   }
   if (
@@ -150,6 +188,7 @@ function mapEmployeeRow(row) {
     firstName: row.first_name,
     lastName: row.last_name,
     employeeCode: row.employee_code || "",
+    roleId: row.role_id || null,
     role: row.role_name || "",
     department: row.department_name || "",
     employeeType: row.employment_type || "",
@@ -182,8 +221,8 @@ export async function GET(request) {
     if (auth.error) return auth.error;
     const permissionCheck = requirePermission(
       auth.user,
-      "MANAGE_USERS",
-      "VIEW_USERS",
+      "TEAM_MANAGE",
+      "TEAM_VIEW",
     );
     if (permissionCheck.error) return permissionCheck.error;
 
@@ -211,6 +250,7 @@ export async function GET(request) {
               e.gender,
               e.mobile_number,
               e.email_address,
+              e.role_id,
               e.role_name,
               e.permissions,
               e.region_store,
@@ -261,9 +301,10 @@ export async function POST(request) {
   try {
     await ensureEmployeesSchema();
     await ensureUsersTable();
+    await ensureRolesSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, "MANAGE_USERS");
+    const permissionCheck = requirePermission(auth.user, "TEAM_MANAGE");
     if (permissionCheck.error) return permissionCheck.error;
 
     const body = await request.json();
@@ -282,7 +323,7 @@ export async function POST(request) {
       body.email_address || body.emailAddress,
     ).toLowerCase();
     const roleId = body.role_id ?? body.roleId ?? null;
-    const roleName = toString(body.role_name || body.roleName);
+    let roleName = toString(body.role_name || body.roleName);
     const regionStore = Array.isArray(body.region_store || body.regionStore)
       ? (body.region_store || body.regionStore)
           .map((item) => String(item).trim())
@@ -308,14 +349,14 @@ export async function POST(request) {
         ),
       ),
     );
-    const permissions = normalizePermissions(body.permissions);
+    let permissions = normalizePermissions(body.permissions);
     const departmentId = body.department_id ?? body.departmentId ?? null;
     const departmentName = toString(
       body.department_name || body.departmentName,
     );
     const customerName = toString(body.customer_name || body.customerName);
     const userType = toString(body.user_type || body.userType);
-    const systemRole = normalizeSystemRole(
+    let systemRole = normalizeSystemRole(
       roleName,
       body.system_role ||
         body.systemRole ||
@@ -346,6 +387,15 @@ export async function POST(request) {
     const contractorName = toString(
       body.contractor_name || body.contractorName,
     );
+
+    const assignedRole = await getAssignedRole(client, roleId, roleName);
+    if (assignedRole.error) return NextResponse.json({ error: assignedRole.error }, { status: 400 });
+    roleId = assignedRole.roleId;
+    roleName = assignedRole.roleName;
+    permissions = (Array.isArray(body.permissions) && body.permissions.length > 0)
+      ? body.permissions
+      : assignedRole.permissions;
+    systemRole = normalizeSystemRole(roleName, userType);
 
     if (systemRole === "super_admin" && auth.user.role !== "super_admin") {
       return NextResponse.json(

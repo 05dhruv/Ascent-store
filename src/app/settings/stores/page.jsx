@@ -41,28 +41,43 @@ export default function Page() {
           rawName: store.name,
           sno: (page - 1) * pageSize + index + 1,
           name: (
-            <button
-              type="button"
-              onClick={() => router.push(`/settings/stores/${store.id}`)}
-              className="text-blue-600 hover:underline text-left"
-            >
-              {store.name}
-            </button>
+            <div>
+              <button
+                type="button"
+                onClick={() => router.push(`/settings/stores/${store.id}`)}
+                className="text-blue-600 hover:underline text-left font-semibold"
+              >
+                {store.name}
+              </button>
+              {store.meta?.franchiseType && (
+                <span className="block text-[11px] text-gray-500">
+                  {store.meta.franchiseType.replace(/_/g, ' ')}
+                </span>
+              )}
+            </div>
           ),
           store_code: getStoreCode(store.meta) || '—',
-          active_license: store.meta?.gstNumber || '—',
+          project_name: store.meta?.projectName || '—',
+          incharge_info: store.manager_name ? (
+            <div>
+              <div className="font-medium text-gray-900">{store.manager_name}</div>
+              {store.manager_mobile && (
+                <div className="text-xs text-gray-500">{store.manager_mobile}</div>
+              )}
+            </div>
+          ) : '—',
           live_since: formatIndianDate(store.created_at, '—'),
-          address_text: [store.city, store.state, store.country].filter(Boolean).join(', ') || '—',
+          address_text: [store.city, store.state].filter(Boolean).join(', ') || '—',
         }));
 
         setStores(rows);
         setTotal(json.data.total ?? rows.length);
         setTotalPages(json.data.totalPages ?? 1);
       } else {
-        showToast(json.message || 'Failed to load stores', 'error');
+        showToast(json.message || 'Failed to load site stores', 'error');
       }
     } catch {
-      showToast('Network error while loading stores', 'error');
+      showToast('Network error while loading site stores', 'error');
     } finally {
       setLoading(false);
     }
@@ -83,7 +98,7 @@ export default function Page() {
         return;
       }
 
-      showToast('Store deleted');
+      showToast('Site store deleted');
       setDeleteId(null);
       fetchStores();
     } catch {
@@ -93,11 +108,12 @@ export default function Page() {
 
   const columns = useMemo(() => ([
     { key: 'sno', label: 'S. No.', sortable: true },
-    { key: 'name', label: 'Store Name', sortable: true },
-    { key: 'store_code', label: 'Store Code', sortable: true },
-    { key: 'active_license', label: 'Active License', sortable: true },
-    { key: 'live_since', label: 'Live Since', sortable: true },
-    { key: 'address_text', label: 'Address', sortable: true },
+    { key: 'name', label: 'Site Store Name', sortable: true },
+    { key: 'store_code', label: 'Site Code', sortable: true },
+    { key: 'project_name', label: 'Associated Project', sortable: true },
+    { key: 'incharge_info', label: 'Site In-Charge', sortable: true },
+    { key: 'address_text', label: 'City / State', sortable: true },
+    { key: 'live_since', label: 'Created On', sortable: true },
   ]), []);
 
   return (
@@ -109,9 +125,9 @@ export default function Page() {
       )}
 
       {deleteId && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-xs">
           <div className="bg-white rounded-xl shadow-2xl p-6 w-80 relative z-[1000]">
-            <h3 className="text-base font-bold text-gray-800 mb-2">Delete Store?</h3>
+            <h3 className="text-base font-bold text-gray-800 mb-2">Delete Site Store?</h3>
             <p className="text-sm text-gray-500 mb-5">This action cannot be undone.</p>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setDeleteId(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
@@ -128,19 +144,19 @@ export default function Page() {
       <CatalogListPage
         breadcrumbs={[
           { label: 'Home', href: '/home' },
-          { label: 'Settings', href: '/settings' },
-          { label: 'Stores' },
+          { label: 'Construction Settings', href: '/settings' },
+          { label: 'Site Stores' },
         ]}
-        title="Stores"
-        description="Branches, addresses, GST registration per store. Need Help?"
-        createLabel="Create"
+        title="Site Stores"
+        description="Create and manage site stores for material receipt, issue and site inventory."
+        createLabel="Create Site Store"
         onCreateClick={() => router.push('/settings/stores/create')}
         bulkOperations={false}
         columns={columns}
         rows={stores}
         loading={loading}
-        totalLabel="Stores(s)"
-        emptyMessage="No records found"
+        totalLabel="Site Store(s)"
+        emptyMessage="No site stores found"
         page={page}
         pageSize={pageSize}
         totalPages={totalPages}

@@ -285,18 +285,7 @@ export async function POST(request) {
         { field: "managerEmail", message: "Enter a valid e-mail address" },
       ]);
     }
-    if (!isMinimalStore && !String(body.gstNumber || "").trim()) {
-      return validationError([
-        { field: "gstNumber", message: "GST number is required" },
-      ]);
-    }
-
     const storeCode = normalizeStoreCode(body);
-    if (!isMinimalStore && !storeCode) {
-      return validationError([
-        { field: "storeCode", message: "Store code is required" },
-      ]);
-    }
     if (storeCode) {
       const duplicateQuery = buildStoreCodeDuplicateQuery(storeCode);
       const duplicate = await query(duplicateQuery.sql, duplicateQuery.params);
@@ -337,7 +326,28 @@ export async function POST(request) {
       return errorResponse("Failed to create store");
     }
 
-    return successResponse({ store: insert.rows[0] }, "Store created", 201);
+    const createdStore = insert.rows[0];
+
+    // If linked to a construction project, ensure a construction_site record exists and links to this store
+    const projectId = Number(body.projectId);
+    if (projectId) {
+      try {
+        const { ensureConstructionSchema } = await import("@/lib/constructionSchema");
+        await ensureConstructionSchema();
+        const siteCode = String(storeCode || `SITE-${createdStore.id}`).trim().toUpperCase();
+        await query(
+          `INSERT INTO construction_sites (project_id, site_code, name, address, store_id, status)
+           VALUES ($1, $2, $3, $4, $5, 'active')
+           ON CONFLICT (project_id, site_code) 
+           DO UPDATE SET store_id = EXCLUDED.store_id, name = EXCLUDED.name, address = EXCLUDED.address, updated_at = NOW()`,
+          [projectId, siteCode, name, addressLine1, createdStore.id]
+        );
+      } catch (siteErr) {
+        console.error("[stores POST link construction site]", siteErr);
+      }
+    }
+
+    return successResponse({ store: createdStore }, "Store created", 201);
   } catch (err) {
     console.error("[stores POST]", err);
     return errorResponse("Failed to create store");

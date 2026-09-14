@@ -24,8 +24,11 @@ export async function GET(request, { params }) {
 
     const permissionCheck = requirePermission(
       auth.user,
-      "VIEW_INVENTORY",
-      "MANAGE_INVENTORY",
+      "TRANSFER_VIEW",
+      "TRANSFER_CREATE",
+      "TRANSFER_APPROVE",
+      "TRANSFER_DISPATCH",
+      "TRANSFER_RECEIVE",
     );
     if (permissionCheck.error) return permissionCheck.error;
 
@@ -225,7 +228,7 @@ export async function PUT(request, { params }) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, "MANAGE_INVENTORY");
+    const permissionCheck = requirePermission(auth.user, "TRANSFER_CREATE");
     if (permissionCheck.error) return permissionCheck.error;
 
     const body = await request.json();

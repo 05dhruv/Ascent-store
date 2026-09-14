@@ -32,7 +32,7 @@ const DEFAULT_SETTINGS = [
     name: 'Default Business Info',
     code: 'default',
     description: 'Primary legal and contact details for the chain.',
-    config: { legalName: 'Buyzaar Sync', gstin: '', phone: '9999999999', email: 'admin@example.com', address: '' },
+    config: { legalName: 'Ascent Sync', gstin: '', phone: '9999999999', email: 'admin@example.com', address: '' },
   },
   {
     type: 'app-settings',
@@ -54,7 +54,7 @@ const DEFAULT_SETTINGS = [
     code: 'default',
     description: 'Default receipt template used by POS print.',
     config: {
-      businessName: 'Buyzaar Sync',
+      businessName: 'Ascent Sync',
       subtitle: 'GST Invoice / POS Receipt',
       headerText: '',
       footerText: 'Thank you. Visit again.',
@@ -208,9 +208,155 @@ const DEFAULT_SETTINGS = [
     description: 'Initial device sync log marker.',
     config: { deviceId: 'POS-DEFAULT', syncStatus: 'pending', recordsSynced: '0', errorMessage: '' },
   },
+  {
+    type: 'site-store-types',
+    name: 'Main Project Site Store',
+    code: 'MAIN_SITE_STORE',
+    description: 'Primary central site store for major receipts and project issues.',
+    config: { category: 'Central', isDefault: true },
+  },
+  {
+    type: 'site-store-types',
+    name: 'Central / Regional Materials Yard',
+    code: 'CENTRAL_WAREHOUSE',
+    description: 'Regional storage yard for bulk steel, cement, pipes and machinery.',
+    config: { category: 'Regional', isDefault: false },
+  },
+  {
+    type: 'site-store-types',
+    name: 'Steel & Rebar Fabrication Yard',
+    code: 'STEEL_FABRICATION_YARD',
+    description: 'Yard for TMT bar cutting, bending and fabrication.',
+    config: { category: 'Fabrication', isDefault: false },
+  },
+  {
+    type: 'site-store-types',
+    name: 'Transit / Sub-Store',
+    code: 'TRANSIT_SUB_STORE',
+    description: 'Sub-store for quick issuance at tower or block level.',
+    config: { category: 'Sub-Store', isDefault: false },
+  },
+  {
+    type: 'site-store-types',
+    name: 'Batching & Ready-Mix Plant Store',
+    code: 'BATCHING_PLANT_STORE',
+    description: 'Concrete batching plant store for aggregates and admixtures.',
+    config: { category: 'Batching', isDefault: false },
+  },
+  {
+    type: 'site-store-types',
+    name: 'Covered Material Shed',
+    code: 'SITE_MATERIAL_SHED',
+    description: 'Moisture-proof shed for electrical, plumbing, chemicals and tools.',
+    config: { category: 'Covered Shed', isDefault: false },
+  },
+  {
+    type: 'site-location-types',
+    name: 'Project Site Store',
+    code: 'Store',
+    description: 'Direct construction project site store.',
+    config: { category: 'Site Store', isDefault: true },
+  },
+  {
+    type: 'site-location-types',
+    name: 'Central Construction Yard / Warehouse',
+    code: 'Warehouse',
+    description: 'Central or regional main warehouse / material yard.',
+    config: { category: 'Warehouse', isDefault: false },
+  },
+  {
+    type: 'site-location-types',
+    name: 'Open Material Yard',
+    code: 'Yard',
+    description: 'Open yard for heavy steel, aggregates and pipes.',
+    config: { category: 'Open Yard', isDefault: false },
+  },
+  {
+    type: 'site-location-types',
+    name: 'Transit Depot / Sub-Store',
+    code: 'Outlet',
+    description: 'Block or tower level transit sub-store.',
+    config: { category: 'Transit', isDefault: false },
+  },
+  {
+    type: 'category-types',
+    name: 'Raw Materials',
+    code: 'RAW_MATERIALS',
+    description: 'Cement, sand, aggregates, TMT steel, bricks & blocks',
+    config: { categoryType: 'RAW_MATERIALS', label: 'Raw Materials' },
+  },
+  {
+    type: 'category-types',
+    name: 'Civil & Structural',
+    code: 'CIVIL_STRUCTURAL',
+    description: 'Structural steel, shuttering, formwork, precast members',
+    config: { categoryType: 'CIVIL_STRUCTURAL', label: 'Civil & Structural' },
+  },
+  {
+    type: 'category-types',
+    name: 'Electrical & Lighting',
+    code: 'ELECTRICAL',
+    description: 'Cables, conduits, switchgear, fixtures, distribution boards',
+    config: { categoryType: 'ELECTRICAL', label: 'Electrical & Lighting' },
+  },
+  {
+    type: 'category-types',
+    name: 'Plumbing & Sanitary',
+    code: 'PLUMBING',
+    description: 'CPVC/UPVC pipes, fittings, valves, water tanks, sanitaryware',
+    config: { categoryType: 'PLUMBING', label: 'Plumbing & Sanitary' },
+  },
+  {
+    type: 'category-types',
+    name: 'Finishing & Paints',
+    code: 'FINISHING_PAINTS',
+    description: 'Paints, primers, tiles, marble, granite, false ceiling',
+    config: { categoryType: 'FINISHING_PAINTS', label: 'Finishing & Paints' },
+  },
+  {
+    type: 'category-types',
+    name: 'Tools & Machinery',
+    code: 'TOOLS_MACHINERY',
+    description: 'Hand tools, power tools, mixers, vibrators, scaffolding',
+    config: { categoryType: 'TOOLS_MACHINERY', label: 'Tools & Machinery' },
+  },
+  {
+    type: 'category-types',
+    name: 'Safety & PPE',
+    code: 'SAFETY_PPE',
+    description: 'Helmets, safety shoes, vests, harnesses, barricades, nets',
+    config: { categoryType: 'SAFETY_PPE', label: 'Safety & PPE' },
+  },
+  {
+    type: 'category-types',
+    name: 'General / Consumables',
+    code: 'GENERAL',
+    description: 'General consumables, hardware, nails, binding wire, adhesives',
+    config: { categoryType: 'GENERAL', label: 'General / Consumables' },
+  },
 ];
 
-async function seedDefaultSettings() {
+export async function seedDefaultSettingsForType(type) {
+  const matches = DEFAULT_SETTINGS.filter((item) => item.type === type);
+  for (const item of matches) {
+    await query(
+      `INSERT INTO settings_records (
+         setting_type, name, code, description, store_id, is_active, config, created_at, updated_at
+       )
+       SELECT $1::varchar, $2::varchar, $3::varchar, $4::text, NULL, TRUE, $5::jsonb, NOW(), NOW()
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM settings_records
+         WHERE setting_type = $1::varchar
+           AND (code = $3::varchar OR name = $2::varchar)
+           AND store_id IS NULL
+       )`,
+      [item.type, item.name, item.code, item.description, JSON.stringify(item.config)]
+    );
+  }
+}
+
+export async function seedDefaultSettings() {
   for (const item of DEFAULT_SETTINGS) {
     await query(
       `INSERT INTO settings_records (
@@ -221,7 +367,7 @@ async function seedDefaultSettings() {
          SELECT 1
          FROM settings_records
          WHERE setting_type = $1::varchar
-           AND code = $3::varchar
+           AND (code = $3::varchar OR name = $2::varchar)
            AND store_id IS NULL
        )`,
       [item.type, item.name, item.code, item.description, JSON.stringify(item.config)]

@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, 'VIEW_INVENTORY', 'MANAGE_INVENTORY');
+    const permissionCheck = requirePermission(auth.user, 'STOCK_VIEW', 'MATERIAL_ISSUE_CREATE', 'MATERIAL_RETURN_CREATE');
     if (permissionCheck.error) return permissionCheck.error;
 
     const res = await query(
@@ -129,7 +129,7 @@ export async function PUT(request, { params }) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_INVENTORY');
+    const permissionCheck = requirePermission(auth.user, 'MATERIAL_ISSUE_CREATE', 'MATERIAL_RETURN_CREATE');
     if (permissionCheck.error) return permissionCheck.error;
 
     const body = await request.json();
@@ -255,7 +255,7 @@ export async function DELETE(request, { params }) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_INVENTORY');
+    const permissionCheck = requirePermission(auth.user, 'MATERIAL_ISSUE_CREATE', 'MATERIAL_RETURN_CREATE');
     if (permissionCheck.error) return permissionCheck.error;
 
     await client.query('BEGIN');

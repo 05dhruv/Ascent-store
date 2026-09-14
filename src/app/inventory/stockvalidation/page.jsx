@@ -81,20 +81,20 @@ async function deleteValidationDraft(id) {
 }
 
 const tableHeaders = [
-  "Transaction ID",
+  "Audit Ref / ID",
   "Status",
-  "Rack No",
-  "Source Name",
-  "Total Item Number",
-  "Cost",
+  "Yard / Bay / Bin",
+  "Site / Warehouse Store",
+  "Material Items",
+  "Estimated Value",
 ];
 
 const BULK_HEADERS = [
   "Destination",
   "Barcode",
   "SKU",
-  "Product Name",
-  "Batch No",
+  "Material Name",
+  "Batch / Heat No",
   "Physical Qty",
   "Remarks",
 ];
@@ -323,14 +323,14 @@ function normalizeValidationCartItem(item) {
 
 function mapValidationsToTable(records) {
   return (records || []).map((row) => ({
-    "Transaction ID": row.transactionId
+    "Audit Ref / ID": row.transactionId
       ? `#${row.transactionId}`
       : `#AUD-${row.id}`,
-    Status: row.status === "confirmed" ? "Confirmed" : "Pending",
-    "Rack No": row.rackNo || "-",
-    "Source Name": row.sourceName || "None",
-    "Total Item Number": row.totalItems ?? 0,
-    Cost: formatCost(row.cost),
+    Status: row.status === "confirmed" ? "Confirmed" : "Draft / In Progress",
+    "Yard / Bay / Bin": row.rackNo || "—",
+    "Site / Warehouse Store": row.sourceName || "—",
+    "Material Items": row.totalItems ?? 0,
+    "Estimated Value": formatCost(row.cost),
     _id: row.id,
     _status: row.status || "draft",
     _invoiceDate: row.invoiceDate || "",
@@ -869,21 +869,21 @@ export default function StockValidationPage() {
   return (
     <>
       <InventoryShell
-        breadcrumb={[{ label: "Inventory" }, { label: "Stock Validation" }]}
-        title="Stock Validation"
-        subtitle="Stock Validation transaction history of last 7 days. Need Help?"
+        breadcrumb={[{ label: "Material Movement" }, { label: "Physical Stock Audit" }]}
+        title="Physical Stock Audit & Verification (Stock Check)"
+        subtitle="Physical material stock verification and discrepancy reconciliation for site stores & warehouses."
         actions={[
-          { label: "Audit In Bulk (Excel)", onClick: openBulkModal },
+          { label: "Bulk Audit (Excel)", onClick: openBulkModal },
           {
             label: downloadingConsolidated
               ? "Downloading..."
-              : "Download Consolidated Excel",
+              : "Download Audit Sheet",
             onClick: downloadConsolidatedExcel,
             disabled: downloadingConsolidated,
           },
-          { label: "Audit", primary: true, onClick: openModal },
+          { label: "+ New Stock Audit", primary: true, onClick: openModal },
         ]}
-        searchPlaceholder="Search"
+        searchPlaceholder="Search audit ref, site, yard bin..."
         filters={
           <>
             <DateTextInput
@@ -916,7 +916,7 @@ export default function StockValidationPage() {
               }
               className="rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600"
             >
-              <option value="">All sources</option>
+              <option value="">All Sites & Warehouses</option>
               {sourceOptions.map((source) => (
                 <option key={source} value={source}>
                   {source}
@@ -1079,11 +1079,10 @@ export default function StockValidationPage() {
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <div>
                 <h3 className="text-lg font-black text-slate-950">
-                  Bulk Stock Validation
+                  Bulk Physical Stock Audit
                 </h3>
                 <p className="mt-1 text-xs font-semibold text-slate-500">
-                  Download blank template, fill physical qty, upload, preview,
-                  then confirm audit.
+                  Download template with site dropdowns, enter counted material quantities, and confirm audit.
                 </p>
               </div>
               <button
@@ -1208,7 +1207,7 @@ export default function StockValidationPage() {
           <div className="w-full max-w-[570px] overflow-hidden rounded bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-200 px-[22px] py-6">
               <h3 className="text-[24px] font-semibold leading-none text-gray-900">
-                Step 1: Fill Details
+                Step 1: New Material Audit Details
               </h3>
               <button
                 type="button"
@@ -1223,7 +1222,7 @@ export default function StockValidationPage() {
             <div className="px-[22px] py-[38px]">
               <div className="mb-6">
                 <label className="mb-2 block text-[15px] text-gray-700">
-                  Destination{" "}
+                  Site / Warehouse Store{" "}
                   <span className="font-semibold text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -1232,9 +1231,9 @@ export default function StockValidationPage() {
                     onChange={(e) => setDestination(e.target.value)}
                     className="h-10 w-full appearance-none rounded border border-gray-300 bg-white px-3 pr-12 text-[15px] text-gray-700 outline-none focus:border-blue-400"
                   >
-                    <option value="none">None</option>
+                    <option value="none">Select Site or Central Warehouse...</option>
                     {loadingStores ? (
-                      <option disabled>Loading...</option>
+                      <option disabled>Loading sites...</option>
                     ) : (
                       stores.map((store) => (
                         <option key={store.id} value={store.id}>
@@ -1250,12 +1249,12 @@ export default function StockValidationPage() {
 
               <div className="mb-6">
                 <label className="mb-2 block text-[15px] text-gray-700">
-                  Rack No
+                  Yard / Bay / Bin Location
                 </label>
                 <input
                   value={rackNo}
                   onChange={(e) => setRackNo(e.target.value)}
-                  placeholder="Example: Rack A-12"
+                  placeholder="e.g. Yard-A / Bay-3 / Shed-2"
                   className="h-10 w-full rounded border border-gray-300 px-3 text-[15px] text-gray-700 outline-none focus:border-blue-400"
                 />
               </div>
@@ -1268,7 +1267,7 @@ export default function StockValidationPage() {
                   className="h-5 w-5 accent-amber-400"
                 />
                 <span className="text-[16px] font-semibold text-gray-900">
-                  Apply Taxes On This Transaction
+                  Include Taxes in Estimated Audit Value
                 </span>
               </label>
             </div>

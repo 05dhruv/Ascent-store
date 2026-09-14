@@ -140,12 +140,12 @@ export default function ManufacturerPage() {
 
       <CatalogListPage
         breadcrumbs={[
-          { label: 'Catalog', href: '/catalog' },
-          { label: 'Product Classification', href: '/catalog/category' },
-          { label: 'Manufacturer' },
+          { label: 'Materials', href: '/catalog/products' },
+          { label: 'Material Classification', href: '/catalog/category' },
+          { label: 'Manufacturers' },
         ]}
-        title="Manufacturer"
-        description="Manage all product manufacturers and their details. Need Help?"
+        title="Manufacturers"
+        description="Manage construction material manufacturers and approved suppliers."
         createLabel="Create Manufacturer"
         onCreateClick={() => router.push('/catalog/manufacturer/create')}
         bulkOperations={true}
@@ -153,7 +153,7 @@ export default function ManufacturerPage() {
         rows={rows}
         loading={loading}
         totalLabel="Manufacturer(s)"
-        emptyMessage="No manufacturers found"
+        emptyMessage="No material manufacturers found"
         page={page}
         pageSize={pageSize}
         totalPages={totalPages}

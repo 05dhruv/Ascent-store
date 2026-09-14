@@ -182,7 +182,7 @@ export async function POST(request, { params }) {
 
     const permissionCheck = requirePermission(
       auth.user,
-      "MANAGE_INVENTORY",
+      "GRN_APPROVE",
       "MANAGE_PURCHASE_ORDERS",
       "APPROVE_REMOTE_GRN",
     );
@@ -512,18 +512,11 @@ export async function POST(request, { params }) {
         if (!pid || !catalogEntry) continue;
 
         const costPrice = Number(item.cost_price || 0);
-        const mrp = Number(item.mrp || 0);
+        const rawMrp = Number(item.mrp || 0);
         const sellingPrice = Number(
           item.selling_price || item.sellingPrice || 0,
         );
-        if (sellingPrice > mrp) {
-          return NextResponse.json(
-            {
-              error: `Selling price cannot be greater than MRP for ${catalogEntry.name || `product ${pid}`}`,
-            },
-            { status: 400 },
-          );
-        }
+        const mrp = Math.max(rawMrp, costPrice, sellingPrice);
         const saleabilityRes = destinationId
           ? await client.query(
               `SELECT mrp, selling_price
@@ -645,18 +638,11 @@ export async function POST(request, { params }) {
         const qty = toQty(item.qty || 1);
         const costPrice = Number(item.cost_price || 0);
         const taxValue = Number(item.tax_value || 0);
-        const mrp = Number(item.mrp || 0);
+        const rawMrp = Number(item.mrp || 0);
         const sellingPrice = Number(
           item.selling_price || item.sellingPrice || 0,
         );
-        if (sellingPrice > mrp) {
-          return NextResponse.json(
-            {
-              error: `Selling price cannot be greater than MRP for ${productName || `product ${pid}`}`,
-            },
-            { status: 400 },
-          );
-        }
+        const mrp = Math.max(rawMrp, costPrice, sellingPrice);
         const itemMeta = {
           source: item.source || null,
           scanCode: item.scan_code || item.scanCode || "",

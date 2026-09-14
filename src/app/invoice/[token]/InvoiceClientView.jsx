@@ -38,7 +38,7 @@ export default function InvoiceClientView({ data, invoiceURL }) {
   const hasDiscount = n(bill.discount_total) > 0;
   const hasTax      = taxTotal > 0;
   const hasRoundOff = n(bill.round_off) !== 0;
-  const storeName   = bill.store_name || 'Buyzaar Sync Store';
+  const storeName   = bill.store_name || 'Ascent Sync';
   const taxRows = Object.values((items || []).reduce((acc, item) => {
     const amount = n(item.tax_amount);
     if (amount <= 0) return acc;

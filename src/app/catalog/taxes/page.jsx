@@ -15,12 +15,12 @@ export default function TaxesPage() {
     <CatalogDataPage
       endpoint="/api/catalog/taxes"
       breadcrumbs={[
-        { label: 'Catalog', href: '/catalog' },
+        { label: 'Materials', href: '/catalog/products' },
         { label: 'Taxes & Charges', href: '/catalog/taxes' },
         { label: 'Taxes' },
       ]}
       title="Taxes"
-      description="Manage GST and other tax slabs for your products."
+      description="Manage GST and other tax slabs used for construction material procurement."
       columns={columns}
       totalLabel="Tax(es)"
       emptyMessage="No taxes found"

@@ -7,8 +7,8 @@ import { formatIndianDate } from '@/lib/dateUtils';
 
 const columns = [
   { key: 'sno',           label: 'S. No.',            sortable: true  },
-  { key: 'name',          label: 'Sub Category Name', sortable: true  },
-  { key: 'category_name', label: 'Category Name',     sortable: true  },
+  { key: 'name',          label: 'Material Sub-category', sortable: true  },
+  { key: 'category_name', label: 'Material Category',     sortable: true  },
   { key: 'sort_sequence', label: 'Sort Sequence',     sortable: true  },
   { key: 'is_active',     label: 'Status',            sortable: true  },
 ];
@@ -107,20 +107,20 @@ export default function SubCategoryPage() {
 
       <CatalogListPage
         breadcrumbs={[
-          { label: 'Catalog',                 href: '/catalog' },
-          { label: 'Product Classification',  href: '/catalog/category' },
-          { label: 'Sub Category' },
+          { label: 'Materials',               href: '/catalog/products' },
+          { label: 'Material Categories',     href: '/catalog/category' },
+          { label: 'Material Sub-categories' },
         ]}
-        title="Sub Category"
-        description="Organize products under the same category as subcategories."
-        createLabel="Create Sub Category"
+        title="Material Sub-categories"
+        description="Organize construction materials into clear sub-groups."
+        createLabel="Create Material Sub-category"
         onCreateClick={() => router.push('/catalog/sub-category/create')}
         bulkOperations={true}
         columns={columns}
         rows={rows}
         loading={loading}
-        totalLabel="Sub Category(s)"
-        emptyMessage="No sub categories found"
+        totalLabel="Material Sub-category(s)"
+        emptyMessage="No material sub-categories found"
         page={page}
         pageSize={pageSize}
         totalPages={totalPages}

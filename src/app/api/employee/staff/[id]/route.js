@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { query, getClient } from "@/lib/db";
 import { ensureEmployeesSchema } from "@/lib/employeesSchema";
+import { ensureRolesSchema } from "@/lib/rolesSchema";
 import {
   ensureUsersTable,
   normalizePhone,
@@ -77,6 +78,41 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
 
+async function getAssignedRole(client, roleId, roleNameFallback) {
+  let result;
+  const id = Number(roleId);
+  if (Number.isInteger(id) && id > 0) {
+    result = await client.query(
+      `SELECT r.id, COALESCE(r.role_name, r.name) AS role_name, r.permissions
+       FROM roles r
+       WHERE r.id = $1`,
+      [id],
+    );
+  }
+
+  if ((!result || !result.rows.length) && (roleNameFallback || roleId)) {
+    const nameToSearch = String(roleNameFallback || roleId).trim();
+    if (nameToSearch) {
+      result = await client.query(
+        `SELECT r.id, COALESCE(r.role_name, r.name) AS role_name, r.permissions
+         FROM roles r
+         WHERE LOWER(COALESCE(r.role_name, r.name)) = LOWER($1)
+         ORDER BY r.id ASC
+         LIMIT 1`,
+        [nameToSearch],
+      );
+    }
+  }
+
+  if (!result || !result.rows.length) {
+    return { error: "Selected role is not valid or does not exist in the database" };
+  }
+
+  const role = result.rows[0];
+  const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+  return { roleId: role.id, roleName: role.role_name, permissions };
+}
+
 function mapEmployeeRow(row) {
   return {
     id: row.id,
@@ -85,6 +121,7 @@ function mapEmployeeRow(row) {
     firstName: row.first_name,
     lastName: row.last_name,
     employeeCode: row.employee_code || "",
+    roleId: row.role_id || null,
     role: row.role_name || "",
     department: row.department_name || "",
     employeeType: row.employment_type || "",
@@ -146,9 +183,10 @@ export async function PUT(request, { params }) {
   try {
     await ensureEmployeesSchema();
     await ensureUsersTable();
+    await ensureRolesSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, "MANAGE_USERS");
+    const permissionCheck = requirePermission(auth.user, "TEAM_MANAGE");
     if (permissionCheck.error) return permissionCheck.error;
 
     const employeeId = await resolveEmployeeId(params);
@@ -174,8 +212,8 @@ export async function PUT(request, { params }) {
     const emailAddress = toString(
       body.email_address || body.emailAddress,
     ).toLowerCase();
-    const roleId = body.role_id ?? body.roleId ?? null;
-    const roleName = toString(body.role_name || body.roleName);
+    let roleId = body.role_id ?? body.roleId ?? null;
+    let roleName = toString(body.role_name || body.roleName);
     const regionStore = Array.isArray(body.region_store || body.regionStore)
       ? (body.region_store || body.regionStore)
           .map((item) => String(item).trim())
@@ -201,14 +239,14 @@ export async function PUT(request, { params }) {
         ),
       ),
     );
-    const permissions = normalizePermissions(body.permissions);
+    let permissions = normalizePermissions(body.permissions);
     const departmentId = body.department_id ?? body.departmentId ?? null;
     const departmentName = toString(
       body.department_name || body.departmentName,
     );
     const customerName = toString(body.customer_name || body.customerName);
     const userType = toString(body.user_type || body.userType);
-    const systemRole = normalizeSystemRole(
+    let systemRole = normalizeSystemRole(
       roleName,
       body.system_role ||
         body.systemRole ||
@@ -240,27 +278,14 @@ export async function PUT(request, { params }) {
       body.contractor_name || body.contractorName,
     );
 
-    if (systemRole === "super_admin" && auth.user.role !== "super_admin") {
-      return NextResponse.json(
-        { error: "Only Super Admin can assign Super Admin role" },
-        { status: 403 },
-      );
-    }
-
-    const missingStoreIds = await findMissingStoreIds(client, assignedStores);
-    if (missingStoreIds.length) {
-      return NextResponse.json(
-        {
-          error: `Selected store does not exist: ${missingStoreIds.join(", ")}`,
-        },
-        { status: 400 },
-      );
-    }
-
-    for (const storeId of assignedStores) {
-      const storeCheck = requireStore(auth.user, storeId);
-      if (storeCheck.error) return storeCheck.error;
-    }
+    const assignedRole = await getAssignedRole(client, roleId, roleName);
+    if (assignedRole.error) return NextResponse.json({ error: assignedRole.error }, { status: 400 });
+    roleId = assignedRole.roleId;
+    roleName = assignedRole.roleName;
+    permissions = (Array.isArray(body.permissions) && body.permissions.length > 0)
+      ? body.permissions
+      : assignedRole.permissions;
+    systemRole = normalizeSystemRole(roleName, userType);
 
     const validationError = validateEmployeeInput({
       username,
@@ -449,7 +474,7 @@ export async function DELETE(request, { params }) {
     await ensureEmployeesSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
-    const permissionCheck = requirePermission(auth.user, "MANAGE_USERS");
+    const permissionCheck = requirePermission(auth.user, "TEAM_MANAGE");
     if (permissionCheck.error) return permissionCheck.error;
 
     const employeeId = await resolveEmployeeId(params);

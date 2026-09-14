@@ -12,12 +12,14 @@ export async function PATCH(request, { params }) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_STOCK_REQUISITION', 'MANAGE_INVENTORY');
-    if (permissionCheck.error) return permissionCheck.error;
-
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || '').toLowerCase();
+    const permissionCheck = requirePermission(
+      auth.user,
+      action === 'approve' || action === 'reject' ? 'SITE_REQUEST_APPROVE' : 'SITE_REQUEST_CREATE',
+    );
+    if (permissionCheck.error) return permissionCheck.error;
 
     const reqRes = await query('SELECT id, destination_id, requested_by_user_id, approval_status, fulfillment_status FROM stock_requisitions WHERE id = $1', [id]);
     if (!reqRes.rows.length) return NextResponse.json({ success: false, message: 'Requisition not found' }, { status: 404 });
@@ -46,11 +48,12 @@ export async function PATCH(request, { params }) {
         [id, body.reason || body.rejectionReason || null]
       );
     } else if (action === 'fulfill') {
-      await query(
-        `UPDATE stock_requisitions
-         SET fulfillment_status = 'completed', status = 'fulfilled', fulfilled_at = NOW()
-         WHERE id = $1`,
-        [id]
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'A site request is completed only after material is received through its linked transfer.',
+        },
+        { status: 409 }
       );
     } else {
       return NextResponse.json({ success: false, message: 'Unsupported action' }, { status: 400 });

@@ -1,93 +1,73 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/MainLayout";
 
-const MIN_COST_PER_SQ_FT = 1400;
-const KIRANA_FRANCHISE_TYPE = "KIRANA";
-const ASCENT_FRANCHISE_TYPE = "ASCENT";
-const MINIMAL_FRANCHISE_TYPES = [KIRANA_FRANCHISE_TYPE, ASCENT_FRANCHISE_TYPE];
-const FRANCHISE_TYPES = ["FOCM", "FOCO", "COCO", ...MINIMAL_FRANCHISE_TYPES];
-const DEFAULT_FOCO_FSSAI_LICENSE_NUMBER = "22725925002074";
+const DEFAULT_STORE_TYPES = [
+  { id: null, value: "MAIN_SITE_STORE", label: "Main Project Site Store" },
+  { id: null, value: "CENTRAL_WAREHOUSE", label: "Central / Regional Materials Yard" },
+  { id: null, value: "STEEL_FABRICATION_YARD", label: "Steel & Rebar Fabrication Yard" },
+  { id: null, value: "TRANSIT_SUB_STORE", label: "Transit / Sub-Store" },
+  { id: null, value: "BATCHING_PLANT_STORE", label: "Batching & Ready-Mix Plant Store" },
+  { id: null, value: "SITE_MATERIAL_SHED", label: "Covered Material Shed" },
+];
+
+const DEFAULT_LOCATION_TYPES = [
+  { id: null, value: "Store", label: "Project Site Store" },
+  { id: null, value: "Warehouse", label: "Central Construction Yard / Warehouse" },
+  { id: null, value: "Yard", label: "Open Material Yard" },
+  { id: null, value: "Outlet", label: "Transit Depot / Sub-Store" },
+];
+
 const DOCUMENT_FIELDS = [
-  { key: "agreement", label: "Agreement", required: true },
-  { key: "aadhaar", label: "Aadhaar", required: true },
-  { key: "panCard", label: "PAN Card", required: true },
-  {
-    key: "rentAgreement",
-    label: "Electricity Bill / Rent Agreement",
-    required: true,
-  },
+  { key: "siteWorkOrder", label: "Work Order / Sanction Letter", required: false },
+  { key: "siteLayoutPlan", label: "Site Storage Layout / Plot Plan", required: false },
+  { key: "safetyClearance", label: "Safety & Environmental Clearance", required: false },
+  { key: "landLeaseAgreement", label: "Site Land / Lease Agreement", required: false },
+  { key: "inchargeIdProof", label: "Site In-Charge ID (Aadhaar / PAN)", required: false },
 ];
-const INTERIOR_FIELDS = [
-  { key: "ac", label: "AC" },
-  { key: "refrigerator", label: "Refrigerator" },
-  { key: "deepFreezer", label: "Deep Freezer" },
-  {
-    key: "racks",
-    label: "Racks",
-    children: [
-      { key: "angles", label: "Angles" },
-      { key: "shelves", label: "Shelves" },
-      { key: "brackets", label: "Brackets" },
-      { key: "plates", label: "Plates" },
-      { key: "patti", label: "Patti" },
-    ],
-  },
-  { key: "sealingMachine", label: "Sealing Machine" },
-  { key: "weighingMachine", label: "Weighing Machine" },
-  { key: "palletBoard", label: "Pallet Board" },
-  { key: "broomBin", label: "Broom Bin" },
-  { key: "dumpBin", label: "Dump Bin" },
-  { key: "fireExtinguisher", label: "Fire Extinguisher" },
-  { key: "ledBoard", label: "LED Board" },
-  { key: "posMachine", label: "POS Machine" },
-  {
-    key: "billingThermalPrinterScanner",
-    label: "Billing Thermal Printer Scanner",
-  },
-  { key: "billingCounter", label: "Billing Counter" },
-  { key: "shoppingBasket", label: "Shopping Basket" },
-  { key: "cart", label: "Cart" },
-  { key: "trackLight", label: "Track Light" },
-  { key: "oilContainer", label: "Oil Container" },
-  { key: "billingRoll", label: "Billing Roll" },
-  { key: "stickerPrinter", label: "Sticker Printer" },
-  { key: "stepStool", label: "Step Stool" },
-  { key: "shoppingCarryBags", label: "Shopping Bags / Carry Bags" },
-  { key: "wifi", label: "WiFi" },
-  { key: "edcPhonepePay", label: "EDC Machine / PhonePe Pay" },
+
+const INFRASTRUCTURE_FIELDS = [
+  { key: "cementGodown", label: "Cement Godown (Moisture-Proof & Raised Plinth)", defaultAmount: 150000 },
+  { key: "steelYard", label: "Steel & Rebar Fabrication Yard", defaultAmount: 120000 },
+  { key: "aggregateBins", label: "Aggregates & Sand Storage Bins", defaultAmount: 80000 },
+  { key: "coveredShed", label: "Covered Tool & Hardware Store Room", defaultAmount: 95000 },
+  { key: "fuelChemicalStore", label: "Fuel, Paint & Chemical Storage Area (Hazardous)", defaultAmount: 60000 },
+  { key: "weighbridge", label: "Weighbridge / Heavy Platform Weighing Scale", defaultAmount: 350000 },
+  { key: "materialHandlingEquip", label: "Material Handling Equipment (Hydra/Forklift/Hoist)", defaultAmount: 250000 },
+  { key: "cctvSecurity", label: "CCTV Surveillance & 24x7 Security Gate", defaultAmount: 75000 },
+  { key: "backupGenerator", label: "Backup Diesel Generator (DG Set) & Power Backup", defaultAmount: 180000 },
+  { key: "fireSafetyStation", label: "Fire Safety Equipment & Hydrant Points", defaultAmount: 45000 },
+  { key: "materialTestingLab", label: "On-site Material QA & Testing Desk", defaultAmount: 85000 },
+  { key: "siteOfficeInventory", label: "Site Office Computer, Printer & Barcode Setup", defaultAmount: 65000 },
+  { key: "safetyBarricading", label: "Perimeter Barricading & Safety Warning Signages", defaultAmount: 40000 },
+  { key: "firstAidStation", label: "First Aid & Emergency Safety Station", defaultAmount: 25000 },
 ];
+
 const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 const DOCUMENT_UPLOAD_CHUNK_CHARS = 200_000;
 const ALLOWED_DOCUMENT_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 const ALLOWED_DOCUMENT_EXTENSIONS = [".pdf", ".jpg", ".png"];
 const PINCODE_CACHE_PREFIX = "store-pincode-location:v2:";
 
-function getEmptyInteriorItem(field) {
+function getEmptyFacilityItem(field) {
   return {
     enabled: false,
-    amount: "",
-    units: "",
+    amount: field.defaultAmount || "",
+    units: "1",
     total: 0,
-    ...(field.children
-      ? {
-          children: field.children.reduce(
-            (acc, child) => ({
-              ...acc,
-              [child.key]: { enabled: false, amount: "", units: "", total: 0 },
-            }),
-            {},
-          ),
-        }
-      : {}),
   };
 }
 
 const initialForm = {
   name: "",
+  projectId: "",
+  projectCode: "",
+  projectName: "",
   locationType: "Store",
+  franchiseType: "MAIN_SITE_STORE",
   addressLine1: "",
   addressLine2: "",
   city: "",
@@ -96,55 +76,54 @@ const initialForm = {
   country: "India",
   deliveryLatitude: "",
   deliveryLongitude: "",
-  deliveryRadiusKm: "5",
+  deliveryRadiusKm: "10",
   panNumber: "",
   managerName: "",
   managerMobile: "",
   managerEmail: "",
-  openingTime: "10:00 am",
-  closingTime: "10:00 pm",
-  defaultCustomerGroup: "None",
+  openingTime: "08:00 am",
+  closingTime: "08:00 pm",
+  defaultCustomerGroup: "Site Operations",
   storeCode: "",
-  storeArea: "",
-  storeAreaSqFt: "",
-  costPerSqFt: String(MIN_COST_PER_SQ_FT),
-  franchiseType: "",
+  storeAreaSqFt: "2500",
+  costPerSqFt: "800",
   documents: DOCUMENT_FIELDS.reduce(
     (acc, field) => ({ ...acc, [field.key]: null }),
     {},
   ),
-  interiorItems: INTERIOR_FIELDS.reduce(
+  interiorItems: INFRASTRUCTURE_FIELDS.reduce(
     (acc, field) => ({
       ...acc,
-      [field.key]: getEmptyInteriorItem(field),
+      [field.key]: getEmptyFacilityItem(field),
     }),
     {},
   ),
-  enableVoucherValidation: false,
-  automaticPrint: false,
-  enableStoreStockAlert: false,
+  enableVoucherValidation: true,
+  automaticPrint: true,
+  enableStoreStockAlert: true,
   enableStoreOnlineBillingOnly: false,
   cin: "",
   tin: "",
   serviceTaxNumber: "",
   gstNumber: "",
-  customerGstOrderPrefix: "",
+  customerGstOrderPrefix: "GST-REQ",
   fssaiLicenseNumber: "",
-  taxInformation: "",
-  customStoreOrderPrefix: "",
-  refundCustomStoreOrderPrefix: "",
-  ncCustomStoreOrderPrefix: "",
-  ncRefundCustomStoreOrderPrefix: "",
-  rwiCustomStoreOrderPrefix: "",
+  taxInformation: "Standard Construction Project Material Rules",
+  customStoreOrderPrefix: "MRN",
+  refundCustomStoreOrderPrefix: "MRN-RET",
+  ncCustomStoreOrderPrefix: "MIN",
+  ncRefundCustomStoreOrderPrefix: "MIN-RET",
+  rwiCustomStoreOrderPrefix: "STR",
 };
 
 function getStoreFormat(areaValue) {
   const area = Number(areaValue || 0);
   if (!Number.isFinite(area) || area <= 0) return "";
-  if (area >= 600 && area < 1000) return "Mini Mart";
-  if (area >= 1000 && area < 3000) return "Super Mart";
-  if (area >= 3000) return "Hyper Mart";
-  return "";
+  if (area >= 10000) return "Mega Project Site Yard";
+  if (area >= 5000) return "Major Site Storage Yard";
+  if (area >= 2000) return "Standard Site Store";
+  if (area >= 500) return "Compact / Transit Site Store";
+  return "Site Material Shed";
 }
 
 function getTotalAmount(areaValue, costValue) {
@@ -168,29 +147,20 @@ function formatMoney(value) {
   });
 }
 
-function getInteriorChildSubtotal(item) {
-  return Object.values(item?.children || {}).reduce(
-    (sum, child) => sum + (child?.enabled ? Number(child.total || 0) : 0),
-    0,
-  );
-}
-
-function getInteriorItemTotal(item) {
+function getFacilityItemTotal(item) {
   if (!item?.enabled) return 0;
-  const childSubtotal = getInteriorChildSubtotal(item);
-  if (Object.keys(item.children || {}).length) {
-    return childSubtotal * Number(item.units || 0);
-  }
-  return Number(item.total || 0);
+  const amount = Number(item.amount || 0);
+  const units = Number(item.units || 0);
+  return amount * units;
 }
 
-function getInteriorGrandTotal(items) {
+function getFacilityGrandTotal(items) {
   return Object.values(items || {}).reduce((sum, item) => {
-    return sum + getInteriorItemTotal(item);
+    return sum + getFacilityItemTotal(item);
   }, 0);
 }
 
-function getApiErrorMessage(json, fallback = "Failed to create store") {
+function getApiErrorMessage(json, fallback = "Failed to create site store") {
   if (Array.isArray(json?.errors) && json.errors.length) {
     return json.errors
       .map((item) => item?.message || item?.field || "")
@@ -293,6 +263,10 @@ async function fileToDocument(file) {
 export default function CreateStorePage() {
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
+  const [storeTypes, setStoreTypes] = useState(DEFAULT_STORE_TYPES);
+  const [locationTypes, setLocationTypes] = useState(DEFAULT_LOCATION_TYPES);
+  const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState({});
@@ -300,45 +274,119 @@ export default function CreateStorePage() {
   const [pincodeStatus, setPincodeStatus] = useState("");
   const [locationStatus, setLocationStatus] = useState("");
 
-  const onChange = (e) => {
-    const value =
-      e.target.name === "managerMobile"
-        ? e.target.value.replace(/\D/g, "").slice(0, 10)
-        : e.target.name === "pincode"
-          ? e.target.value.replace(/\D/g, "").slice(0, 6)
-          : ["storeAreaSqFt", "costPerSqFt"].includes(e.target.name)
-            ? e.target.value.replace(/[^\d.]/g, "")
-            : e.target.value;
-    setForm((p) => {
-      if (e.target.name === "franchiseType") {
-        return {
-          ...p,
-          franchiseType: value,
-          fssaiLicenseNumber:
-            value === "FOCO"
-              ? DEFAULT_FOCO_FSSAI_LICENSE_NUMBER
-              : p.fssaiLicenseNumber === DEFAULT_FOCO_FSSAI_LICENSE_NUMBER
-                ? ""
-                : p.fssaiLicenseNumber,
-        };
+  const [manageModal, setManageModal] = useState(null); // { type: 'site-location-types' | 'site-store-types', title: string }
+  const [showProjectModal, setShowProjectModal] = useState(false);
+
+  const handleProjectCreated = (newProject) => {
+    if (!newProject) return;
+    setProjects((prev) => [newProject, ...prev.filter((p) => String(p.id) !== String(newProject.id))]);
+    setForm((p) => ({
+      ...p,
+      projectId: newProject.id,
+      projectCode: newProject.project_code || "",
+      projectName: newProject.name || "",
+      storeCode: p.storeCode || (newProject.project_code ? `${newProject.project_code}-SITE` : p.storeCode),
+    }));
+  };
+
+  const loadStoreTypes = async () => {
+    try {
+      const res = await fetch("/api/settings/site-store-types?pageSize=50");
+      const json = await res.json();
+      if (res.ok && json.success && Array.isArray(json.data?.records) && json.data.records.length > 0) {
+        const mapped = json.data.records.map((r) => ({
+          id: r.id,
+          value: r.code || r.name.toUpperCase().replace(/[^A-Z0-9]/g, "_"),
+          label: r.name,
+        }));
+        setStoreTypes(mapped);
       }
-      return { ...p, [e.target.name]: value };
-    });
-    if (errors[e.target.name]) {
-      setErrors((p) => ({ ...p, [e.target.name]: "" }));
-    }
-    if (e.target.name === "franchiseType" && errors.fssaiLicenseNumber) {
-      setErrors((p) => ({ ...p, fssaiLicenseNumber: "" }));
+    } catch {
+      // Keep default store types
     }
   };
+
+  const loadLocationTypes = async () => {
+    try {
+      const res = await fetch("/api/settings/site-location-types?pageSize=50");
+      const json = await res.json();
+      if (res.ok && json.success && Array.isArray(json.data?.records) && json.data.records.length > 0) {
+        const mapped = json.data.records.map((r) => ({
+          id: r.id,
+          value: r.code || r.name,
+          label: r.name,
+        }));
+        setLocationTypes(mapped);
+      }
+    } catch {
+      // Keep default location types
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoadingProjects(true);
+      try {
+        const [projRes] = await Promise.all([
+          fetch("/api/construction/projects"),
+          loadStoreTypes(),
+          loadLocationTypes(),
+        ]);
+        const json = await projRes.json();
+        if (mounted && projRes.ok && json.success) {
+          setProjects(json.data.records || []);
+        }
+      } catch {
+        // Fallback gracefully
+      } finally {
+        if (mounted) setLoadingProjects(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const onChange = (e) => {
+    const { name, value } = e.target;
+    let nextValue = value;
+
+    if (name === "managerMobile") {
+      nextValue = value.replace(/\D/g, "").slice(0, 10);
+    } else if (name === "pincode") {
+      nextValue = value.replace(/\D/g, "").slice(0, 6);
+    } else if (["storeAreaSqFt", "costPerSqFt", "deliveryRadiusKm"].includes(name)) {
+      nextValue = value.replace(/[^\d.]/g, "");
+    }
+
+    if (name === "projectId") {
+      const selected = projects.find((p) => String(p.id) === String(value));
+      setForm((p) => ({
+        ...p,
+        projectId: value,
+        projectCode: selected?.project_code || "",
+        projectName: selected?.name || "",
+        storeCode: p.storeCode || (selected?.project_code ? `${selected.project_code}-SITE` : p.storeCode),
+      }));
+      return;
+    }
+
+    setForm((p) => ({ ...p, [name]: nextValue }));
+    if (errors[name]) {
+      setErrors((p) => ({ ...p, [name]: "" }));
+    }
+  };
+
   const onCheck = (e) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.checked }));
+
   const captureStoreLocation = () => {
     if (!navigator.geolocation) {
       setLocationStatus("Location is not supported by this browser");
       return;
     }
-    setLocationStatus("Getting store location...");
+    setLocationStatus("Getting site GPS coordinates...");
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setForm((current) => ({
@@ -346,12 +394,13 @@ export default function CreateStorePage() {
           deliveryLatitude: coords.latitude.toFixed(7),
           deliveryLongitude: coords.longitude.toFixed(7),
         }));
-        setLocationStatus("Store delivery location captured");
+        setLocationStatus("Site GPS coordinates captured successfully");
       },
-      () => setLocationStatus("Allow location access and try again"),
+      () => setLocationStatus("Allow location access in browser and try again"),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   };
+
   const onDocumentChange = async (key, file) => {
     if (!file) {
       setForm((p) => ({ ...p, documents: { ...p.documents, [key]: null } }));
@@ -422,7 +471,7 @@ export default function CreateStorePage() {
         return;
       }
     } catch {
-      // Ignore cache read errors.
+      // Ignore cache read errors
     }
 
     const controller = new AbortController();
@@ -447,7 +496,7 @@ export default function CreateStorePage() {
         try {
           sessionStorage.setItem(cacheKey, JSON.stringify(location));
         } catch {
-          // Ignore cache write errors.
+          // Ignore cache write errors
         }
       })
       .catch(() => {
@@ -464,16 +513,13 @@ export default function CreateStorePage() {
     };
   }, [form.pincode]);
 
-  const updateInteriorItem = (key, patch) => {
+  const updateFacilityItem = (key, patch) => {
     setForm((current) => {
       const previous = current.interiorItems[key] || {};
       const next = { ...previous, ...patch };
-      const hasChildren = Object.keys(next.children || {}).length > 0;
-      const childSubtotal = getInteriorChildSubtotal(next);
-      const amount = hasChildren ? childSubtotal : Number(next.amount || 0);
+      const amount = Number(next.amount || 0);
       const units = Number(next.units || 0);
       next.total = next.enabled && amount > 0 && units > 0 ? amount * units : 0;
-      if (hasChildren) next.amount = amount;
       return {
         ...current,
         interiorItems: { ...current.interiorItems, [key]: next },
@@ -481,98 +527,27 @@ export default function CreateStorePage() {
     });
   };
 
-  const updateInteriorChildItem = (key, childKey, patch) => {
-    setForm((current) => {
-      const parent = current.interiorItems[key] || {};
-      const previousChild = parent.children?.[childKey] || {};
-      const nextChild = { ...previousChild, ...patch };
-      const amount = Number(nextChild.amount || 0);
-      const units = Number(nextChild.units || 0);
-      nextChild.total =
-        nextChild.enabled && amount > 0 && units > 0 ? amount * units : 0;
-      const nextChildren = {
-        ...(parent.children || {}),
-        [childKey]: nextChild,
-      };
-      const childSubtotal = getInteriorChildSubtotal({
-        children: nextChildren,
-      });
-      const parentUnits = Number(parent.units || 0);
-      return {
-        ...current,
-        interiorItems: {
-          ...current.interiorItems,
-          [key]: {
-            ...parent,
-            amount: childSubtotal,
-            total:
-              parent.enabled && childSubtotal > 0 && parentUnits > 0
-                ? childSubtotal * parentUnits
-                : 0,
-            children: {
-              ...nextChildren,
-            },
-          },
-        },
-      };
-    });
-  };
-
   const inputClass = (field) => `input ${errors[field] ? "input-error" : ""}`;
   const storeFormat = getStoreFormat(form.storeAreaSqFt);
   const totalAmount = getTotalAmount(form.storeAreaSqFt, form.costPerSqFt);
-  const interiorGrandTotal = getInteriorGrandTotal(form.interiorItems);
-  const isMinimalStore = MINIMAL_FRANCHISE_TYPES.includes(form.franchiseType);
-  const requiredLabel = (label, required = !isMinimalStore) =>
-    `${label}${required ? " *" : ""}`;
-  const isDocumentRequired = (field) =>
-    !isMinimalStore &&
-    field.required &&
-    !(
-      field.key === "agreement" && ["COCO", "FOCO"].includes(form.franchiseType)
-    );
+  const facilityGrandTotal = getFacilityGrandTotal(form.interiorItems);
 
   const validate = () => {
     const next = {};
-    if (!form.name.trim()) next.name = "Store name is required";
-    if (!FRANCHISE_TYPES.includes(form.franchiseType))
-      next.franchiseType = "Select franchise type";
-    if (!form.addressLine1.trim())
-      next.addressLine1 = "Address line 1 is required";
-    if (isMinimalStore) {
-      setErrors(next);
-      return Object.keys(next).length === 0;
-    }
-    if (!form.locationType) next.locationType = "Location type is required";
+    if (!form.name.trim()) next.name = "Site Store name is required";
+    if (!form.addressLine1.trim()) next.addressLine1 = "Site address line 1 is required";
     if (!form.city.trim()) next.city = "City is required";
     if (!form.state.trim()) next.state = "State is required";
-    if (!form.pincode.trim()) next.pincode = "Pincode is required";
-    else if (!/^\d{6}$/.test(form.pincode.trim()))
+    if (form.pincode.trim() && !/^\d{6}$/.test(form.pincode.trim())) {
       next.pincode = "Pincode must be 6 digits";
-    if (!form.country.trim()) next.country = "Country is required";
-    if (!String(form.deliveryLatitude).trim())
-      next.deliveryLatitude = "Store delivery location is required";
-    if (!String(form.deliveryLongitude).trim())
-      next.deliveryLongitude = "Store delivery location is required";
-    if (!form.storeCode.trim()) next.storeCode = "Store code is required";
-    if (!form.managerName.trim())
-      next.managerName = "Franchise owner name is required";
-    if (!form.managerMobile.trim())
-      next.managerMobile = "Mobile number is required";
-    else if (!/^\d{10}$/.test(form.managerMobile))
+    }
+    if (!form.managerName.trim()) {
+      next.managerName = "Site In-Charge / Store Keeper name is required";
+    }
+    if (!form.managerMobile.trim()) {
+      next.managerMobile = "In-charge mobile number is required";
+    } else if (!/^\d{10}$/.test(form.managerMobile)) {
       next.managerMobile = "Mobile number must be exactly 10 digits";
-    if (!form.gstNumber.trim()) next.gstNumber = "GST number is required";
-    if (!form.storeAreaSqFt || Number(form.storeAreaSqFt) < 600)
-      next.storeAreaSqFt = "Store area must be at least 600 sq ft";
-    if (!form.costPerSqFt || Number(form.costPerSqFt) < MIN_COST_PER_SQ_FT)
-      next.costPerSqFt = "Cost per sq ft cannot be less than Rs. 1400";
-    if (form.franchiseType === "FOCM" && !form.fssaiLicenseNumber.trim())
-      next.fssaiLicenseNumber =
-        "FSSAI license number is required for FOCM stores";
-    for (const field of DOCUMENT_FIELDS) {
-      if (isDocumentRequired(field) && !form.documents[field.key]) {
-        next[`documents.${field.key}`] = `${field.label} is required`;
-      }
     }
     if (
       form.managerEmail &&
@@ -610,7 +585,7 @@ export default function CreateStorePage() {
         shortCode: form.storeCode,
         storeFormat,
         totalStoreAmount: totalAmount,
-        interiorGrandTotal,
+        interiorGrandTotal: facilityGrandTotal,
       },
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -657,79 +632,59 @@ export default function CreateStorePage() {
         return;
       }
       const storeId = json.data?.store?.id;
-      if (!storeId) {
-        setError(
-          "Store created but document upload could not start. Please edit the store and re-upload documents.",
-        );
-        return;
-      }
-      for (const [key, document] of Object.entries(form.documents || {})) {
-        if (document?.dataUrl) {
-          await uploadStoreDocument(storeId, key, document);
+      if (storeId) {
+        for (const [key, document] of Object.entries(form.documents || {})) {
+          if (document?.dataUrl) {
+            await uploadStoreDocument(storeId, key, document);
+          }
         }
       }
       router.push("/settings/stores");
     } catch (err) {
-      setError(err.message || "Failed to create store");
+      setError(err.message || "Failed to create site store");
     } finally {
       setLoading(false);
     }
   };
 
-  const renderInteriorLine = (field) => (
-    <InteriorLine
-      key={field.key}
-      field={field}
-      item={form.interiorItems[field.key]}
-      onChange={(patch) => updateInteriorItem(field.key, patch)}
-      onChildChange={(childKey, patch) =>
-        updateInteriorChildItem(field.key, childKey, patch)
-      }
-    />
-  );
-  const racksInteriorField = INTERIOR_FIELDS.find(
-    (field) => field.key === "racks",
-  );
-  const regularInteriorFields = INTERIOR_FIELDS.filter(
-    (field) => field.key !== "racks",
-  );
-  const leadingInteriorFields = regularInteriorFields.slice(0, 2);
-  const remainingInteriorFields = regularInteriorFields.slice(2);
-
   return (
     <MainLayout>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Create Store</h2>
-          <p className="text-sm text-gray-500">
-            Add store address, contact and billing settings.
+          <div className="flex items-center gap-2">
+            <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded">
+              Construction Infrastructure
+            </span>
+            <h2 className="text-xl font-bold text-gray-900">Create Construction Site Store</h2>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Configure project site storage, material yard infrastructure, engineer in-charge, and site layout documents.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => router.push("/settings/stores")}
-            className="px-4 py-2 border rounded-lg bg-white hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition"
           >
             Back
           </button>
-          {!savedStore && (
+          {!savedStore ? (
             <button
               form="create-store-form"
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
             >
-              Preview
+              Preview & Review
             </button>
-          )}
-          {savedStore && (
+          ) : (
             <>
               <button
                 type="button"
                 onClick={() => setSavedStore(null)}
                 disabled={loading}
-                className="px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 disabled:opacity-60"
+                className="px-4 py-2 border rounded-lg bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-60"
               >
                 Edit Details
               </button>
@@ -737,9 +692,9 @@ export default function CreateStorePage() {
                 type="button"
                 onClick={handleFinalSave}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                className="px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-60 transition shadow-sm"
               >
-                {loading ? "Saving..." : "Save Store"}
+                {loading ? "Creating Site Store..." : "Confirm & Save Site Store"}
               </button>
             </>
           )}
@@ -747,214 +702,94 @@ export default function CreateStorePage() {
       </div>
 
       {savedStore ? (
-        <div className="space-y-5">
-          <section className="bg-white border border-green-200 rounded-xl p-5">
+        <div className="space-y-6 max-w-5xl">
+          <section className="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-[15px] font-semibold text-green-700">
-                  Review store details
+                <h3 className="text-base font-bold text-emerald-800">
+                  Review Site Store Details
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Please verify all details. The store will be created only
-                  after clicking Save Store.
+                <p className="text-sm text-emerald-700 mt-1">
+                  Please verify all site information below. Click <strong>Confirm & Save Site Store</strong> to complete registration.
                 </p>
               </div>
-              <div className="text-right text-xs text-gray-500">
-                <div>
-                  Store Code:{" "}
-                  {savedStore.meta?.storeCode ||
-                    savedStore.meta?.shortCode ||
-                    form.storeCode ||
-                    "—"}
-                </div>
-                <div>
-                  Status: {savedStore.is_active ? "Active" : "Inactive"}
-                </div>
+              <div className="text-right text-xs font-semibold text-emerald-800 bg-white/80 px-3 py-2 rounded-lg border border-emerald-200">
+                <div>Site Code: {savedStore.meta?.storeCode || form.storeCode || "—"}</div>
+                <div>Format: {savedStore.meta?.storeFormat || storeFormat || "—"}</div>
               </div>
             </div>
           </section>
 
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-[15px] font-semibold text-blue-700 mb-4">
-              Basic Information
+          <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-4 border-b pb-2">
+              1. Basic Site Information & Project Link
             </h3>
             <DetailGrid
               items={[
-                ["Store Name", savedStore.name],
-                [
-                  "Location Type",
-                  savedStore.meta?.locationType || form.locationType,
-                ],
-                [
-                  "Address Line 1",
-                  savedStore.address_line1 || form.addressLine1,
-                ],
-                [
-                  "Address Line 2",
-                  savedStore.address_line2 || form.addressLine2,
-                ],
-                ["City", savedStore.city || form.city],
+                ["Site Store Name", savedStore.name],
+                ["Associated Project", form.projectName ? `${form.projectName} (${form.projectCode})` : "Standalone Site Store"],
+                ["Site Location Type", locationTypes.find(t => t.value === (savedStore.meta?.locationType || form.locationType))?.label || form.locationType],
+                ["Site Storage Type", storeTypes.find(t => t.value === (savedStore.meta?.franchiseType || form.franchiseType))?.label || form.franchiseType],
+                ["Address Line 1", savedStore.address_line1 || form.addressLine1],
+                ["Address Line 2", savedStore.address_line2 || form.addressLine2 || "—"],
+                ["City / District", savedStore.city || form.city],
                 ["State", savedStore.state || form.state],
-                ["Pincode", savedStore.pincode || form.pincode],
+                ["Pincode", savedStore.pincode || form.pincode || "—"],
                 ["Country", savedStore.country || form.country],
-                ["Pan Number", savedStore.meta?.panNumber || form.panNumber],
+                ["GPS Coordinates", form.deliveryLatitude && form.deliveryLongitude ? `${form.deliveryLatitude}, ${form.deliveryLongitude}` : "Not set"],
+                ["Service / Supply Radius", `${form.deliveryRadiusKm || 10} km`],
               ]}
             />
           </section>
 
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-[15px] font-semibold text-blue-700 mb-4">
-              Store Information
+          <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-4 border-b pb-2">
+              2. Site In-Charge & Storage Capacity
             </h3>
             <DetailGrid
               items={[
-                ["Manager Name", savedStore.manager_name || form.managerName],
-                [
-                  "Mobile Number",
-                  savedStore.manager_mobile || form.managerMobile,
-                ],
-                [
-                  "E-mail Address",
-                  savedStore.manager_email || form.managerEmail,
-                ],
-                ["Opening Time", savedStore.opening_time || form.openingTime],
-                ["Closing Time", savedStore.closing_time || form.closingTime],
-                [
-                  "Store Code",
-                  savedStore.meta?.storeCode ||
-                    savedStore.meta?.shortCode ||
-                    form.storeCode,
-                ],
-                [
-                  "Store Area",
-                  `${savedStore.meta?.storeAreaSqFt || form.storeAreaSqFt} sq ft`,
-                ],
-                [
-                  "Store Format",
-                  savedStore.meta?.storeFormat ||
-                    getStoreFormat(form.storeAreaSqFt),
-                ],
-                [
-                  "Cost per sq ft",
-                  formatMoney(savedStore.meta?.costPerSqFt || form.costPerSqFt),
-                ],
-                [
-                  "Total Amount",
-                  formatMoney(savedStore.meta?.totalStoreAmount || totalAmount),
-                ],
-                [
-                  "Franchise Type",
-                  savedStore.meta?.franchiseType || form.franchiseType,
-                ],
-                [
-                  "Interior Grand Total",
-                  formatMoney(
-                    savedStore.meta?.interiorGrandTotal || interiorGrandTotal,
-                  ),
-                ],
-                [
-                  "Voucher Validation",
-                  (savedStore.meta?.enableVoucherValidation ??
-                  form.enableVoucherValidation)
-                    ? "Yes"
-                    : "No",
-                ],
-                [
-                  "Automatic Print",
-                  (savedStore.meta?.automaticPrint ?? form.automaticPrint)
-                    ? "Yes"
-                    : "No",
-                ],
-                [
-                  "Stock Alert",
-                  (savedStore.meta?.enableStoreStockAlert ??
-                  form.enableStoreStockAlert)
-                    ? "Yes"
-                    : "No",
-                ],
-                [
-                  "Online Billing Only",
-                  (savedStore.meta?.enableStoreOnlineBillingOnly ??
-                  form.enableStoreOnlineBillingOnly)
-                    ? "Yes"
-                    : "No",
-                ],
+                ["Site In-Charge / Store Keeper", savedStore.manager_name || form.managerName],
+                ["In-Charge Mobile Number", savedStore.manager_mobile || form.managerMobile],
+                ["In-Charge Email Address", savedStore.manager_email || form.managerEmail || "—"],
+                ["Gate / Operating Hours", `${savedStore.opening_time || form.openingTime} to ${savedStore.closing_time || form.closingTime}`],
+                ["Site Store Code", savedStore.meta?.storeCode || form.storeCode || "—"],
+                ["Site Storage Area", `${savedStore.meta?.storeAreaSqFt || form.storeAreaSqFt} sq ft`],
+                ["Storage Classification", savedStore.meta?.storeFormat || storeFormat],
+                ["Estimated Cost / sq ft", formatMoney(savedStore.meta?.costPerSqFt || form.costPerSqFt)],
+                ["Storage Facility Valuation", formatMoney(savedStore.meta?.totalStoreAmount || totalAmount)],
+                ["Infrastructure Total", formatMoney(savedStore.meta?.interiorGrandTotal || facilityGrandTotal)],
               ]}
             />
           </section>
 
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-[15px] font-semibold text-blue-700 mb-4">
-              Receipt Settings
+          <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-4 border-b pb-2">
+              3. Enabled Storage Infrastructure & Equipment
             </h3>
-            <DetailGrid
-              items={[
-                ["CIN", savedStore.meta?.cin || form.cin],
-                ["TIN", savedStore.meta?.tin || form.tin],
-                [
-                  "Service Tax Number",
-                  savedStore.meta?.serviceTaxNumber || form.serviceTaxNumber,
-                ],
-                ["GST Number", savedStore.meta?.gstNumber || form.gstNumber],
-                [
-                  "Customer GST Order Prefix",
-                  savedStore.meta?.customerGstOrderPrefix ||
-                    form.customerGstOrderPrefix,
-                ],
-                [
-                  "FSSAI License Number",
-                  savedStore.meta?.fssaiLicenseNumber ||
-                    form.fssaiLicenseNumber,
-                ],
-                [
-                  "Tax Information",
-                  savedStore.meta?.taxInformation || form.taxInformation,
-                ],
-              ]}
-            />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {INFRASTRUCTURE_FIELDS.filter(f => form.interiorItems[f.key]?.enabled).map(f => {
+                const item = form.interiorItems[f.key];
+                return (
+                  <div key={f.key} className="p-3 border border-gray-200 rounded-lg bg-gray-50">
+                    <div className="text-xs font-bold text-gray-800">{f.label}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {item.units || 1} unit(s) @ {formatMoney(item.amount)} = <strong className="text-blue-700">{formatMoney(getFacilityItemTotal(item))}</strong>
+                    </div>
+                  </div>
+                );
+              })}
+              {Object.values(form.interiorItems).every(i => !i.enabled) && (
+                <p className="text-sm text-gray-500 italic col-span-3">No special equipment/facilities configured.</p>
+              )}
+            </div>
           </section>
 
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-[15px] font-semibold text-blue-700 mb-4">
-              Custom Order Prefix
-            </h3>
-            <DetailGrid
-              items={[
-                [
-                  "Custom Store Order Prefix",
-                  savedStore.meta?.customStoreOrderPrefix ||
-                    form.customStoreOrderPrefix,
-                ],
-                [
-                  "Refund Custom Store Order Prefix",
-                  savedStore.meta?.refundCustomStoreOrderPrefix ||
-                    form.refundCustomStoreOrderPrefix,
-                ],
-                [
-                  "NC Custom Store Order Prefix",
-                  savedStore.meta?.ncCustomStoreOrderPrefix ||
-                    form.ncCustomStoreOrderPrefix,
-                ],
-                [
-                  "NC Refund Custom Store Order Prefix",
-                  savedStore.meta?.ncRefundCustomStoreOrderPrefix ||
-                    form.ncRefundCustomStoreOrderPrefix,
-                ],
-                [
-                  "RWI Custom Store Order Prefix",
-                  savedStore.meta?.rwiCustomStoreOrderPrefix ||
-                    form.rwiCustomStoreOrderPrefix,
-                ],
-              ]}
-            />
-          </section>
-
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 pt-2">
             <button
               type="button"
               onClick={() => setSavedStore(null)}
               disabled={loading}
-              className="px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 disabled:opacity-60"
+              className="px-4 py-2 border rounded-lg bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50"
             >
               Edit Details
             </button>
@@ -962,9 +797,9 @@ export default function CreateStorePage() {
               type="button"
               onClick={handleFinalSave}
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+              className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition shadow-sm"
             >
-              {loading ? "Saving..." : "Save Store"}
+              {loading ? "Saving Site Store..." : "Confirm & Save Site Store"}
             </button>
           </div>
         </div>
@@ -972,40 +807,169 @@ export default function CreateStorePage() {
         <form
           id="create-store-form"
           onSubmit={handleSubmit}
-          className="space-y-5"
+          className="space-y-6 max-w-5xl"
         >
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-[15px] font-semibold text-blue-700 mb-4">
-              Basic Information
-            </h3>
+          {/* Section 1: Basic Site Information */}
+          <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4 border-b pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">
+                1
+              </span>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                Site Location & Project Assignment
+              </h3>
+            </div>
+
             <div className="space-y-4">
-              <Field label="Store Name *" error={errors.name}>
-                <input
-                  name="name"
-                  value={form.name}
-                  onChange={onChange}
-                  className={inputClass("name")}
-                  placeholder="Noida Store"
-                />
-              </Field>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Site Store Name *" error={errors.name}>
+                  <input
+                    name="name"
+                    value={form.name}
+                    onChange={onChange}
+                    className={inputClass("name")}
+                    placeholder="e.g. Noida Sector 62 Main Yard"
+                  />
+                </Field>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-700">
+                      Associated Construction Project
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowProjectModal(true)}
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                    >
+                      + New Project
+                    </button>
+                  </div>
+                  <select
+                    name="projectId"
+                    value={form.projectId}
+                    onChange={onChange}
+                    className="input bg-white"
+                  >
+                    <option value="">-- Standalone / Not Linked to Specific Project --</option>
+                    {projects.map((proj) => (
+                      <option key={proj.id} value={proj.id}>
+                        {proj.project_code} - {proj.name} ({proj.status || "active"})
+                      </option>
+                    ))}
+                  </select>
+                  {loadingProjects && (
+                    <span className="text-[11px] text-gray-400 mt-1 block">Loading project list...</span>
+                  )}
+                </div>
+              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field
-                  label={requiredLabel("Location Type")}
-                  error={errors.locationType}
-                >
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-700">
+                      Site Store Format / Facility Type
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setManageModal({
+                          type: "site-store-types",
+                          title: "Site Store Formats",
+                          currentValue: form.franchiseType,
+                          items: storeTypes,
+                          onUpdate: (items) => setStoreTypes(items),
+                          onSelect: (val) => setForm((p) => ({ ...p, franchiseType: val })),
+                        })
+                      }
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                    >
+                      ⚙ Manage / + Add
+                    </button>
+                  </div>
+                  <select
+                    name="franchiseType"
+                    value={form.franchiseType}
+                    onChange={onChange}
+                    className="input bg-white font-medium"
+                  >
+                    {storeTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-700">
+                      Location Type
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setManageModal({
+                          type: "site-location-types",
+                          title: "Location Types",
+                          currentValue: form.locationType,
+                          items: locationTypes,
+                          onUpdate: (items) => setLocationTypes(items),
+                          onSelect: (val) => setForm((p) => ({ ...p, locationType: val })),
+                        })
+                      }
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                    >
+                      ⚙ Manage / + Add
+                    </button>
+                  </div>
                   <select
                     name="locationType"
                     value={form.locationType}
                     onChange={onChange}
-                    className={inputClass("locationType")}
+                    className="input bg-white"
                   >
-                    <option value="Store">Store</option>
-                    <option value="Warehouse">Warehouse</option>
-                    <option value="Outlet">Outlet</option>
+                    {locationTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
                   </select>
+                </div>
+              </div>
+
+              <Field label="Site Address (Line 1) *" error={errors.addressLine1}>
+                <input
+                  name="addressLine1"
+                  value={form.addressLine1}
+                  onChange={onChange}
+                  className={inputClass("addressLine1")}
+                  placeholder="e.g. Plot No. 12, Sector 62 Construction Camp"
+                />
+              </Field>
+
+              <Field label="Site Address (Line 2) / Landmark">
+                <input
+                  name="addressLine2"
+                  value={form.addressLine2}
+                  onChange={onChange}
+                  className="input"
+                  placeholder="e.g. Near Gate 3 / Behind Batching Plant"
+                />
+              </Field>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="City / District *" error={errors.city}>
+                  <input
+                    name="city"
+                    value={form.city}
+                    onChange={onChange}
+                    className={inputClass("city")}
+                    placeholder="e.g. Noida"
+                  />
                 </Field>
-                <Field label={requiredLabel("State")} error={errors.state}>
+
+                <Field label="State *" error={errors.state}>
                   <input
                     name="state"
                     value={form.state}
@@ -1014,39 +978,8 @@ export default function CreateStorePage() {
                     placeholder="Uttar Pradesh"
                   />
                 </Field>
-              </div>
 
-              <Field label="Address Line 1 *" error={errors.addressLine1}>
-                <input
-                  name="addressLine1"
-                  value={form.addressLine1}
-                  onChange={onChange}
-                  className={inputClass("addressLine1")}
-                  placeholder="6th floor, C55, Priska Tower"
-                />
-              </Field>
-
-              <Field label="Address Line 2">
-                <input
-                  name="addressLine2"
-                  value={form.addressLine2}
-                  onChange={onChange}
-                  className="input"
-                  placeholder="Sector - 62, Noida"
-                />
-              </Field>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label={requiredLabel("City")} error={errors.city}>
-                  <input
-                    name="city"
-                    value={form.city}
-                    onChange={onChange}
-                    className={inputClass("city")}
-                    placeholder="Noida"
-                  />
-                </Field>
-                <Field label={requiredLabel("Pincode")} error={errors.pincode}>
+                <Field label="Pincode" error={errors.pincode}>
                   <input
                     name="pincode"
                     value={form.pincode}
@@ -1057,79 +990,67 @@ export default function CreateStorePage() {
                     maxLength={6}
                   />
                   {pincodeStatus ? (
-                    <span className="mt-1 block text-xs font-medium text-gray-500">
+                    <span className="mt-1 block text-xs font-medium text-blue-600">
                       {pincodeStatus}
                     </span>
                   ) : null}
                 </Field>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label={requiredLabel("Country")} error={errors.country}>
-                  <input
-                    name="country"
-                    value={form.country}
-                    onChange={onChange}
-                    className={inputClass("country")}
-                  />
-                </Field>
-                <Field label="Pan Number">
-                  <input
-                    name="panNumber"
-                    value={form.panNumber}
-                    onChange={onChange}
-                    className="input"
-                    placeholder="ABCDE1234F"
-                  />
-                </Field>
-              </div>
-
-              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Field
-                    label={requiredLabel("Store latitude")}
-                    error={errors.deliveryLatitude}
+              {/* GPS Coordinates & Radius */}
+              <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wide text-blue-900">
+                      Site Geo-Location & Dispatch Radius
+                    </h4>
+                    <p className="text-xs text-blue-700">
+                      Coordinates used for tracking material deliveries, transit gate passes & logistics.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={captureStoreLocation}
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 shadow-sm transition"
                   >
+                    📍 Capture Current GPS
+                  </button>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Field label="Site Latitude">
                     <input
                       name="deliveryLatitude"
                       value={form.deliveryLatitude}
                       onChange={onChange}
                       inputMode="decimal"
-                      className={inputClass("deliveryLatitude")}
+                      className="input bg-white"
+                      placeholder="e.g. 28.6279"
                     />
                   </Field>
-                  <Field
-                    label={requiredLabel("Store longitude")}
-                    error={errors.deliveryLongitude}
-                  >
+                  <Field label="Site Longitude">
                     <input
                       name="deliveryLongitude"
                       value={form.deliveryLongitude}
                       onChange={onChange}
                       inputMode="decimal"
-                      className={inputClass("deliveryLongitude")}
+                      className="input bg-white"
+                      placeholder="e.g. 77.3756"
                     />
                   </Field>
-                  <Field label={requiredLabel("Delivery radius (km)")}>
+                  <Field label="Supply Radius (km)">
                     <input
                       name="deliveryRadiusKm"
                       type="number"
-                      min="0.1"
-                      max="50"
-                      step="0.1"
+                      min="1"
+                      max="500"
                       value={form.deliveryRadiusKm}
-                      readOnly
-                      className="input"
+                      onChange={onChange}
+                      className="input bg-white"
+                      placeholder="10"
                     />
                   </Field>
                 </div>
-                <button
-                  type="button"
-                  onClick={captureStoreLocation}
-                  className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                  Use current store location
-                </button>
                 {locationStatus && (
                   <p className="mt-2 text-xs font-medium text-blue-800">
                     {locationStatus}
@@ -1139,27 +1060,34 @@ export default function CreateStorePage() {
             </div>
           </section>
 
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-[15px] font-semibold text-blue-700 mb-4">
-              Store Contact & Operations
-            </h3>
-            <div className="space-y-4">
-              <Field
-                label={requiredLabel("Franchise Owner Name")}
-                error={errors.managerName}
-              >
-                <input
-                  name="managerName"
-                  value={form.managerName}
-                  onChange={onChange}
-                  className={inputClass("managerName")}
-                  placeholder="Enter Name"
-                />
-              </Field>
+          {/* Section 2: Site In-Charge & Operations */}
+          <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4 border-b pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">
+                2
+              </span>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                Site In-Charge & Storage Specifications
+              </h3>
+            </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
                 <Field
-                  label={requiredLabel("Contact Mobile")}
+                  label="Site In-Charge / Store Keeper *"
+                  error={errors.managerName}
+                >
+                  <input
+                    name="managerName"
+                    value={form.managerName}
+                    onChange={onChange}
+                    className={inputClass("managerName")}
+                    placeholder="e.g. Er. Rajesh Sharma"
+                  />
+                </Field>
+
+                <Field
+                  label="In-Charge Mobile Number *"
                   error={errors.managerMobile}
                 >
                   <input
@@ -1170,336 +1098,302 @@ export default function CreateStorePage() {
                     value={form.managerMobile}
                     onChange={onChange}
                     className={inputClass("managerMobile")}
-                    placeholder="9958160899"
+                    placeholder="10-digit mobile number"
                   />
                 </Field>
-                <Field label="Contact E-mail" error={errors.managerEmail}>
+
+                <Field label="In-Charge Email Address" error={errors.managerEmail}>
                   <input
                     name="managerEmail"
                     type="email"
                     value={form.managerEmail}
                     onChange={onChange}
                     className={inputClass("managerEmail")}
-                    placeholder="Enter email"
+                    placeholder="e.g. store.noida@ascent.in"
                   />
                 </Field>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Opening Time">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Site Store Code">
+                  <input
+                    name="storeCode"
+                    value={form.storeCode}
+                    onChange={onChange}
+                    className="input uppercase font-semibold"
+                    placeholder="e.g. SITE-ND-01"
+                  />
+                </Field>
+
+                <Field label="Site Gate Opening Time">
                   <input
                     name="openingTime"
                     value={form.openingTime}
                     onChange={onChange}
                     className="input"
-                    placeholder="10:00 am"
+                    placeholder="08:00 am"
                   />
                 </Field>
-                <Field label="Closing Time">
+
+                <Field label="Site Gate Closing Time">
                   <input
                     name="closingTime"
                     value={form.closingTime}
                     onChange={onChange}
                     className="input"
-                    placeholder="10:00 pm"
+                    placeholder="08:00 pm"
                   />
                 </Field>
               </div>
 
-              <Field
-                label={requiredLabel("Store Code")}
-                error={errors.storeCode}
-              >
-                <input
-                  name="storeCode"
-                  value={form.storeCode}
-                  onChange={onChange}
-                  className={inputClass("storeCode")}
-                  placeholder="e.g. Noida-01"
-                />
-              </Field>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field
-                  label={requiredLabel("Store Area (sq ft)")}
-                  error={errors.storeAreaSqFt}
-                >
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Site Storage Area (Sq. Ft.)">
                   <input
                     name="storeAreaSqFt"
                     inputMode="decimal"
                     value={form.storeAreaSqFt}
                     onChange={onChange}
-                    className={inputClass("storeAreaSqFt")}
-                    placeholder="600"
+                    className="input font-semibold"
+                    placeholder="2500"
                   />
                   {storeFormat ? (
                     <span className="mt-1 block text-xs font-semibold text-blue-700">
-                      {storeFormat}
+                      Category: {storeFormat}
                     </span>
                   ) : null}
                 </Field>
-                <Field
-                  label={requiredLabel("Cost per sq ft")}
-                  error={errors.costPerSqFt}
-                >
+
+                <Field label="Estimated Infrastructure Cost / Sq. Ft. (₹)">
                   <input
                     name="costPerSqFt"
                     inputMode="decimal"
                     value={form.costPerSqFt}
                     onChange={onChange}
-                    className={inputClass("costPerSqFt")}
-                    placeholder="1400"
+                    className="input"
+                    placeholder="800"
                   />
-                  {Number(form.costPerSqFt || 0) > 0 &&
-                  Number(form.costPerSqFt || 0) < MIN_COST_PER_SQ_FT ? (
-                    <span className="mt-1 block text-xs font-semibold text-red-600">
-                      Can't be less than Rs.1400
-                    </span>
-                  ) : null}
                 </Field>
-              </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Total Amount">
+                <Field label="Storage Facility Valuation">
                   <input
-                    value={totalAmount ? formatMoney(totalAmount) : ""}
+                    value={totalAmount ? formatMoney(totalAmount) : "₹ 0"}
                     readOnly
-                    className="input bg-gray-50 font-semibold text-gray-900"
-                    placeholder="Auto calculated"
+                    className="input bg-gray-50 font-bold text-gray-900"
                   />
                 </Field>
-                <Field
-                  label={requiredLabel("Franchise Type")}
-                  error={errors.franchiseType}
-                >
-                  <select
-                    name="franchiseType"
-                    value={form.franchiseType}
-                    onChange={onChange}
-                    className={inputClass("franchiseType")}
-                  >
-                    <option value="">Select franchise type</option>
-                    {FRANCHISE_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-
-              <div>
-                <h4 className="mb-3 text-sm font-semibold text-gray-800">
-                  Franchise Documents
-                </h4>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {DOCUMENT_FIELDS.map((field) => (
-                    <DocumentUpload
-                      key={field.key}
-                      field={field}
-                      document={form.documents[field.key]}
-                      error={errors[`documents.${field.key}`]}
-                      onChange={(file) => onDocumentChange(field.key, file)}
-                      isRequired={isDocumentRequired(field)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h4 className="text-sm font-semibold text-gray-800">
-                    Interior
-                  </h4>
-                  <span className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-                    Grand Total: {formatMoney(interiorGrandTotal)}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  <div className="grid items-start gap-3 lg:grid-cols-2">
-                    {leadingInteriorFields.map((field) =>
-                      renderInteriorLine(field),
-                    )}
-                  </div>
-                  {racksInteriorField
-                    ? renderInteriorLine(racksInteriorField)
-                    : null}
-                  <div className="grid items-start gap-3 lg:grid-cols-2">
-                    {remainingInteriorFields.map((field) =>
-                      renderInteriorLine(field),
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Toggle
-                  label="Enable Voucher Validation"
-                  name="enableVoucherValidation"
-                  checked={form.enableVoucherValidation}
-                  onChange={onCheck}
-                />
-                <Toggle
-                  label="Automatic Print"
-                  name="automaticPrint"
-                  checked={form.automaticPrint}
-                  onChange={onCheck}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Toggle
-                  label="Enable Store Stock Alert"
-                  name="enableStoreStockAlert"
-                  checked={form.enableStoreStockAlert}
-                  onChange={onCheck}
-                />
-                <Toggle
-                  label="Enable Store Online Billing Only"
-                  name="enableStoreOnlineBillingOnly"
-                  checked={form.enableStoreOnlineBillingOnly}
-                  onChange={onCheck}
-                />
               </div>
             </div>
           </section>
 
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-[15px] font-semibold text-blue-700 mb-4">
-              Receipt Settings
-            </h3>
+          {/* Section 3: Site Documents */}
+          <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4 border-b pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">
+                3
+              </span>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                Site & Project Documents
+              </h3>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {DOCUMENT_FIELDS.map((field) => (
+                <DocumentUpload
+                  key={field.key}
+                  field={field}
+                  document={form.documents[field.key]}
+                  error={errors[`documents.${field.key}`]}
+                  onChange={(file) => onDocumentChange(field.key, file)}
+                  isRequired={field.required}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* Section 4: Site Storage Infrastructure & Equipment */}
+          <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3 mb-4 border-b pb-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">
+                  4
+                </span>
+                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                  Site Storage Infrastructure & Handling Facilities
+                </h3>
+              </div>
+              <span className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                Equipment Total: {formatMoney(facilityGrandTotal)}
+              </span>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-4">
+              Select all available infrastructure, storage sheds, QA equipment, and material handling units at this site.
+            </p>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {INFRASTRUCTURE_FIELDS.map((field) => (
+                <FacilityLine
+                  key={field.key}
+                  field={field}
+                  item={form.interiorItems[field.key]}
+                  onChange={(patch) => updateFacilityItem(field.key, patch)}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* Section 5: Operations & Material Controls */}
+          <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4 border-b pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">
+                5
+              </span>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                Operations & Gate Controls
+              </h3>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Toggle
+                label="Enable Material Gate-Pass & Voucher Validation"
+                name="enableVoucherValidation"
+                checked={form.enableVoucherValidation}
+                onChange={onCheck}
+              />
+              <Toggle
+                label="Automatic MRN / Material Issue Slip Print"
+                name="automaticPrint"
+                checked={form.automaticPrint}
+                onChange={onCheck}
+              />
+              <Toggle
+                label="Enable Site Min-Max Inventory Stock Alert"
+                name="enableStoreStockAlert"
+                checked={form.enableStoreStockAlert}
+                onChange={onCheck}
+              />
+              <Toggle
+                label="Restrict to Direct Site Requisition Only"
+                name="enableStoreOnlineBillingOnly"
+                checked={form.enableStoreOnlineBillingOnly}
+                onChange={onCheck}
+              />
+            </div>
+          </section>
+
+          {/* Section 6: Tax & Identification Settings */}
+          <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4 border-b pb-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">
+                6
+              </span>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
+                Tax, GST & Material Requisition Prefixes
+              </h3>
+            </div>
+
             <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="CIN">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="GST Number">
+                  <input
+                    name="gstNumber"
+                    value={form.gstNumber}
+                    onChange={onChange}
+                    className="input uppercase"
+                    placeholder="07AAAAA0000A1Z5"
+                  />
+                </Field>
+                <Field label="PAN Number">
+                  <input
+                    name="panNumber"
+                    value={form.panNumber}
+                    onChange={onChange}
+                    className="input uppercase"
+                    placeholder="ABCDE1234F"
+                  />
+                </Field>
+                <Field label="CIN / Company Registration No.">
                   <input
                     name="cin"
                     value={form.cin}
                     onChange={onChange}
                     className="input"
-                  />
-                </Field>
-                <Field label="TIN">
-                  <input
-                    name="tin"
-                    value={form.tin}
-                    onChange={onChange}
-                    className="input"
+                    placeholder="U12345DL2024PTC123456"
                   />
                 </Field>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Service Tax Number">
-                  <input
-                    name="serviceTaxNumber"
-                    value={form.serviceTaxNumber}
-                    onChange={onChange}
-                    className="input"
-                  />
-                </Field>
-                <Field
-                  label={requiredLabel("GST Number")}
-                  error={errors.gstNumber}
-                >
-                  <input
-                    name="gstNumber"
-                    value={form.gstNumber}
-                    onChange={onChange}
-                    className={inputClass("gstNumber")}
-                  />
-                </Field>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Customer GST Order Prefix">
-                  <input
-                    name="customerGstOrderPrefix"
-                    value={form.customerGstOrderPrefix}
-                    onChange={onChange}
-                    className="input"
-                  />
-                </Field>
-                <Field
-                  label={`FSSAI License Number${form.franchiseType === "FOCM" ? " *" : ""}`}
-                  error={errors.fssaiLicenseNumber}
-                >
-                  <input
-                    name="fssaiLicenseNumber"
-                    value={form.fssaiLicenseNumber}
-                    onChange={onChange}
-                    readOnly={form.franchiseType === "FOCO"}
-                    className={inputClass("fssaiLicenseNumber")}
-                  />
-                </Field>
-              </div>
-
-              <Field label="Tax Information">
-                <input
-                  name="taxInformation"
-                  value={form.taxInformation}
-                  onChange={onChange}
-                  className="input"
-                />
-              </Field>
-            </div>
-          </section>
-
-          <section className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-[15px] font-semibold text-blue-700 mb-4">
-              Custom Order Prefix
-            </h3>
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Custom Store Order Prefix">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Material Receipt Note (MRN) Prefix">
                   <input
                     name="customStoreOrderPrefix"
                     value={form.customStoreOrderPrefix}
                     onChange={onChange}
-                    className="input"
+                    className="input uppercase font-medium"
+                    placeholder="MRN"
                   />
                 </Field>
-                <Field label="Refund Custom Store Order Prefix">
-                  <input
-                    name="refundCustomStoreOrderPrefix"
-                    value={form.refundCustomStoreOrderPrefix}
-                    onChange={onChange}
-                    className="input"
-                  />
-                </Field>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="NC Custom Store Order Prefix">
+                <Field label="Material Issue Note (MIN) Prefix">
                   <input
                     name="ncCustomStoreOrderPrefix"
                     value={form.ncCustomStoreOrderPrefix}
                     onChange={onChange}
-                    className="input"
+                    className="input uppercase font-medium"
+                    placeholder="MIN"
                   />
                 </Field>
-                <Field label="NC Refund Custom Store Order Prefix">
+                <Field label="Site Transfer Note (STR) Prefix">
                   <input
-                    name="ncRefundCustomStoreOrderPrefix"
-                    value={form.ncRefundCustomStoreOrderPrefix}
+                    name="rwiCustomStoreOrderPrefix"
+                    value={form.rwiCustomStoreOrderPrefix}
                     onChange={onChange}
-                    className="input"
+                    className="input uppercase font-medium"
+                    placeholder="STR"
                   />
                 </Field>
               </div>
-
-              <Field label="RWI Custom Store Order Prefix">
-                <input
-                  name="rwiCustomStoreOrderPrefix"
-                  value={form.rwiCustomStoreOrderPrefix}
-                  onChange={onChange}
-                  className="input"
-                />
-              </Field>
             </div>
           </section>
 
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm font-medium rounded-lg">
+              {error}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => router.push("/settings/stores")}
+              className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-sm transition"
+            >
+              Preview & Save Site Store
+            </button>
+          </div>
         </form>
+      )}
+
+      {/* Reusable Modal to Manage, Add & Delete Options */}
+      {manageModal && (
+        <ManageDropdownModal
+          modalInfo={manageModal}
+          onClose={() => setManageModal(null)}
+        />
+      )}
+
+      {/* Quick Create Project Modal */}
+      {showProjectModal && (
+        <CreateProjectModal
+          onClose={() => setShowProjectModal(false)}
+          onSuccess={handleProjectCreated}
+        />
       )}
 
       <style jsx>{`
@@ -1513,8 +1407,8 @@ export default function CreateStorePage() {
         }
         .input:focus {
           outline: none;
-          border-color: #b00000;
-          box-shadow: 0 0 0 1px #b00000;
+          border-color: #2563eb;
+          box-shadow: 0 0 0 1px #2563eb;
         }
         .input-error {
           border-color: #ef4444;
@@ -1529,6 +1423,322 @@ export default function CreateStorePage() {
   );
 }
 
+function ManageDropdownModal({ modalInfo, onClose }) {
+  const { type, title, currentValue, items = [], onUpdate, onSelect } = modalInfo;
+  const [list, setList] = useState(items);
+  const [newName, setNewName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [toast, setToast] = useState(null); // { type: 'success' | 'error', message: string }
+  const [confirmDelete, setConfirmDelete] = useState(null); // item to delete
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const refreshList = async () => {
+    try {
+      const res = await fetch(`/api/settings/${type}?pageSize=100`);
+      const json = await res.json();
+      if (res.ok && json.success && Array.isArray(json.data?.records) && json.data.records.length > 0) {
+        const mapped = json.data.records.map((r) => ({
+          id: r.id,
+          value: r.code || r.name,
+          label: r.name,
+        }));
+        setList(mapped);
+        onUpdate(mapped);
+      } else if (items && items.length > 0) {
+        setList(items);
+      }
+    } catch {
+      // Ignore
+    }
+  };
+
+  useEffect(() => {
+    refreshList();
+  }, [type]);
+
+  const handleAdd = async (e) => {
+    if (e?.preventDefault) e.preventDefault();
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      setActionError("Please enter a name first");
+      return;
+    }
+    setLoading(true);
+    setActionError("");
+    try {
+      const code = trimmed.toUpperCase().replace(/[^A-Z0-9]+/g, "_").slice(0, 40);
+      const res = await fetch(`/api/settings/${type}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmed,
+          code,
+          description: `Custom ${title}: ${trimmed}`,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        setActionError(json.message || "Failed to add option");
+        return;
+      }
+      const savedRecord = json.data;
+      const savedValue = savedRecord?.code || code || trimmed;
+      const savedLabel = savedRecord?.name || trimmed;
+      const newItem = {
+        id: savedRecord?.id || Date.now(),
+        value: savedValue,
+        label: savedLabel,
+      };
+
+      const updated = [...list.filter((i) => i.value !== newItem.value), newItem];
+      setList(updated);
+      onUpdate(updated);
+      onSelect(newItem.value);
+      setNewName("");
+      setToast({ type: "success", message: `"${savedLabel}" added successfully!` });
+      await refreshList();
+    } catch (err) {
+      setActionError(err.message || "Unable to add option");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeDelete = async (item) => {
+    if (!item) return;
+    setLoading(true);
+    setActionError("");
+    try {
+      let recordId = item.id;
+      if (!recordId) {
+        const checkRes = await fetch(`/api/settings/${type}?search=${encodeURIComponent(item.label)}`);
+        const checkJson = await checkRes.json();
+        const found = checkJson?.data?.records?.find(
+          (r) => r.name.toLowerCase() === item.label.toLowerCase() || (r.code && r.code.toLowerCase() === item.value.toLowerCase())
+        );
+        if (found?.id) {
+          recordId = found.id;
+        }
+      }
+
+      if (recordId) {
+        const res = await fetch(`/api/settings/${type}?id=${recordId}`, {
+          method: "DELETE",
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          setActionError(json.message || "Failed to delete option");
+          return;
+        }
+      }
+      const updated = list.filter((i) => i.value !== item.value);
+      setList(updated);
+      onUpdate(updated);
+      if (currentValue === item.value && updated.length > 0) {
+        onSelect(updated[0].value);
+      }
+      setConfirmDelete(null);
+      setToast({ type: "success", message: `"${item.label}" deleted successfully` });
+    } catch (err) {
+      setActionError(err.message || "Unable to delete option");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl p-6 relative my-auto animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b pb-3 mb-4">
+          <div>
+            <h3 className="text-base font-bold text-gray-900">
+              Manage {title}
+            </h3>
+            <p className="text-xs text-gray-500">Add new options or delete existing ones</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 font-bold text-lg p-1"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Toast Notification */}
+        {toast && (
+          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-800 flex items-center justify-between animate-in fade-in duration-150">
+            <span>✓ {toast.message}</span>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="text-emerald-600 hover:text-emerald-900 font-bold ml-2"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Add New Input */}
+        <form onSubmit={handleAdd} className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => {
+              setNewName(e.target.value);
+              if (actionError) setActionError("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAdd(e);
+              }
+            }}
+            className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            placeholder={`Enter new ${title} name...`}
+          />
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={loading || !newName.trim()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            {loading ? "Adding..." : "+ Add"}
+          </button>
+        </form>
+
+        {actionError && (
+          <p className="text-xs font-semibold text-red-600 mb-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+            ⚠ {actionError}
+          </p>
+        )}
+
+        {/* List of items with delete buttons */}
+        <div className="max-h-64 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
+          {list.map((item) => (
+            <div
+              key={item.value}
+              className={`flex items-center justify-between p-3 hover:bg-gray-50 transition ${
+                currentValue === item.value ? "bg-blue-50/60 font-semibold" : ""
+              }`}
+            >
+              <div
+                className="flex-1 cursor-pointer"
+                onClick={() => {
+                  onSelect(item.value);
+                  onClose();
+                }}
+              >
+                <div className="text-sm text-gray-900">{item.label}</div>
+                <div className="text-[11px] text-gray-400 font-mono">{item.value}</div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSelect(item.value);
+                    onClose();
+                  }}
+                  className={`text-xs px-2.5 py-1 rounded font-semibold ${
+                    currentValue === item.value
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {currentValue === item.value ? "Selected" : "Select"}
+                </button>
+                <button
+                  type="button"
+                  title="Delete this option"
+                  onClick={() => setConfirmDelete(item)}
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+          {list.length === 0 && (
+            <div className="p-4 text-center text-sm text-gray-500 italic">No options found.</div>
+          )}
+        </div>
+
+        <div className="flex justify-end mt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200"
+          >
+            Done
+          </button>
+        </div>
+
+        {/* Custom In-App Delete Confirmation Modal */}
+        {confirmDelete && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+            <div
+              className="w-full max-w-sm overflow-hidden rounded-xl bg-white shadow-2xl p-5 text-center animate-in fade-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 mb-3">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h4 className="text-base font-bold text-gray-900 mb-1">Delete Option?</h4>
+              <p className="text-xs text-gray-500 mb-5">
+                Are you sure you want to delete <strong>"{confirmDelete.label}"</strong>? This will remove it from the dropdown.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(null)}
+                  disabled={loading}
+                  className="flex-1 py-2 px-3 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => executeDelete(confirmDelete)}
+                  disabled={loading}
+                  className="flex-1 py-2 px-3 bg-red-600 rounded-lg text-xs font-semibold text-white hover:bg-red-700 transition"
+                >
+                  {loading ? "Deleting..." : "Yes, Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function Field({ label, children, error }) {
   const isRequired = String(label || "")
     .trim()
@@ -1536,9 +1746,9 @@ function Field({ label, children, error }) {
   const displayLabel = isRequired ? String(label).replace(/\s*\*$/, "") : label;
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-gray-700">
+      <span className="mb-1 block text-xs font-semibold text-gray-700">
         {displayLabel}
-        {isRequired ? <span className="text-red-500"> *</span> : null}
+        {isRequired ? <span className="text-red-500 font-bold"> *</span> : null}
       </span>
       {children}
       {error ? (
@@ -1553,6 +1763,12 @@ function Field({ label, children, error }) {
 function DocumentUpload({ field, document, error, onChange, isRequired }) {
   const [showPreview, setShowPreview] = useState(false);
   const [inputKey, setInputKey] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const documentType = String(document?.type || "").toLowerCase();
   const isPdf = documentType.includes("pdf");
   const isImage = documentType.startsWith("image/");
@@ -1563,12 +1779,12 @@ function DocumentUpload({ field, document, error, onChange, isRequired }) {
       <label
         className={`block rounded-lg border px-3 py-3 ${error ? "border-red-300 bg-red-50" : "border-gray-200 bg-white"}`}
       >
-        <span className="mb-2 block text-sm font-medium text-gray-700">
+        <span className="mb-2 block text-xs font-semibold text-gray-700">
           {field.label}
           {isRequired ? (
             <span className="text-red-500"> *</span>
           ) : (
-            <span className="text-gray-400"> (optional)</span>
+            <span className="text-gray-400 font-normal"> (optional)</span>
           )}
         </span>
         <input
@@ -1583,8 +1799,8 @@ function DocumentUpload({ field, document, error, onChange, isRequired }) {
         />
         {document?.name ? (
           <div className="mt-2 flex flex-wrap items-center gap-3">
-            <span className="block truncate text-xs font-semibold text-green-700">
-              {document.name}
+            <span className="block truncate text-xs font-semibold text-emerald-700">
+              ✓ {document.name}
             </span>
             <button
               type="button"
@@ -1621,8 +1837,8 @@ function DocumentUpload({ field, document, error, onChange, isRequired }) {
             </button>
           </div>
         ) : null}
-        <span className="mt-2 block text-xs text-gray-500">
-          Upload format: JPG/PNG/PDF. Max size: 15 MB.
+        <span className="mt-2 block text-[11px] text-gray-400">
+          JPG, PNG or PDF (Max 15 MB)
         </span>
         {error ? (
           <span className="mt-1 block text-xs font-medium text-red-600">
@@ -1630,192 +1846,112 @@ function DocumentUpload({ field, document, error, onChange, isRequired }) {
           </span>
         ) : null}
       </label>
-      {showPreview && document?.dataUrl ? (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowPreview(false)}
-        >
-          <div
-            className="w-full max-w-4xl overflow-hidden rounded-lg bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
-              <div className="min-w-0">
-                <h3 className="truncate text-sm font-bold text-gray-900">
-                  {field.label} Preview
-                </h3>
-                <p className="truncate text-xs text-gray-500">
-                  {document.name}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPreview(false)}
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+      {mounted && showPreview && document?.dataUrl
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+              style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}
+              onClick={() => setShowPreview(false)}
+            >
+              <div
+                className="w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl relative my-auto animate-in fade-in zoom-in-95 duration-150"
+                onClick={(e) => e.stopPropagation()}
               >
-                Hide Preview
-              </button>
-            </div>
-            <div className="h-[70vh] bg-gray-50 p-3">
-              {isImage ? (
-                <img
-                  src={document.dataUrl}
-                  alt={`${field.label} preview`}
-                  className="h-full w-full object-contain"
-                />
-              ) : isPdf ? (
-                <iframe
-                  src={document.dataUrl}
-                  title={`${field.label} preview`}
-                  className="h-full w-full rounded border border-gray-200 bg-white"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-gray-500">
-                  Preview is not available for this file.
+                <div className="flex items-center justify-between gap-3 border-b px-4 py-3 bg-gray-50">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold text-gray-900">
+                      {field.label}
+                    </h3>
+                    <p className="truncate text-xs text-gray-500">
+                      {document.name}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(false)}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Close Preview
+                  </button>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
+                <div className="h-[70vh] bg-gray-100 p-3">
+                  {isImage ? (
+                    <img
+                      src={document.dataUrl}
+                      alt={`${field.label} preview`}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : isPdf ? (
+                    <iframe
+                      src={document.dataUrl}
+                      title={`${field.label} preview`}
+                      className="h-full w-full rounded border border-gray-200 bg-white"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-gray-500">
+                      Preview is not available for this file.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }
 
-function InteriorLine({ field, item, onChange, onChildChange }) {
+function FacilityLine({ field, item, onChange }) {
   const enabled = !!item?.enabled;
-  const hasChildren = !!field.children?.length;
   const amount = item?.amount ?? "";
   const units = item?.units ?? "";
   const total = Number(item?.total || 0);
-  const childSubtotal = getInteriorChildSubtotal(item);
-  const lineTotal = hasChildren ? childSubtotal * Number(units || 0) : total;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white px-3 py-3">
-      <label className="flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold text-gray-800">
+    <div className={`rounded-lg border p-3 transition ${enabled ? "border-blue-300 bg-blue-50/20" : "border-gray-200 bg-white"}`}>
+      <label className="flex items-center justify-between gap-3 cursor-pointer">
+        <span className={`text-xs font-semibold ${enabled ? "text-blue-900" : "text-gray-800"}`}>
           {field.label}
         </span>
         <input
           type="checkbox"
           checked={enabled}
           onChange={(e) => onChange({ enabled: e.target.checked })}
-          className="h-4 w-4 accent-blue-600"
+          className="h-4 w-4 accent-blue-600 rounded"
         />
       </label>
       {enabled ? (
-        <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">
-              Amount
-            </span>
-            {hasChildren ? (
-              <div className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900">
-                {formatMoney(childSubtotal)}
-              </div>
-            ) : (
-              <input
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) =>
-                  onChange({ amount: e.target.value.replace(/[^\d.]/g, "") })
-                }
-                className="input"
-                placeholder="0"
-              />
-            )}
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">
-              Units
-            </span>
+        <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center">
+          <div>
+            <span className="text-[10px] font-medium text-gray-500 block mb-0.5">Est. Cost (₹)</span>
+            <input
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) =>
+                onChange({ amount: e.target.value.replace(/[^\d.]/g, "") })
+              }
+              className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 bg-white"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] font-medium text-gray-500 block mb-0.5">Quantity / Units</span>
             <input
               inputMode="decimal"
               value={units}
               onChange={(e) =>
                 onChange({ units: e.target.value.replace(/[^\d.]/g, "") })
               }
-              className="input"
-              placeholder="0"
+              className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 bg-white"
+              placeholder="1"
             />
-          </label>
-          <div className="sm:col-span-2 rounded-lg bg-gray-50 px-3 py-2 text-sm font-bold text-gray-900">
-            {formatMoney(lineTotal)}
           </div>
-          {hasChildren ? (
-            <div className="sm:col-span-2 rounded-lg border border-blue-100 bg-blue-50/50 p-3">
-              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-blue-700">
-                Rack Items
-              </div>
-              <div className="space-y-2">
-                {field.children.map((child) => {
-                  const childItem = item?.children?.[child.key] || {};
-                  const childEnabled = !!childItem.enabled;
-                  const childAmount = childItem.amount ?? "";
-                  const childUnits = childItem.units ?? "";
-                  const childLineTotal = Number(childItem.total || 0);
-                  return (
-                    <div
-                      key={child.key}
-                      className="rounded-lg border border-blue-100 bg-white p-2"
-                    >
-                      <label className="flex items-center justify-between gap-3">
-                        <span className="text-xs font-semibold text-gray-800">
-                          {child.label}
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={childEnabled}
-                          onChange={(event) =>
-                            onChildChange(child.key, {
-                              enabled: event.target.checked,
-                            })
-                          }
-                          className="h-4 w-4 accent-blue-600"
-                        />
-                      </label>
-                      {childEnabled ? (
-                        <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                          <input
-                            inputMode="decimal"
-                            value={childAmount}
-                            onChange={(event) =>
-                              onChildChange(child.key, {
-                                amount: event.target.value.replace(
-                                  /[^\d.]/g,
-                                  "",
-                                ),
-                              })
-                            }
-                            className="input"
-                            placeholder="Amount"
-                          />
-                          <input
-                            inputMode="decimal"
-                            value={childUnits}
-                            onChange={(event) =>
-                              onChildChange(child.key, {
-                                units: event.target.value.replace(
-                                  /[^\d.]/g,
-                                  "",
-                                ),
-                              })
-                            }
-                            className="input"
-                            placeholder="Units"
-                          />
-                          <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs font-bold text-gray-900">
-                            {formatMoney(childLineTotal)}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
+          <div className="pt-3">
+            <span className="text-xs font-bold text-blue-700 bg-white border border-blue-200 px-2.5 py-1.5 rounded block whitespace-nowrap">
+              {formatMoney(total)}
+            </span>
+          </div>
         </div>
       ) : null}
     </div>
@@ -1824,14 +1960,14 @@ function InteriorLine({ field, item, onChange, onChildChange }) {
 
 function Toggle({ label, name, checked, onChange }) {
   return (
-    <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
+    <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 bg-white hover:bg-gray-50 cursor-pointer">
+      <span className="text-xs font-semibold text-gray-700">{label}</span>
       <input
         name={name}
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        className="h-4 w-4 accent-blue-600"
+        className="h-4 w-4 accent-blue-600 rounded"
       />
     </label>
   );
@@ -1839,15 +1975,201 @@ function Toggle({ label, name, checked, onChange }) {
 
 function DetailGrid({ items }) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {items.map(([label, value]) => (
-        <div key={label} className="rounded-lg border border-gray-200 p-3">
-          <div className="text-xs font-medium text-gray-500">{label}</div>
-          <div className="mt-1 text-sm font-semibold text-gray-900">
-            {value || "-"}
+        <div key={label} className="rounded-lg border border-gray-200 bg-gray-50/60 p-3">
+          <div className="text-[11px] font-medium text-gray-500">{label}</div>
+          <div className="mt-1 text-xs font-semibold text-gray-900 break-words">
+            {value || "—"}
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+function CreateProjectModal({ onClose, onSuccess }) {
+  const [name, setName] = useState("");
+  const [projectCode, setProjectCode] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [address, setAddress] = useState("");
+  const [budget, setBudget] = useState("");
+  const [status, setStatus] = useState("active");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const onNameChange = (val) => {
+    setName(val);
+    if (!projectCode || projectCode.startsWith("PRJ-")) {
+      const generated = "PRJ-" + val.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+      setProjectCode(generated);
+    }
+  };
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError("Project name is required");
+      return;
+    }
+    if (!projectCode.trim()) {
+      setError("Project code is required");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/construction/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          projectCode: projectCode.trim().toUpperCase(),
+          clientName: clientName.trim(),
+          address: address.trim(),
+          budget: budget ? Number(budget) : 0,
+          status,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        setError(json.message || "Failed to create project");
+        return;
+      }
+      onSuccess(json.data);
+      onClose();
+    } catch (err) {
+      setError(err.message || "Unable to create project");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl p-6 relative my-auto animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b pb-3 mb-4">
+          <div>
+            <h3 className="text-base font-bold text-gray-900">Create Construction Project</h3>
+            <p className="text-xs text-gray-500">Register new project to link site stores and track material yard</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 font-bold text-lg p-1"
+          >
+            ✕
+          </button>
+        </div>
+
+        {error && (
+          <p className="text-xs font-semibold text-red-600 mb-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+            ⚠ {error}
+          </p>
+        )}
+
+        <form onSubmit={handleCreate} className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Project Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => onNameChange(e.target.value)}
+                className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-600"
+                placeholder="e.g. Express Tower Phase 2"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Project Code *
+              </label>
+              <input
+                type="text"
+                required
+                value={projectCode}
+                onChange={(e) => setProjectCode(e.target.value.toUpperCase())}
+                className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 bg-white font-mono focus:outline-none focus:border-blue-600"
+                placeholder="e.g. PRJ-ETP2"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Client / Developer Name
+              </label>
+              <input
+                type="text"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                placeholder="e.g. DLF / NBCC"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Approved Budget (₹)
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value.replace(/[^\d.]/g, ""))}
+                className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 bg-white"
+                placeholder="e.g. 50000000"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">
+              Project Site Location / Address
+            </label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 bg-white"
+              placeholder="e.g. Sector 62, Noida, Uttar Pradesh"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t mt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !name.trim() || !projectCode.trim()}
+              className="px-5 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+            >
+              {loading ? "Creating..." : "Create Project"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
   );
 }

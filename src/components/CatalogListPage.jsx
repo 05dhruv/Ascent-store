@@ -181,6 +181,7 @@ export default function CatalogListPage({
   extraHeaderButtons = null,
   bulkOperations = true,
   bulkImportType = null, // 'categories' | 'sub-categories'
+  bulkImportNoun = "Products",
   customBulkActions = [],
   endpoint = "",
   extraQueryParams = null,
@@ -829,7 +830,7 @@ export default function CatalogListPage({
       ? [
           ...resolvedCustomBulkActions,
           {
-            label: "Import Products (Excel)",
+            label: `Import ${bulkImportNoun} (Excel)`,
             action: () => fileRef.current?.click(),
           },
           {
@@ -840,7 +841,7 @@ export default function CatalogListPage({
                 : downloadTemplate(),
           },
           {
-            label: "Export Products",
+            label: `Export ${bulkImportNoun}`,
             action: () => {
               const ws = XLSX.utils.json_to_sheet(spreadsheetSafeRows(rows));
               const wb = XLSX.utils.book_new();

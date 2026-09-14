@@ -1,31 +1,31 @@
 "use client";
 
-import AuthScreen from '@/components/AuthScreen';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState, useEffect } from 'react';
-import { getDefaultRouteForUser } from '@/lib/accessControl';
-import { fetchAuthEndpoint } from '@/lib/auth-endpoints';
+import AuthScreen from "@/components/AuthScreen";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { getDefaultRouteForUser } from "@/lib/accessControl";
+import { fetchAuthEndpoint } from "@/lib/auth-endpoints";
 
 const highlights = [
   {
-    icon: 'ti-bolt',
-    title: 'Accept payments instantly',
-    text: 'Contactless, links and invoices settled to your account in real time.',
+    icon: "ti-bolt",
+    title: "Accept payments instantly",
+    text: "Contactless, links and invoices settled to your account in real time.",
   },
   {
-    icon: 'ti-chart-bar',
-    title: 'Track performance',
-    text: 'Live dashboards and exportable reports for every storefront.',
+    icon: "ti-chart-bar",
+    title: "Track performance",
+    text: "Live dashboards and exportable reports for every storefront.",
   },
   {
-    icon: 'ti-building-store',
-    title: 'Multi-Outlet Management',
-    text: 'Centralizes control, structures operations, and ensures consistency across all outlets.',
+    icon: "ti-building-store",
+    title: "Multi-Outlet Management",
+    text: "Centralizes control, structures operations, and ensures consistency across all outlets.",
   },
   {
-    icon: 'ti-sparkles',
-    title: 'AI-powered insights',
-    text: 'Smart trends and recommendations to grow daily revenue.',
+    icon: "ti-sparkles",
+    title: "AI-powered insights",
+    text: "Smart trends and recommendations to grow daily revenue.",
   },
 ];
 
@@ -33,29 +33,31 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [autoChecking, setAutoChecking] = useState(true);
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const resolveRedirect = async (fallback = '/home') => {
-    const explicitNext = searchParams?.get('next');
+  const resolveRedirect = async (fallback = "/home") => {
+    const explicitNext = searchParams?.get("next");
     if (explicitNext) return explicitNext;
 
     try {
-      const res = await fetchAuthEndpoint('/api/auth/me');
+      const res = await fetchAuthEndpoint("/api/auth/me");
       const json = await res.json();
-      return json?.data?.user ? getDefaultRouteForUser(json.data.user) : fallback;
+      return json?.data?.user
+        ? getDefaultRouteForUser(json.data.user)
+        : fallback;
     } catch {
       return fallback;
     }
   };
 
   const normalizeRedirectLocation = (location) => {
-    if (!location) return '';
+    if (!location) return "";
     try {
       return new URL(location, window.location.origin).pathname;
     } catch {
-      return location.startsWith('/') ? location : '';
+      return location.startsWith("/") ? location : "";
     }
   };
 
@@ -68,7 +70,7 @@ function LoginPageContent() {
     setForm((prev) => ({ ...prev, [name]: value }));
     // Clear error when user starts typing
     if (error) {
-      setError('');
+      setError("");
     }
   };
 
@@ -78,76 +80,78 @@ function LoginPageContent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
-    console.log('[LOGIN PAGE] Submitting login form');
+    console.log("[LOGIN PAGE] Submitting login form");
 
     try {
       // Validate form fields
       if (!form.email || !form.password) {
-        setError('Please enter both email and password');
+        setError("Please enter both email and password");
         setLoading(false);
         return;
       }
 
-      console.log('[LOGIN PAGE] Sending login request to /api/auth/login');
+      console.log("[LOGIN PAGE] Sending login request to /api/auth/login");
 
       // Make login request to API
       // Don't follow redirects - we'll handle them ourselves
-      const res = await fetchAuthEndpoint('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        redirect: 'manual', // Don't follow redirects automatically
+      const res = await fetchAuthEndpoint("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        redirect: "manual", // Don't follow redirects automatically
         body: JSON.stringify({
           email: form.email,
           password: form.password,
         }),
       });
 
-      console.log('[LOGIN PAGE] Login response status:', res.status);
-      console.log('[LOGIN PAGE] Login response type:', res.type);
+      console.log("[LOGIN PAGE] Login response status:", res.status);
+      console.log("[LOGIN PAGE] Login response type:", res.type);
 
       // Handle redirect response (302)
-      if (res.status === 302 || res.type === 'opaqueredirect') {
-        console.log('[LOGIN PAGE] Redirect response received');
-        const redirectFromApi = normalizeRedirectLocation(res.headers.get('location'));
-        window.location.href = redirectFromApi || await resolveRedirect('/home');
+      if (res.status === 302 || res.type === "opaqueredirect") {
+        console.log("[LOGIN PAGE] Redirect response received");
+        const redirectFromApi = normalizeRedirectLocation(
+          res.headers.get("location"),
+        );
+        window.location.href =
+          redirectFromApi || (await resolveRedirect("/home"));
         return;
       }
 
       // Handle normal response (200)
       if (res.status === 200) {
         const json = await res.json();
-        console.log('[LOGIN PAGE] Login response:', { 
-          success: json.success, 
+        console.log("[LOGIN PAGE] Login response:", {
+          success: json.success,
           message: json.message,
-          hasUser: !!json.data?.user
+          hasUser: !!json.data?.user,
         });
 
         if (json.success) {
-          console.log('[LOGIN PAGE] Login successful');
+          console.log("[LOGIN PAGE] Login successful");
           window.location.href = json.data?.user
             ? getDefaultRouteForUser(json.data.user)
-            : await resolveRedirect('/home');
+            : await resolveRedirect("/home");
           return;
         }
 
         // Success false but 200 status
-        setError(json.message || 'Login failed');
+        setError(json.message || "Login failed");
         setLoading(false);
         return;
       }
 
       // Handle error response (400, 401, 500, etc)
       const json = await res.json();
-      console.error('[LOGIN PAGE] Login failed:', json.message);
-      setError(json.message || 'Unable to login. Please try again.');
+      console.error("[LOGIN PAGE] Login failed:", json.message);
+      setError(json.message || "Unable to login. Please try again.");
       setLoading(false);
-
     } catch (err) {
-      console.error('[LOGIN PAGE] Login error:', err);
-      setError(err.message || 'Something went wrong. Please try again.');
+      console.error("[LOGIN PAGE] Login error:", err);
+      setError(err.message || "Something went wrong. Please try again.");
       setLoading(false);
     }
   };
@@ -160,26 +164,30 @@ function LoginPageContent() {
     let mounted = true;
     (async () => {
       try {
-        console.log('[LOGIN PAGE] Checking if user is already authenticated');
+        console.log("[LOGIN PAGE] Checking if user is already authenticated");
 
         // Check authentication status
-        const res = await fetchAuthEndpoint('/api/auth/me');
+        const res = await fetchAuthEndpoint("/api/auth/me");
 
         if (!mounted) return;
 
         const json = await res.json();
 
         if (res.ok && json?.data?.user) {
-          const redirectTo = searchParams?.get('next') || getDefaultRouteForUser(json.data.user);
-          console.log('[LOGIN PAGE] User already authenticated, redirecting to:', redirectTo);
+          const redirectTo =
+            searchParams?.get("next") || getDefaultRouteForUser(json.data.user);
+          console.log(
+            "[LOGIN PAGE] User already authenticated, redirecting to:",
+            redirectTo,
+          );
           // User is already logged in, redirect to home/dashboard
           window.location.href = redirectTo;
           return;
         }
 
-        console.log('[LOGIN PAGE] User not authenticated');
+        console.log("[LOGIN PAGE] User not authenticated");
       } catch (e) {
-        console.error('[LOGIN PAGE] Auth check error:', e.message);
+        console.error("[LOGIN PAGE] Auth check error:", e.message);
         // Silently fail - user just needs to login
       } finally {
         if (mounted) {
@@ -209,11 +217,11 @@ function LoginPageContent() {
 
   return (
     <AuthScreen
-      brandTitle="Buyzaar Sync"
-      brandTagline="Manage your storefront, anytime anywhere."
-      leftPanelKicker="Buyzaar Sync"
-      leftPanelTitle="Manage your storefront, anytime anywhere."
-      leftPanelSubtitle="Sign in to your Buyzaar Sync. Track settlements, manage POS terminals, and turn live data into smarter decisions, all in one place."
+      brandTitle="Ascent Sync"
+      brandTagline="Construction material control, from warehouse to site."
+      leftPanelKicker="Ascent Sync"
+      leftPanelTitle="Material control for every construction site."
+      leftPanelSubtitle="Track warehouse receipts, site transfers, material issues and live stock movement in one place."
       eyebrow="Welcome back."
       title="Sign in to continue."
       subtitle=""
@@ -223,7 +231,10 @@ function LoginPageContent() {
       <form className="space-y-3.5" onSubmit={handleSubmit}>
         {/* Email Field */}
         <div>
-          <label htmlFor="login-email" className="mb-1.5 block text-[12px] font-medium text-gray-700">
+          <label
+            htmlFor="login-email"
+            className="mb-1.5 block text-[12px] font-medium text-gray-700"
+          >
             Email
           </label>
           <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 transition-colors focus-within:border-blue-400 focus-within:bg-white">
@@ -244,7 +255,10 @@ function LoginPageContent() {
 
         {/* Password Field */}
         <div>
-          <label htmlFor="login-password" className="mb-1.5 block text-[12px] font-medium text-gray-700">
+          <label
+            htmlFor="login-password"
+            className="mb-1.5 block text-[12px] font-medium text-gray-700"
+          >
             Password
           </label>
           <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 transition-colors focus-within:border-blue-400 focus-within:bg-white">
@@ -275,7 +289,10 @@ function LoginPageContent() {
 
         {/* Forgot Password Link */}
         <div className="flex items-center justify-between gap-3 text-[12px]">
-          <a href="#" className="font-medium text-blue-600 hover:text-blue-700 transition-colors">
+          <a
+            href="#"
+            className="font-medium text-blue-600 hover:text-blue-700 transition-colors"
+          >
             Forgot password?
           </a>
         </div>
@@ -292,10 +309,9 @@ function LoginPageContent() {
               <span>Signing in...</span>
             </div>
           ) : (
-            'Sign in'
+            "Sign in"
           )}
         </button>
-
       </form>
     </AuthScreen>
   );
@@ -303,11 +319,13 @@ function LoginPageContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+        </div>
+      }
+    >
       <LoginPageContent />
     </Suspense>
   );

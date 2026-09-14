@@ -352,25 +352,44 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
   const loadPromotionNotifications = useCallback(async () => {
     if (!user) return setPromotionAlerts([]);
     try {
-      const response = await fetch("/api/catalog/promotions?pageSize=100", { cache: "no-store" });
+      const response = await fetch("/api/catalog/promotions?pageSize=100", {
+        cache: "no-store",
+      });
       const json = await response.json();
-      const records = json.success ? (json.data?.records || []) : [];
+      const records = json.success ? json.data?.records || [] : [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const alerts = records.flatMap((promotion) => {
         const status = String(promotion.status || "").toLowerCase();
-        const start = promotion.start_date ? new Date(`${String(promotion.start_date).slice(0, 10)}T00:00:00`) : null;
-        const end = promotion.end_date ? new Date(`${String(promotion.end_date).slice(0, 10)}T23:59:59`) : null;
+        const start = promotion.start_date
+          ? new Date(`${String(promotion.start_date).slice(0, 10)}T00:00:00`)
+          : null;
+        const end = promotion.end_date
+          ? new Date(`${String(promotion.end_date).slice(0, 10)}T23:59:59`)
+          : null;
         const daysLeft = end ? Math.ceil((end - today) / 86400000) : null;
-        if (status === "pending") return [{ ...promotion, alertType: "pending" }];
-        if (status === "active" && daysLeft !== null && daysLeft >= 0 && daysLeft <= 7) {
+        if (status === "pending")
+          return [{ ...promotion, alertType: "pending" }];
+        if (
+          status === "active" &&
+          daysLeft !== null &&
+          daysLeft >= 0 &&
+          daysLeft <= 7
+        ) {
           return [{ ...promotion, alertType: "expiring", daysLeft }];
         }
-        if (status === "active" && end && end < today) return [{ ...promotion, alertType: "expired" }];
+        if (status === "active" && end && end < today)
+          return [{ ...promotion, alertType: "expired" }];
         return [];
       });
-      const dismissed = JSON.parse(window.localStorage.getItem("dismissed-promotion-alerts") || "[]");
-      setPromotionAlerts(alerts.filter((item) => !dismissed.includes(`${item.id}:${item.alertType}`)));
+      const dismissed = JSON.parse(
+        window.localStorage.getItem("dismissed-promotion-alerts") || "[]",
+      );
+      setPromotionAlerts(
+        alerts.filter(
+          (item) => !dismissed.includes(`${item.id}:${item.alertType}`),
+        ),
+      );
     } catch {
       setPromotionAlerts([]);
     }
@@ -378,9 +397,16 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
 
   const dismissPromotionAlert = (promotion) => {
     const key = `${promotion.id}:${promotion.alertType}`;
-    const existing = JSON.parse(window.localStorage.getItem("dismissed-promotion-alerts") || "[]");
-    window.localStorage.setItem("dismissed-promotion-alerts", JSON.stringify([...new Set([...existing, key])]));
-    setPromotionAlerts((current) => current.filter((item) => `${item.id}:${item.alertType}` !== key));
+    const existing = JSON.parse(
+      window.localStorage.getItem("dismissed-promotion-alerts") || "[]",
+    );
+    window.localStorage.setItem(
+      "dismissed-promotion-alerts",
+      JSON.stringify([...new Set([...existing, key])]),
+    );
+    setPromotionAlerts((current) =>
+      current.filter((item) => `${item.id}:${item.alertType}` !== key),
+    );
   };
 
   const loadNotifications = useCallback(() => {
@@ -592,14 +618,14 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
       >
         {sidebarExpanded ? (
           <img
-            src="/buyzaar-sync-logo.svg"
-            alt="Buyzaar Sync"
+            src="/ascent-sync-logo.svg"
+            alt="Ascent Sync"
             className="h-12 w-[170px] object-contain"
           />
         ) : (
           <img
-            src="/buyzaar-sync-icon.svg"
-            alt="Buyzaar Sync"
+            src="/ascent-sync-icon.svg"
+            alt="Ascent Sync"
             className="h-10 w-10 object-contain"
           />
         )}
@@ -608,8 +634,8 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
       {/* Brand — mobile center */}
       <div className="md:hidden flex-1 flex justify-center">
         <img
-          src="/buyzaar-sync-logo.svg"
-          alt="Buyzaar Sync"
+          src="/ascent-sync-logo.svg"
+          alt="Ascent Sync"
           className="h-10 w-[150px] object-contain"
         />
       </div>
@@ -618,7 +644,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
       <div className="hidden md:flex flex-1 items-center gap-3 px-4">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-            Workspace
+            Ascent Sync
           </p>
           <h2 className="text-[15px] font-bold text-slate-900">{title}</h2>
         </div>
@@ -749,16 +775,34 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                 <div className="max-h-80 overflow-auto py-1">
                   {promotionAlerts.length > 0 && (
                     <div className="border-b border-gray-100">
-                      <p className="px-4 pb-1 pt-3 text-[11px] font-black uppercase tracking-widest text-indigo-600">Promotion Alerts</p>
+                      <p className="px-4 pb-1 pt-3 text-[11px] font-black uppercase tracking-widest text-indigo-600">
+                        Promotion Alerts
+                      </p>
                       {promotionAlerts.map((promotion) => (
-                        <div key={`${promotion.id}:${promotion.alertType}`} className="flex items-start justify-between gap-2 border-t border-gray-100 px-4 py-3 hover:bg-indigo-50">
+                        <div
+                          key={`${promotion.id}:${promotion.alertType}`}
+                          className="flex items-start justify-between gap-2 border-t border-gray-100 px-4 py-3 hover:bg-indigo-50"
+                        >
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-gray-900">{promotion.name}</p>
+                            <p className="truncate text-sm font-semibold text-gray-900">
+                              {promotion.name}
+                            </p>
                             <p className="mt-0.5 text-xs text-gray-500">
-                              {promotion.alertType === "pending" ? "Waiting for approval" : promotion.alertType === "expired" ? "Promotion expired" : `Ends in ${promotion.daysLeft} day${promotion.daysLeft === 1 ? "" : "s"}`}
+                              {promotion.alertType === "pending"
+                                ? "Waiting for approval"
+                                : promotion.alertType === "expired"
+                                  ? "Promotion expired"
+                                  : `Ends in ${promotion.daysLeft} day${promotion.daysLeft === 1 ? "" : "s"}`}
                             </p>
                           </div>
-                          <button type="button" onClick={() => dismissPromotionAlert(promotion)} className="shrink-0 rounded px-1 text-gray-400 hover:bg-white hover:text-gray-700" aria-label="Dismiss promotion alert">×</button>
+                          <button
+                            type="button"
+                            onClick={() => dismissPromotionAlert(promotion)}
+                            className="shrink-0 rounded px-1 text-gray-400 hover:bg-white hover:text-gray-700"
+                            aria-label="Dismiss promotion alert"
+                          >
+                            ×
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -1051,7 +1095,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
             onClick={() => setOpenProfile((prev) => !prev)}
             className="flex items-center gap-2 rounded-2xl px-1.5 py-1 transition-colors hover:bg-blue-50"
           >
-            <div className="w-8 h-8 rounded-full bg-[#B00000] flex items-center justify-center flex-shrink-0 shadow-[0_8px_18px_rgba(176,0,0,0.22)]">
+            <div className="w-8 h-8 rounded-full bg-[#1A476C] flex items-center justify-center flex-shrink-0 shadow-[0_8px_18px_rgba(26,71,108,0.22)]">
               <span className="text-[11px] font-bold text-white">
                 {initials}
               </span>
@@ -1071,7 +1115,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
             <div className="fixed left-3 right-3 top-[58px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.16)] sm:absolute sm:left-auto sm:right-0 sm:top-[44px] sm:w-[320px]">
               <div className="bg-slate-100 px-4 py-3.5">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#B00000] flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-[#1A476C] flex items-center justify-center">
                     <span className="text-white text-[16px] font-bold">
                       {initials}
                     </span>

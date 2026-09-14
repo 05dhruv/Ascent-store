@@ -47,7 +47,7 @@ export async function GET(request) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_STOCK_REQUISITION', 'VIEW_INVENTORY', 'MANAGE_INVENTORY');
+    const permissionCheck = requirePermission(auth.user, 'SITE_REQUEST_CREATE', 'SITE_REQUEST_APPROVE', 'STOCK_VIEW');
     if (permissionCheck.error) return permissionCheck.error;
 
     const { searchParams } = new URL(request.url);
@@ -124,7 +124,7 @@ export async function POST(request) {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, 'MANAGE_STOCK_REQUISITION', 'MANAGE_INVENTORY');
+    const permissionCheck = requirePermission(auth.user, 'SITE_REQUEST_CREATE');
     if (permissionCheck.error) return permissionCheck.error;
 
     const body = await request.json().catch(() => ({}));

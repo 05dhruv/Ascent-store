@@ -6,7 +6,7 @@ import { transferAction } from '@/lib/transferWorkflow';
 
 export async function GET(request,{params}) {
   const auth=await requireAuth(request); if(auth.error) return auth.error;
-  const permission=requirePermission(auth.user,'VIEW_INVENTORY','MANAGE_INVENTORY'); if(permission.error)return permission.error;
+  const permission=requirePermission(auth.user,'TRANSFER_VIEW','TRANSFER_DISPATCH','TRANSFER_RECEIVE'); if(permission.error)return permission.error;
   await ensureMovementWorkflowSchema();
   const {id}=await params;
   const transfer=(await query(`SELECT t.*,s.name source_name,d.name destination_name FROM stock_transfer t
@@ -20,16 +20,17 @@ export async function GET(request,{params}) {
     query('SELECT * FROM construction_discrepancies WHERE transfer_id=$1 ORDER BY id',[id]),
   ]);
   return NextResponse.json({transfer,items:items.rows,events:events.rows,discrepancies:discrepancies.rows,
-    canSend:!source.error&&!requirePermission(auth.user,'MANAGE_INVENTORY').error,
-    canReceive:!destination.error&&!requirePermission(auth.user,'MANAGE_INVENTORY').error});
+    canSend:!source.error&&!requirePermission(auth.user,'TRANSFER_DISPATCH').error,
+    canReceive:!destination.error&&!requirePermission(auth.user,'TRANSFER_RECEIVE').error});
 }
 
 export async function POST(request,{params}) {
   const auth=await requireAuth(request);if(auth.error)return auth.error;
-  const permission=requirePermission(auth.user,'MANAGE_INVENTORY');if(permission.error)return permission.error;
+  const body=await request.json();
+  const actionPermission={dispatch:'TRANSFER_DISPATCH',receive:'TRANSFER_RECEIVE',approve:'TRANSFER_APPROVE',pick:'TRANSFER_DISPATCH',cancel:'TRANSFER_CREATE',approve_excess:'TRANSFER_RECEIVE',resolve:'TRANSFER_RECEIVE'}[body.action] || 'TRANSFER_CREATE';
+  const permission=requirePermission(auth.user,actionPermission);if(permission.error)return permission.error;
   await ensureMovementWorkflowSchema();
   const {id}=await params;
-  const body=await request.json();
   const client=await getClient();
   try {
     await client.query('BEGIN');

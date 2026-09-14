@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 176" role="img" aria-labelledby="title desc">
+  <title id="title">Ascent Sync</title>
+  <desc id="desc">Ascent Sync construction materials operations</desc>
+  <rect x="4" y="4" width="168" height="168" rx="38" fill="#1c2a35"/>
+  <path d="M88 28 28 149h28l12-25h40l12 25h28L88 28Zm0 46 15 31H73l15-31Z" fill="#fff"/>
+  <path d="M43 149h90" stroke="#c4302b" stroke-width="10" stroke-linecap="round"/>
+  <text x="198" y="80" fill="#1c2a35" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="800" letter-spacing="1">ASCENT</text>
+  <text x="202" y="132" fill="#c4302b" font-family="Arial, Helvetica, sans-serif" font-size="41" font-weight="700" letter-spacing="9">SYNC</text>
+</svg>

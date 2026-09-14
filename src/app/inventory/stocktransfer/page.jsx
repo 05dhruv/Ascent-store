@@ -21,10 +21,10 @@ import {
 } from "@/lib/xlsxDropdowns";
 
 async function fetchStores() {
-  const res = await fetch("/api/stores");
+  const res = await fetch("/api/stores?pageSize=1000&include_locations=all", { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch stores");
   const json = await res.json();
-  return json.data?.records || json.data?.stores || json.stores || [];
+  return json.data?.records || json.data?.stores || json.records || json.stores || [];
 }
 
 async function fetchTransfers(sourceId = "", destinationId = "") {
@@ -149,16 +149,16 @@ async function updateTransferDetails(id, payload) {
 }
 
 const tableHeaders = [
-  "Transaction ID",
+  "Transfer / Gate Pass No",
   "Status",
-  "Invoice Number",
-  "Brand",
-  "Source Name",
-  "Destination Name",
-  "Invoice Date",
-  "Item Count",
+  "Delivery Challan No",
+  "Make / Brand",
+  "Issuing Source (Yard / Warehouse)",
+  "Receiving Destination (Site / Store)",
+  "Transfer Date",
+  "Material Items",
   "Total Quantity",
-  "Cost",
+  "Estimated Value",
 ];
 
 function formatDate(value) {
@@ -208,17 +208,17 @@ function mapTransfersToTable(records) {
   return (records || []).map((row) => ({
     _id: row.id,
     Status: getTransferDisplayStatus(row),
-    "Transaction ID": row.transactionId
+    "Transfer / Gate Pass No": row.transactionId
       ? `#${row.transactionId}`
       : `#TRN-${row.id}`,
-    "Invoice Number": row.invoiceNumber || "-",
-    Brand: row.brandNames || "-",
-    "Source Name": row.sourceName || "-",
-    "Destination Name": row.destinationName || "-",
-    "Invoice Date": formatDate(row.invoiceDate),
-    "Item Count": row.itemCount ?? 0,
+    "Delivery Challan No": row.invoiceNumber || "-",
+    "Make / Brand": row.brandNames || "-",
+    "Issuing Source (Yard / Warehouse)": row.sourceName || "-",
+    "Receiving Destination (Site / Store)": row.destinationName || "-",
+    "Transfer Date": formatDate(row.invoiceDate),
+    "Material Items": row.itemCount ?? 0,
     "Total Quantity": row.totalItems ?? 0,
-    Cost: formatCost(row.cost),
+    "Estimated Value": formatCost(row.cost),
     _invoiceDate: row.invoiceDate || "",
     _source: row.sourceName || "",
     _sourceId: row.sourceId ? String(row.sourceId) : "",
@@ -412,6 +412,22 @@ function buildTransferGroupKey(row) {
   ].join("|");
 }
 
+function normalizeBarcodeVariants(raw) {
+  const s = String(raw || "")
+    .trim()
+    .replace(/^'+/, "")
+    .toLowerCase();
+  if (!s) return [];
+  const set = new Set([s]);
+  const digits = s.replace(/\D/g, "");
+  if (digits) {
+    set.add(digits);
+    set.add(digits.replace(/0+/g, "0"));
+    set.add(digits.replace(/^0+/, ""));
+  }
+  return Array.from(set);
+}
+
 function buildInventoryProductIndex(records) {
   const index = {
     barcode: new Map(),
@@ -420,15 +436,18 @@ function buildInventoryProductIndex(records) {
     records: Array.isArray(records) ? records : [],
   };
   for (const product of index.records) {
-    const barcode = normalizeCompare(product.barcode);
-    const sku = normalizeCompare(product.sku);
-    const name = normalizeProductName(product.name);
-    if (barcode)
-      index.barcode.set(barcode, [
-        ...(index.barcode.get(barcode) || []),
+    const barcodeVariants = normalizeBarcodeVariants(product.barcode);
+    for (const b of barcodeVariants) {
+      index.barcode.set(b, [
+        ...(index.barcode.get(b) || []),
         product,
       ]);
-    if (sku) index.sku.set(sku, [...(index.sku.get(sku) || []), product]);
+    }
+    const skuVariants = normalizeBarcodeVariants(product.sku);
+    for (const s of skuVariants) {
+      index.sku.set(s, [...(index.sku.get(s) || []), product]);
+    }
+    const name = normalizeProductName(product.name);
     if (name) index.name.set(name, [...(index.name.get(name) || []), product]);
   }
   return index;
@@ -445,14 +464,27 @@ function getUniqueIdentifierMatch(matches, label, value) {
 }
 
 function findIndexedProduct(index, { barcode, sku, productName }) {
-  const barcodeKey = normalizeCompare(barcode);
-  const skuKey = normalizeCompare(sku);
+  const barcodeVariants = normalizeBarcodeVariants(barcode);
+  const skuVariants = normalizeBarcodeVariants(sku);
   const nameKey = normalizeProductName(productName);
 
-  // SKU is the primary identifier. A repeated product name or barcode must
-  // never merge two different SKUs into the same transfer item.
-  const skuMatches = skuKey ? index.sku.get(skuKey) || [] : [];
-  const barcodeMatches = barcodeKey ? index.barcode.get(barcodeKey) || [] : [];
+  let skuMatches = [];
+  for (const s of skuVariants) {
+    const found = index.sku.get(s);
+    if (found?.length) {
+      skuMatches = found;
+      break;
+    }
+  }
+
+  let barcodeMatches = [];
+  for (const b of barcodeVariants) {
+    const found = index.barcode.get(b);
+    if (found?.length) {
+      barcodeMatches = found;
+      break;
+    }
+  }
 
   if (skuMatches.length && barcodeMatches.length) {
     const barcodeProductIds = new Set(
@@ -461,16 +493,13 @@ function findIndexedProduct(index, { barcode, sku, productName }) {
     const commonMatches = skuMatches.filter((product) =>
       barcodeProductIds.has(String(product.id)),
     );
-    if (!commonMatches.length) {
-      throw new Error(
-        `SKU ${sku} and barcode ${barcode} belong to different products.`,
+    if (commonMatches.length) {
+      return getUniqueIdentifierMatch(
+        commonMatches,
+        "SKU/barcode combination",
+        `${sku}/${barcode}`,
       );
     }
-    return getUniqueIdentifierMatch(
-      commonMatches,
-      "SKU/barcode combination",
-      `${sku}/${barcode}`,
-    );
   }
 
   const skuMatch = getUniqueIdentifierMatch(skuMatches, "SKU", sku);
@@ -493,11 +522,11 @@ function findIndexedProduct(index, { barcode, sku, productName }) {
   // Bulk sheets sometimes carry stale barcode/SKU values while the product
   // name is still the exact catalog name. Use the unique name match as a safe
   // fallback instead of rejecting the entire row.
-  if ((skuKey || barcodeKey) && nameMatches.length) {
+  if ((skuVariants.length || barcodeVariants.length) && nameMatches.length) {
     return getUniqueIdentifierMatch(nameMatches, "Product name", productName);
   }
 
-  if (skuKey || barcodeKey) return null;
+  if (skuVariants.length || barcodeVariants.length) return null;
 
   return getUniqueIdentifierMatch(nameMatches, "Product name", productName);
 }
@@ -700,43 +729,43 @@ export default function StockTransferPage() {
       );
       const yesNoOptions = ["Yes", "No"];
       const headers = [
-        "Source Warehouse / Yard",
-        "Destination Site / Store",
+        "Source (Issuing Site / Warehouse)",
+        "Destination (Receiving Site / Warehouse)",
         "Barcode",
-        "Material Code",
-        "Material Name",
-        "Requested Quantity",
+        "Item Code / SKU",
+        "Material Name & Specification",
+        "Transfer Quantity",
         "Reference Rate at Site",
         "Issue Rate at Site",
         "Estimated Cost / Unit",
-        "Dispatch Date",
+        "Dispatch / Challan Date",
         "Delivery Challan No",
-        "Freight / Other Charges",
-        "Site / Dispatch Remarks",
+        "Freight / Vehicle Charges",
+        "Site / Purpose Remarks",
         "Apply GST",
       ];
       const rows = [headers];
 
       const worksheet = XLSX.utils.aoa_to_sheet(rows);
       worksheet["!cols"] = [
-        { wch: 34 },
-        { wch: 34 },
+        { wch: 38 },
+        { wch: 38 },
         { wch: 18 },
+        { wch: 18 },
+        { wch: 34 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 20 },
         { wch: 18 },
         { wch: 30 },
         { wch: 12 },
-        { wch: 20 },
-        { wch: 26 },
-        { wch: 14 },
-        { wch: 14 },
-        { wch: 18 },
-        { wch: 16 },
-        { wch: 26 },
-        { wch: 14 },
       ];
       applyTextFormatToColumns(worksheet, headers, [
         "Barcode",
-        "Material Code",
+        "Item Code / SKU",
         "Delivery Challan No",
       ]);
 
@@ -830,7 +859,15 @@ export default function StockTransferPage() {
       const identifiersBySource = new Map();
       for (const row of rows) {
         const sourceId = resolveLocationId(
-          getBulkField(row, ["source_id", "source_warehouse_yard", "source"]),
+          getBulkField(row, [
+            "source_issuing_site_warehouse",
+            "source_id",
+            "source_warehouse_yard",
+            "source",
+            "source_warehouse",
+            "from_store",
+            "from",
+          ]),
           locations,
         );
         if (!sourceId) continue;
@@ -840,11 +877,22 @@ export default function StockTransferPage() {
           skus: [],
           product_names: [],
         };
-        identifiers.barcodes.push(getBulkField(row, ["barcode", "bar_code"]));
-        identifiers.skus.push(getBulkField(row, ["material_code", "sku"]));
-        identifiers.product_names.push(
-          getBulkField(row, ["material_name", "product_name", "product"]),
-        );
+        const barcode = getBulkField(row, ["barcode", "bar_code"]);
+        const sku = getBulkField(row, [
+          "item_code_sku",
+          "material_code",
+          "sku",
+          "item_code",
+        ]);
+        const productName = getBulkField(row, [
+          "material_name_specification",
+          "material_name",
+          "product_name",
+          "product",
+        ]);
+        if (barcode) identifiers.barcodes.push(barcode);
+        if (sku) identifiers.skus.push(sku);
+        if (productName) identifiers.product_names.push(productName);
         identifiersBySource.set(key, identifiers);
       }
 
@@ -870,28 +918,53 @@ export default function StockTransferPage() {
       for (const row of rows) {
         const rowNumber = Number(row.__row_index || 0) + 2;
         const sourceId = resolveLocationId(
-          getBulkField(row, ["source_id", "source_warehouse_yard", "source"]),
+          getBulkField(row, ["source_issuing_site_warehouse", "source_id", "source_warehouse_yard", "source"]),
           locations,
         );
         const destinationId = resolveLocationId(
-          getBulkField(row, ["destination_id", "destination_site_store", "destination"]),
+          getBulkField(row, [
+            "destination_receiving_site_warehouse",
+            "destination_id",
+            "destination_site_store",
+            "destination",
+          ]),
           locations,
         );
         const barcode = getBulkField(row, ["barcode", "bar_code"]);
-        const sku = getBulkField(row, ["material_code", "sku"]);
-        const productName = getBulkField(row, ["material_name", "product_name", "product"]);
-        const qty = toNumber(getBulkField(row, ["requested_quantity", "quantity", "qty"]), 0);
+        const sku = getBulkField(row, ["item_code_sku", "material_code", "sku", "item_code"]);
+        const productName = getBulkField(row, [
+          "material_name_specification",
+          "material_name",
+          "product_name",
+          "product",
+        ]);
+        const qty = toNumber(
+          getBulkField(row, ["transfer_quantity", "requested_quantity", "quantity", "qty"]),
+          0,
+        );
         const invoiceDate = getRowDate(
-          getBulkField(row, ["dispatch_date", "invoice_date", "date"]),
+          getBulkField(row, ["dispatch_challan_date", "dispatch_date", "invoice_date", "date"]),
         );
         const invoiceNumber = getBulkField(row, [
           "delivery_challan_no",
           "invoice_number",
           "invoice_no",
+          "challan_no",
         ]);
-        const otherCharges = toNumber(getBulkField(row, ["freight_other_charges", "other_charges"]), 0);
-        const remarks = getBulkField(row, ["site_dispatch_remarks", "remarks", "remark"]);
-        const applyTaxes = toBoolean(getBulkField(row, ["apply_gst", "apply_taxes"]), true);
+        const otherCharges = toNumber(
+          getBulkField(row, ["freight_vehicle_charges", "freight_other_charges", "other_charges"]),
+          0,
+        );
+        const remarks = getBulkField(row, [
+          "site_purpose_remarks",
+          "site_dispatch_remarks",
+          "remarks",
+          "remark",
+        ]);
+        const applyTaxes = toBoolean(
+          getBulkField(row, ["apply_gst", "apply_taxes"]),
+          true,
+        );
 
         const sourceExists = locations.some(
           (location) => String(location.id) === String(sourceId),
@@ -946,13 +1019,15 @@ export default function StockTransferPage() {
               productName,
             });
             if (heldProduct) {
-              const reference = heldProduct.transactionId ||
+              const reference =
+                heldProduct.transactionId ||
                 `Stock In #${heldProduct.stockInId}`;
-              const approvalState = Number(heldProduct.rejectedApprovalCount || 0) > 0
-                ? "has a rejected margin approval"
-                : Number(heldProduct.pendingApprovalCount || 0) > 0
-                  ? "is waiting for margin approval"
-                  : "is on margin hold and needs an administrator review";
+              const approvalState =
+                Number(heldProduct.rejectedApprovalCount || 0) > 0
+                  ? "has a rejected margin approval"
+                  : Number(heldProduct.pendingApprovalCount || 0) > 0
+                    ? "is waiting for margin approval"
+                    : "is on margin hold and needs an administrator review";
               errors.push(
                 `Row ${rowNumber}: ${barcode || sku || productName} is in ${reference}, but ${approvalState}. Approve/correct that Stock In before transferring it.`,
               );
@@ -970,7 +1045,9 @@ export default function StockTransferPage() {
           if (
             productName &&
             (barcode || sku) &&
-            normalizeProductName(productName) !== normalizeProductName(product.name)
+            normalizeProductName(productName) !==
+              normalizeProductName(product.name) &&
+            !productNamesMatch(productName, product.name)
           ) {
             const identifier = sku ? `SKU ${sku}` : `barcode ${barcode}`;
             errors.push(
@@ -1362,30 +1439,50 @@ export default function StockTransferPage() {
   return (
     <>
       <InventoryShell
-        breadcrumb={[{ label: "Inventory" }, { label: "Stock Transfer" }]}
-        title="Stock Transfer"
-        subtitle="Stock Transfer transaction history of last 7 days. Need Help?"
+        breadcrumb={[
+          { label: "Material Movement" },
+          { label: "Transfer to Site" },
+        ]}
+        title="Site Material Transfer & Dispatch"
+        subtitle="Dispatch, track, and receive material movements between central warehouses, yards, and site stores."
         actions={
           isSuperAdmin ||
           (Array.isArray(currentUser?.permissions) &&
             (currentUser.permissions.includes("*") ||
               currentUser.permissions.includes("MANAGE_INVENTORY")))
             ? [
-                { label: "Movement Tracker / Receive", href: "/inventory/movement-tracker" },
                 {
-                  label: bulkBusy ? "Working..." : "Upload Bulk Sheet",
+                  label: "Movement Tracker / Receive",
+                  href: "/inventory/movement-tracker",
+                  icon: "ti ti-truck-delivery text-slate-500",
+                },
+                {
+                  label: bulkBusy ? "Working..." : "Bulk Transfer (Excel)",
                   onClick: handleBulkImport,
                   disabled: bulkBusy,
+                  icon: "ti ti-file-spreadsheet text-emerald-600",
                 },
                 {
-                  label: "Download Template",
+                  label: "Download Bulk Template",
                   onClick: handleDownloadBulkTemplate,
+                  icon: "ti ti-download text-slate-500",
                 },
-                { label: "Stock Transfer", primary: true, onClick: openModal },
+                {
+                  label: "New Site Transfer",
+                  primary: true,
+                  onClick: openModal,
+                  icon: "ti ti-plus",
+                },
               ]
-            : [{ label: "Movement Tracker", href: "/inventory/movement-tracker" }]
+            : [
+                {
+                  label: "Movement Tracker",
+                  href: "/inventory/movement-tracker",
+                  icon: "ti ti-truck-delivery text-slate-500",
+                },
+              ]
         }
-        searchPlaceholder="Search"
+        searchPlaceholder="Search transfer no, challan, site, make..."
         filters={
           <>
             <input
@@ -1422,7 +1519,7 @@ export default function StockTransferPage() {
               }
               className="rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600"
             >
-              <option value="">All sources</option>
+              <option value="">All Issuing Sources (Warehouses / Yards)</option>
               {sourceOptions.map((source) => (
                 <option key={source.id} value={source.id}>
                   {source.name}
@@ -1439,7 +1536,7 @@ export default function StockTransferPage() {
               }
               className="rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600"
             >
-              <option value="">All destinations</option>
+              <option value="">All Receiving Destinations (Sites / Stores)</option>
               {destinationOptions.map((destination) => (
                 <option key={destination.id} value={destination.id}>
                   {destination.name}
@@ -1991,33 +2088,32 @@ function StockTransferPreviewDialog({
                   <p className="font-bold">
                     Approved - source stock unavailable
                   </p>
-                  <p className="mt-1">
-                    {transfer.meta.marginHoldReleaseError}
-                  </p>
+                  <p className="mt-1">{transfer.meta.marginHoldReleaseError}</p>
                   <p className="mt-2 font-semibold">
-                    Source stock restore hone ya transfer quantities correct hone
-                    ke baad hi destination batches safely create ho sakte hain.
+                    Source stock restore hone ya transfer quantities correct
+                    hone ke baad hi destination batches safely create ho sakte
+                    hain.
                   </p>
                 </div>
               )}
 
               {transfer?.status === "margin_hold" &&
                 !sourceStockUnavailable && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <p className="text-[12px] text-amber-900">
-                    If all linked margin approvals are approved, release this
-                    transfer to reserve the shown source batches and create
-                    destination batches.
-                  </p>
-                  <button
-                    type="button"
-                    disabled={loading}
-                    onClick={onReleaseApproved}
-                    className="rounded-lg bg-[#b80000] px-3 py-2 text-[12px] font-bold text-white transition hover:bg-[#990000] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Release Approved Transfer
-                  </button>
-                </div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p className="text-[12px] text-amber-900">
+                      If all linked margin approvals are approved, release this
+                      transfer to reserve the shown source batches and create
+                      destination batches.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={onReleaseApproved}
+                      className="rounded-lg bg-[#b80000] px-3 py-2 text-[12px] font-bold text-white transition hover:bg-[#990000] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Release Approved Transfer
+                    </button>
+                  </div>
                 )}
 
               {transfer?.remarks && (

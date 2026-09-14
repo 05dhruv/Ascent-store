@@ -139,7 +139,7 @@ export function formatBillMessage({
     `${invoiceSection}\n` +
     `*Thank you for shopping at ${storeName}!* 🙏\n\n` +
     `_This is your digital receipt._\n` +
-    `_Powered by Buyzaar Sync_`
+    `_Powered by Ascent Sync_`
   );
 }
 

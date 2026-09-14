@@ -12,7 +12,7 @@ import {
 
 const COLOR_OPTIONS = [
   { name: "Red", value: "#ef4444" },
-  { name: "Blue", value: "#B00000" },
+  { name: "Navy", value: "#1A476C" },
   { name: "Green", value: "#539D62" },
   { name: "Orange", value: "#f97316" },
   { name: "Black", value: "#111827" },

@@ -26,6 +26,7 @@ export default function CatalogDataPage({
   createLabel = null,
   bulkOperations = true,
   bulkImportType = null,
+  bulkImportNoun = "Products",
   customBulkActions = [],
   showRowActions = false,
   onEdit,
@@ -231,6 +232,7 @@ export default function CatalogDataPage({
         onCreateClick={onCreateClick}
         bulkOperations={bulkOperations}
         bulkImportType={bulkImportType}
+        bulkImportNoun={bulkImportNoun}
         customBulkActions={customBulkActions}
         endpoint={endpoint}
         extraQueryParams={extraQueryParams}

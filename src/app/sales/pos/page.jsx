@@ -662,7 +662,7 @@ function normalizePaymentOptions(modes = []) {
 const inputClassName =
   "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:ring-2 focus:ring-blue-400 outline-none";
 const DEFAULT_RECEIPT_CONFIG = {
-  businessName: "Buyzaar Sync",
+  businessName: "Ascent Sync",
   subtitle: "GST Invoice / POS Receipt",
   headerText: "",
   footerText: "Thank you. Visit again.",
@@ -4513,7 +4513,8 @@ export default function POSPage() {
       showToast("Select a store", "error");
       return;
     }
-    const openingCashAmount = openingCash === "" && isSuperAdmin ? 0 : Number(openingCash);
+    const openingCashAmount =
+      openingCash === "" && isSuperAdmin ? 0 : Number(openingCash);
     if (!Number.isFinite(openingCashAmount) || openingCashAmount < 0) {
       showToast("Opening cash must be zero or greater", "error");
       return;
@@ -6937,8 +6938,8 @@ export default function POSPage() {
                 )}
                 <div className="mb-3 flex flex-col items-center text-center">
                   <img
-                    src="/buyzaar-sync-logo.svg"
-                    alt="Buyzaar Sync"
+                    src="/ascent-sync-logo.svg"
+                    alt="Ascent Sync"
                     className="h-12 w-auto object-contain"
                   />
                   <p className="text-xs text-slate-500">

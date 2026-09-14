@@ -1,6 +1,6 @@
 import { successResponse, errorResponse, validationError, notFoundError } from '@/lib/api-response';
 import { getClient, query } from '@/lib/db';
-import { ensureSettingsSchema } from '@/lib/settingsSchema';
+import { ensureSettingsSchema, seedDefaultSettingsForType } from '@/lib/settingsSchema';
 import { requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
 import { setRecycleBinContext } from '@/lib/recycleBin';
 
@@ -9,7 +9,7 @@ function normalizeType(value = '') {
 }
 
 function normalizeCode(value = '') {
-  return String(value).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return String(value).trim().replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
 function parsePositiveInt(value, fallback = null) {
@@ -83,12 +83,25 @@ export async function GET(request, context) {
     const accessFilter = getAccessibleStoreFilter(auth.user, params, 'sr');
     const whereSql = `WHERE ${where.join(' AND ')}${accessFilter}`;
 
-    const countRes = await query(
+    let countRes = await query(
       `SELECT COUNT(*)::int AS total
        FROM settings_records sr
        ${whereSql}`,
       params
     );
+
+    let total = Number(countRes.rows[0]?.total || 0);
+
+    if (total === 0 && !search && !storeId) {
+      await seedDefaultSettingsForType(type);
+      countRes = await query(
+        `SELECT COUNT(*)::int AS total
+         FROM settings_records sr
+         ${whereSql}`,
+        params
+      );
+      total = Number(countRes.rows[0]?.total || 0);
+    }
 
     const listParams = params.slice();
     listParams.push(pageSize, offset);
@@ -97,12 +110,11 @@ export async function GET(request, context) {
        FROM settings_records sr
        LEFT JOIN stores s ON s.id = sr.store_id
        ${whereSql}
-       ORDER BY sr.updated_at DESC, sr.id DESC
+       ORDER BY sr.id ASC
        LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
       listParams
     );
 
-    const total = Number(countRes.rows[0]?.total || 0);
     return successResponse({
       records: recordsRes.rows.map(mapRecord),
       total,
@@ -138,7 +150,17 @@ export async function POST(request, context) {
     }
 
     client = await getClient();
-    const code = normalizeCode(body.code) || normalizeCode(name);
+    let code = normalizeCode(body.code) || normalizeCode(name);
+    if (!id && code) {
+      const checkCode = await client.query(
+        `SELECT id FROM settings_records WHERE setting_type = $1 AND code = $2 AND store_id IS NOT DISTINCT FROM $3 LIMIT 1`,
+        [type, code, storeId]
+      );
+      if (checkCode.rows.length > 0) {
+        code = `${code}_${Math.random().toString(36).substring(2, 6)}`;
+      }
+    }
+
     const payload = [
       type,
       name,
@@ -160,32 +182,13 @@ export async function POST(request, context) {
         [...payload, id]
       );
     } else {
-      const existing = await client.query(
-        `SELECT id
-         FROM settings_records
-         WHERE setting_type = $1
-           AND code = $2
-           AND store_id IS NOT DISTINCT FROM $3
-         LIMIT 1`,
-        [type, code || null, storeId]
+      result = await client.query(
+        `INSERT INTO settings_records (
+           setting_type, name, code, description, store_id, is_active, config, created_at, updated_at
+         ) VALUES ($1, $2, $3, $4, $5, COALESCE($6, TRUE), $7::jsonb, NOW(), NOW())
+         RETURNING *`,
+        payload
       );
-
-      result = existing.rows[0]
-        ? await client.query(
-            `UPDATE settings_records
-             SET name = $2, description = $4, is_active = COALESCE($6, TRUE),
-                 config = $7::jsonb, updated_at = NOW()
-             WHERE id = $8 AND setting_type = $1
-             RETURNING *`,
-            [...payload, existing.rows[0].id]
-          )
-        : await client.query(
-            `INSERT INTO settings_records (
-               setting_type, name, code, description, store_id, is_active, config, created_at, updated_at
-             ) VALUES ($1, $2, $3, $4, $5, COALESCE($6, TRUE), $7::jsonb, NOW(), NOW())
-             RETURNING *`,
-            payload
-          );
     }
 
     if (!result.rows[0]) return notFoundError('Setting not found');

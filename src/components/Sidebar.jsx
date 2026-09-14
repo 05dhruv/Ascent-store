@@ -18,16 +18,14 @@ export default function Sidebar({
   const [hoveredLabel, setHoveredLabel] = useState(null);
   const [tooltip, setTooltip] = useState(null);
   const descriptions = {
-    Home: "Open dashboard and store setup checklist.",
-    Sales: "Create bills, returns, and POS transactions.",
-    Catalog: "Manage products, categories, pricing, and taxes.",
-    Inventory: "Track stock in, transfers, validation, and batches.",
-    Purchase: "Record purchase bills, returns, and vendors.",
-    "Sales Order": "Manage quotations, sales orders, and invoices.",
-    Employee: "Manage staff, roles, counters, and permissions.",
-    Customer: "Manage customers, credit, loyalty, and ledgers.",
-    Settings: "Configure stores, devices, payments, and billing.",
-    Reports: "View sales, inventory, purchase, and tax reports.",
+    Dashboard: "See projects, stock movement, transfers, and exceptions.",
+    Projects: "Set up projects, sites, and site stores.",
+    Materials: "Manage materials, categories, makes, and units.",
+    Procurement: "Manage suppliers, orders, and material receipts.",
+    "Material Movement": "Move material from warehouse to site and track it.",
+    Reports: "Review material, transfer, and purchase reports.",
+    "Team & Access": "Manage staff, roles, and access.",
+    Settings: "Configure warehouses, sites, and app settings.",
   };
 
   const handleClick = (e, item) => {
@@ -93,11 +91,11 @@ export default function Sidebar({
           className={`
           hidden md:flex h-12 w-12 items-center justify-center rounded-2xl
           cursor-pointer transition-all duration-200
-          ${isActive ? "bg-indigo-600 text-white shadow-[0_10px_22px_rgba(176,0,0,0.22)]" : "text-slate-500 hover:bg-indigo-50 hover:text-indigo-700"}
+          ${isActive ? "bg-indigo-600 text-white shadow-[0_10px_22px_rgba(26,71,108,0.24)]" : "text-slate-500 hover:bg-indigo-50 hover:text-indigo-700"}
         `}
         >
           {isActive && (
-            <span className="absolute -left-2 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-indigo-600" />
+            <span className="absolute -left-2 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-orange-500" />
           )}
           <i className={`ti ${item.icon} text-[22px]`} />
         </div>
@@ -175,12 +173,12 @@ export default function Sidebar({
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div>
             <img
-              src="/buyzaar-sync-logo.svg"
-              alt="Buyzaar Sync"
+              src="/ascent-sync-logo.svg"
+              alt="Ascent Sync"
               className="h-10 w-auto object-contain"
             />
             <p className="text-[10px] text-gray-400">
-              India's No.1 Business App
+              Construction material control
             </p>
           </div>
           <button
@@ -206,7 +204,7 @@ export default function Sidebar({
               <p className="text-[13px] font-semibold text-gray-800">
                 Admin User
               </p>
-              <p className="text-[11px] text-gray-400">Super Chain Admin</p>
+              <p className="text-[11px] text-gray-400">System administrator</p>
             </div>
           </div>
         </div>
@@ -233,7 +231,7 @@ export default function Sidebar({
             title="Open sidebar"
             aria-label="Open sidebar"
           >
-            <img src="/buyzaar-sync-icon.svg" alt="" className="h-8 w-8 object-contain" aria-hidden="true" />
+            <img src="/ascent-sync-icon.svg" alt="" className="h-8 w-8 object-contain" aria-hidden="true" />
           </button>
         </div> */}
           <div className="flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-2 py-3">
@@ -246,7 +244,7 @@ export default function Sidebar({
 
       {!expanded && tooltip?.item && (
         <div
-          className={`pointer-events-none fixed left-[66px] z-[200] hidden w-[290px] -translate-y-1/2 rounded-2xl border border-[#B00000] bg-[#B00000] px-4 py-3.5 text-left text-white shadow-none transition-all duration-200 ease-out md:block ${
+          className={`pointer-events-none fixed left-[66px] z-[200] hidden w-[290px] -translate-y-1/2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3.5 text-left text-white shadow-[0_16px_32px_rgba(15,23,42,0.20)] transition-all duration-200 ease-out md:block ${
             hoveredLabel === tooltip.item.label
               ? "visible translate-x-2 scale-100 opacity-100"
               : "invisible translate-x-0 scale-95 opacity-0"
@@ -254,7 +252,7 @@ export default function Sidebar({
           style={{ top: tooltip.top }}
         >
           <span className="flex items-center gap-2 text-[16px] font-extrabold tracking-wide">
-            <i className={`ti ${tooltip.item.icon} text-[19px]`} />
+            <i className={`ti ${tooltip.item.icon} text-[19px] text-orange-400`} />
             {tooltip.item.label}
           </span>
           <span className="mt-2 block whitespace-normal text-[13px] font-medium leading-snug">

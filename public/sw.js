@@ -1,10 +1,10 @@
-const CACHE_NAME = 'buyzaar-sync-shell-v4';
+const CACHE_NAME = 'ascent-sync-shell-v1';
 const APP_SHELL = [
   '/',
   '/login',
-  '/sales/pos',
+  '/home/master-dashboard',
   '/manifest.webmanifest',
-  '/buyzaar-sync-icon.svg'
+  '/ascent-sync-icon.svg'
 ];
 
 self.addEventListener('message', (event) => {
@@ -60,7 +60,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/sales/pos')));
+    event.respondWith(fetch(request).catch(() => caches.match('/home/master-dashboard')));
     return;
   }
 
@@ -73,6 +73,6 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match('/sales/pos')))
+      .catch(() => caches.match(request).then((cached) => cached || caches.match('/home/master-dashboard')))
   );
 });
