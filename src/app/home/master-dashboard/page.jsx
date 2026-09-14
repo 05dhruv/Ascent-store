@@ -17,7 +17,24 @@ export default function ConstructionMasterDashboard() {
   const [data, setData] = useState(null); const [error, setError] = useState(''); const [refreshing, setRefreshing] = useState(false);
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
-  const load = useCallback(async () => { setRefreshing(true); setError(''); try { const res = await fetch('/api/construction/dashboard', { cache: 'no-store', credentials: 'include' }); const json = await res.json(); if (!res.ok || !json.success) throw new Error(json.message || 'Dashboard could not be loaded'); setData(json.data); } catch (e) { setError(e.message); } finally { setRefreshing(false); } }, []);
+  const load = useCallback(async () => {
+    setRefreshing(true);
+    setError('');
+    try {
+      const res = await fetch('/api/construction/dashboard', { cache: 'no-store', credentials: 'include' });
+      if (res.status === 401) {
+        window.location.href = '/login?next=/home/master-dashboard';
+        return;
+      }
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'Dashboard could not be loaded');
+      setData(json.data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
   useEffect(() => { load(); }, [load]);
   const movements = data?.movements || [];
   const totalMovementValue = useMemo(() => movements.reduce((sum, item) => sum + Number(item.value || 0), 0), [movements]);

@@ -15,15 +15,28 @@ const links = [
 
 export default function ConstructionDashboard() {
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  useEffect(() => {
+
+  const loadDashboard = () => {
+    setLoading(true);
+    setError('');
     fetch('/api/construction/dashboard', { cache: 'no-store', credentials: 'include' })
       .then(async (res) => {
+        if (res.status === 401) {
+          window.location.href = '/login?next=/construction/dashboard';
+          return;
+        }
         const json = await res.json();
         if (!res.ok || !json.success) throw new Error(json.message || 'Unable to load dashboard');
         setData(json.data);
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadDashboard();
   }, []);
 
   const cards = [
@@ -45,7 +58,17 @@ export default function ConstructionDashboard() {
         </div>
       </div>
 
-      {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && (
+        <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <span>{error}</span>
+          <button
+            onClick={loadDashboard}
+            className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([label, value, note, icon]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span><i className={`ti ${icon} text-xl text-amber-600`} /></div>

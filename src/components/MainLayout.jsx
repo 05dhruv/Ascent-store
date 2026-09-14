@@ -159,8 +159,8 @@ export default function MainLayout({ children }) {
                   : 'md:ml-[64px]'
           }
           min-h-[calc(100vh-56px)]
-          p-2.5 sm:p-5 md:p-6 lg:p-7
-          w-full max-w-full overflow-x-hidden pb-safe
+          p-3 sm:p-5 md:p-6 lg:p-7
+          max-w-full overflow-x-clip pb-safe
         `}
       >
         <div key={pathname} className="page-route-transition">
