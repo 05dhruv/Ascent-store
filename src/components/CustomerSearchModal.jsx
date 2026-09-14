@@ -78,21 +78,21 @@ export default function CustomerSearchModal({ open, onClose, onSelect }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 md:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 md:p-6 overflow-y-auto">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-[900px] bg-white rounded-xl border border-gray-300 shadow-xl overflow-hidden my-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+      <div className="relative w-full max-w-[900px] bg-white rounded-xl border border-gray-300 shadow-xl overflow-hidden my-2 sm:my-4">
+        <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Customer</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Customer</h3>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">Close</button>
+            <button onClick={onClose} className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm">Close</button>
           </div>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <select value={searchBy} onChange={(e) => setSearchBy(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 bg-white">
+        <div className="p-3.5 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <select value={searchBy} onChange={(e) => setSearchBy(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 bg-white w-full sm:w-auto">
               <option>Name</option>
               <option>Phone</option>
               <option>Email</option>
@@ -104,9 +104,9 @@ export default function CustomerSearchModal({ open, onClose, onSelect }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Value"
-              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 bg-white placeholder:text-gray-400"
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 bg-white placeholder:text-gray-400 w-full"
             />
-            <button onClick={handleSearch} className="px-4 py-2 rounded-lg bg-blue-600 text-white">Search</button>
+            <button onClick={handleSearch} className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium text-sm w-full sm:w-auto">Search</button>
           </div>
 
           <div className="overflow-x-auto">

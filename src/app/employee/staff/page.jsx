@@ -755,13 +755,13 @@ export default function EmployeeStaffPage() {
             </div>
 
             {/* Form Body Card */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-8">
               <h4 className="text-sm font-bold text-blue-700 mb-6 flex items-center gap-2">
                 <i className="ti ti-user-circle text-lg" />
                 Staff Information
               </h4>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5 sm:gap-y-6">
                 <div>
                   <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">First Name <span className="text-red-500">*</span></label>
                   <input
@@ -807,7 +807,7 @@ export default function EmployeeStaffPage() {
 
                 <div>
                   <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Password {editingId ? '(leave blank to keep current)' : <span className="text-red-500">*</span>}</label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="password"
                       required={!editingId}
@@ -823,7 +823,7 @@ export default function EmployeeStaffPage() {
                           const password = randomPassword();
                           setForm((current) => ({ ...current, password, confirmPassword: password }));
                         }}
-                        className="px-3.5 py-2.5 border border-blue-300 rounded-xl text-[12px] font-semibold text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap"
+                        className="px-3.5 py-2.5 border border-blue-300 rounded-xl text-[12px] font-semibold text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap text-center"
                       >
                         Auto Generate
                       </button>
@@ -1063,17 +1063,17 @@ export default function EmployeeStaffPage() {
                   <span className="text-blue-600 cursor-pointer hover:underline font-medium">Need Help?</span>
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="relative" ref={bulkRef}>
+              <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-none" ref={bulkRef}>
                   <button
                     onClick={() => setBulkOpen((current) => !current)}
-                    className="flex items-center gap-1.5 px-4 py-2 border border-blue-600 text-blue-600 bg-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-50 transition-colors shadow-sm"
+                    className="flex w-full sm:w-auto justify-center items-center gap-1.5 px-4 py-2 border border-blue-600 text-blue-600 bg-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-50 transition-colors shadow-sm"
                   >
                     Bulk Operations
                     <i className={`ti ti-chevron-down text-[12px] transition-transform ${bulkOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {bulkOpen && (
-                    <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+                    <div className="absolute left-0 sm:left-auto sm:right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
                       {['Export', 'Deactivate Selected', 'Delete Selected'].map((operation) => (
                         <button
                           key={operation}
@@ -1089,7 +1089,7 @@ export default function EmployeeStaffPage() {
 
                 <button
                   onClick={() => { setEditingId(null); setShowCreate(true); resetForm(); }}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-700 text-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-800 transition-colors shadow-sm"
+                  className="flex flex-1 sm:flex-none justify-center items-center gap-1.5 px-4 py-2 bg-blue-700 text-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-800 transition-colors shadow-sm"
                 >
                   <i className="ti ti-plus text-[14px]" />
                   Create Employee

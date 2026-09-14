@@ -632,13 +632,18 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
       </button>
 
       {/* Brand — mobile center */}
-      <div className="md:hidden flex-1 flex justify-center">
+      <button
+        type="button"
+        onClick={() => router.push("/home")}
+        className="md:hidden flex-1 flex justify-center items-center px-1"
+        aria-label="Go to home"
+      >
         <img
           src="/ascent-sync-logo.svg"
           alt="Ascent Sync"
-          className="h-10 w-[150px] object-contain"
+          className="h-8 w-auto max-w-[125px] object-contain"
         />
-      </div>
+      </button>
 
       {/* Page title — desktop */}
       <div className="hidden md:flex flex-1 items-center gap-3 px-4">
@@ -671,7 +676,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
           <div
             className={`${
               openSearch
-                ? "fixed left-3 right-3 top-[58px] z-50 md:static md:z-auto"
+                ? "fixed left-2 right-2 top-[58px] z-50 md:static md:z-auto"
                 : "hidden md:block"
             }`}
           >
@@ -695,7 +700,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
           </div>
 
           {openSearch && (
-            <div className="fixed left-3 right-3 top-[104px] z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.16)] md:absolute md:left-auto md:right-0 md:top-[44px] md:w-[420px]">
+            <div className="fixed left-2 right-2 top-[104px] z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.16)] md:absolute md:left-auto md:right-0 md:top-[44px] md:w-[420px]">
               <div className="max-h-[420px] overflow-auto py-2">
                 {filteredSearchItems.length > 0 ? (
                   filteredSearchItems.map((item) => (
@@ -756,7 +761,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
           </button>
 
           {openNotifications && (
-            <div className="fixed left-3 right-3 top-[58px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.16)] sm:absolute sm:left-auto sm:right-0 sm:top-[40px] sm:w-[340px]">
+            <div className="fixed left-2 right-2 top-[58px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.16)] sm:absolute sm:left-auto sm:right-0 sm:top-[40px] sm:w-[340px]">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <p className="text-sm font-bold text-gray-900">Notifications</p>
                 <button
@@ -1112,7 +1117,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
           </button>
 
           {openProfile && (
-            <div className="fixed left-3 right-3 top-[58px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.16)] sm:absolute sm:left-auto sm:right-0 sm:top-[44px] sm:w-[320px]">
+            <div className="fixed left-2 right-2 top-[58px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.16)] sm:absolute sm:left-auto sm:right-0 sm:top-[44px] sm:w-[320px]">
               <div className="bg-slate-100 px-4 py-3.5">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-[#1A476C] flex items-center justify-center">

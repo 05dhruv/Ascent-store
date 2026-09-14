@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -5458,9 +5458,9 @@ export default function POSPage() {
           style={{
             background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)",
           }}
-          className="rounded-2xl mb-4 px-5 py-3.5 flex items-center justify-between gap-4 shadow-lg shadow-indigo-900/20"
+          className="rounded-2xl mb-3 px-3.5 py-3 sm:px-5 sm:py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-lg shadow-indigo-900/20"
         >
-          <div className="flex items-center gap-3 min-w-0 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0 flex-wrap justify-between sm:justify-start">
             <div className="md:hidden flex items-center gap-2">
               <button
                 type="button"
@@ -5485,7 +5485,7 @@ export default function POSPage() {
               <p className="text-indigo-300 text-[10px] font-black tracking-[0.15em] uppercase">
                 Point of Sale
               </p>
-              <h1 className="text-xl font-black text-white mt-0.5 leading-tight">
+              <h1 className="text-lg sm:text-xl font-black text-white mt-0.5 leading-tight">
                 POS Billing
               </h1>
             </div>
@@ -5545,7 +5545,7 @@ export default function POSPage() {
             ) : null}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-between sm:justify-end w-full sm:w-auto">
             {!session?.sessionId ? (
               <button
                 onClick={() => setOpenSessionModal(true)}
