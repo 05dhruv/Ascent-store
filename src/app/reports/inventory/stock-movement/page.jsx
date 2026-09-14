@@ -7,24 +7,28 @@ const filters = [
     "type": "date-range"
   },
   {
-    "key": "region",
-    "label": "Select Region",
-    "type": "text"
+    "key": "store",
+    "label": "Select Store / Warehouse",
+    "type": "select"
   }
 ];
 
 const columns = [
   {
     "key": "product",
-    "label": "Product"
+    "label": "Material / Product"
+  },
+  {
+    "key": "barcode",
+    "label": "Barcode"
   },
   {
     "key": "sku",
-    "label": "SKU"
+    "label": "SKU / Code"
   },
   {
     "key": "store",
-    "label": "Store"
+    "label": "Store / Site Location"
   },
   {
     "key": "opening_stock",
@@ -32,11 +36,11 @@ const columns = [
   },
   {
     "key": "stock_in",
-    "label": "Stock In"
+    "label": "Stock In (+)"
   },
   {
     "key": "stock_out",
-    "label": "Stock Out"
+    "label": "Stock Out (-)"
   },
   {
     "key": "current_stock",
@@ -58,12 +62,13 @@ export default function InventoryStockMovementPage() {
       breadcrumbs={[
         { label: 'Reports Dashboard', href: '/reports' },
         { label: 'Inventory' },
-        { label: 'Stock Movement' },
+        { label: 'Material Movement' },
       ]}
-      title="Stock Movement"
-      description="Stock movement report"
+      title="Material Movement"
+      description="Material movement, dispatch, receipt and stock balance tracking by site store and warehouse"
       filters={filters}
       columns={columns}
+      reportKey="inventory/stock-movement"
       actionButtons={[]}
     />
   );

@@ -7,9 +7,9 @@ const filters = [
     "type": "date-range"
   },
   {
-    "key": "region",
-    "label": "Select Region",
-    "type": "text"
+    "key": "store",
+    "label": "Select Store / Warehouse",
+    "type": "select"
   }
 ];
 

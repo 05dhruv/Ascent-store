@@ -82,6 +82,6 @@ export async function GET(request, context) {
     });
   } catch (err) {
     console.error('[report route]', err);
-    return errorResponse('Unable to load report');
+    return errorResponse(`Unable to load report: ${err.message}`);
   }
 }

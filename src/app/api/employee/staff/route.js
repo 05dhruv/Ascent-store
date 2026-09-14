@@ -322,7 +322,7 @@ export async function POST(request) {
     const emailAddress = toString(
       body.email_address || body.emailAddress,
     ).toLowerCase();
-    const roleId = body.role_id ?? body.roleId ?? null;
+    let roleId = body.role_id ?? body.roleId ?? null;
     let roleName = toString(body.role_name || body.roleName);
     const regionStore = Array.isArray(body.region_store || body.regionStore)
       ? (body.region_store || body.regionStore)

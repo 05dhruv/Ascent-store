@@ -30,8 +30,16 @@ export async function extractAuthUser(request) {
     });
 
     // Get token from cookies or Authorization header
-    const cookieToken = request.cookies.get('access_token')?.value || 
-                       request.cookies.get('auth_token')?.value;
+    let cookieToken = null;
+    if (request.cookies?.get) {
+      cookieToken = request.cookies.get('access_token')?.value || 
+                    request.cookies.get('auth_token')?.value;
+    }
+    if (!cookieToken) {
+      const rawCookie = request.headers.get('cookie') || '';
+      const match = rawCookie.match(/(?:^|;\s*)(?:access_token|auth_token)=([^;]+)/);
+      if (match) cookieToken = decodeURIComponent(match[1]);
+    }
     
     const authHeader = request.headers.get('authorization');
     const bearerToken = authHeader?.startsWith('Bearer ') 

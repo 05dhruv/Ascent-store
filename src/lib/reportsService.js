@@ -289,6 +289,76 @@ const REPORTS = {
       { key: "created_at", label: "Batch Created At" },
     ],
   },
+  "inventory/stock-level": {
+    title: "Material Stock Level",
+    worksheet: "Stock Level",
+    columns: [
+      { key: "product", label: "Material / Product" },
+      { key: "barcode", label: "Barcode" },
+      { key: "sku", label: "SKU / Code" },
+      { key: "store", label: "Store / Site Location" },
+      { key: "stock_in", label: "Stock In (+)" },
+      { key: "stock_out", label: "Stock Out (-)" },
+      { key: "current_stock", label: "Current Stock" },
+      { key: "cost_price", label: "Store Cost" },
+      { key: "unit", label: "Unit" },
+      { key: "selling_price", label: "Selling Price" },
+      { key: "mrp", label: "MRP" },
+      { key: "status", label: "Status" },
+    ],
+  },
+  "inventory/stock-movement": {
+    title: "Material Movement",
+    worksheet: "Material Movement",
+    columns: [
+      { key: "product", label: "Material / Product" },
+      { key: "barcode", label: "Barcode" },
+      { key: "sku", label: "SKU / Code" },
+      { key: "store", label: "Store / Site Location" },
+      { key: "opening_stock", label: "Opening Stock" },
+      { key: "stock_in", label: "Stock In (+)" },
+      { key: "stock_out", label: "Stock Out (-)" },
+      { key: "current_stock", label: "Current Stock" },
+      { key: "unit", label: "Unit" },
+      { key: "status", label: "Status" },
+    ],
+  },
+  "inventory/stock-movement-detail": {
+    title: "Material Movement Detail",
+    worksheet: "Movement Detail",
+    columns: [
+      { key: "product", label: "Material / Product" },
+      { key: "barcode", label: "Barcode" },
+      { key: "sku", label: "SKU / Code" },
+      { key: "store", label: "Store / Site Location" },
+      { key: "opening_stock", label: "Opening Stock" },
+      { key: "stock_in", label: "Stock In (+)" },
+      { key: "stock_out", label: "Stock Out (-)" },
+      { key: "current_stock", label: "Current Stock" },
+      { key: "unit", label: "Unit" },
+      { key: "status", label: "Status" },
+    ],
+  },
+  "inventory/stock-ledger-summary": {
+    title: "Movement Ledger Summary",
+    worksheet: "Stock Ledger",
+    columns: [
+      { key: "date", label: "Date" },
+      { key: "time", label: "Time" },
+      { key: "transaction_type", label: "Transaction Type" },
+      { key: "source_name", label: "Source / Warehouse" },
+      { key: "transaction_party_name", label: "Party / Destination" },
+      { key: "product_name", label: "Material" },
+      { key: "sku", label: "SKU" },
+      { key: "barcode", label: "Barcode" },
+      { key: "in_quantity", label: "In Qty" },
+      { key: "out_quantity", label: "Out Qty" },
+      { key: "rate", label: "Rate (₹)" },
+      { key: "amount", label: "Amount (₹)" },
+      { key: "user_name", label: "User / Creator" },
+      { key: "reference_id", label: "Reference" },
+    ],
+  },
   "stock-level": {
     title: "Stock Level",
     worksheet: "Stock Level",
@@ -1427,14 +1497,24 @@ async function getStockLevelReport(filters, user) {
        GROUP BY ib.product_id, ib.store_id
      ),
      stock_in_range AS (
-       SELECT sii.product_id, si.destination_id AS store_id, SUM(sii.qty) AS qty
-       FROM stock_in_items sii
-       JOIN stock_in si ON si.id = sii.stock_in_id
-       JOIN eligible_pairs ep ON ep.product_id = sii.product_id AND ep.store_id = si.destination_id
-       WHERE si.status = 'confirmed'
-         AND COALESCE(si.confirmed_at, si.created_at) >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
-         AND COALESCE(si.confirmed_at, si.created_at) < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
-       GROUP BY sii.product_id, si.destination_id
+       SELECT in_union.product_id, in_union.store_id, SUM(in_union.qty) AS qty
+       FROM (
+         SELECT sii.product_id, si.destination_id AS store_id, sii.qty
+         FROM stock_in_items sii
+         JOIN stock_in si ON si.id = sii.stock_in_id
+         WHERE si.status = 'confirmed'
+           AND COALESCE(si.confirmed_at, si.created_at) >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
+           AND COALESCE(si.confirmed_at, si.created_at) < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+         UNION ALL
+         SELECT sti.product_id, st.destination_id AS store_id, COALESCE(NULLIF(sti.accepted_qty, 0), NULLIF(sti.received_qty, 0), sti.qty) AS qty
+         FROM stock_transfer_items sti
+         JOIN stock_transfer st ON st.id = sti.stock_transfer_id
+         WHERE st.status IN ('confirmed', 'completed', 'received', 'partially_received')
+           AND COALESCE(st.received_at, st.confirmed_at, st.created_at) >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
+           AND COALESCE(st.received_at, st.confirmed_at, st.created_at) < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+       ) in_union
+       JOIN eligible_pairs ep ON ep.product_id = in_union.product_id AND ep.store_id = in_union.store_id
+       GROUP BY in_union.product_id, in_union.store_id
      ),
      manual_stock_out_range AS (
        SELECT soi.product_id, COALESCE(so.source_id, so.destination_id) AS store_id, SUM(soi.qty) AS qty
@@ -1456,6 +1536,16 @@ async function getStockLevelReport(filters, user) {
          AND sb.created_at >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
          AND sb.created_at < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
        GROUP BY sbi.product_id, sb.store_id
+     ),
+     transfer_out_range AS (
+       SELECT sti.product_id, st.source_id AS store_id, SUM(COALESCE(NULLIF(sti.dispatched_qty, 0), sti.qty)) AS qty
+       FROM stock_transfer_items sti
+       JOIN stock_transfer st ON st.id = sti.stock_transfer_id
+       JOIN eligible_pairs ep ON ep.product_id = sti.product_id AND ep.store_id = st.source_id
+       WHERE st.status IN ('confirmed', 'completed', 'dispatched', 'in_transit', 'received', 'partially_received')
+         AND COALESCE(st.dispatched_at, st.confirmed_at, st.created_at) >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
+         AND COALESCE(st.dispatched_at, st.confirmed_at, st.created_at) < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+       GROUP BY sti.product_id, st.source_id
      ),
      latest_stock_in_mrp AS (
        SELECT DISTINCT ON (sii.product_id, si.destination_id)
@@ -1522,7 +1612,7 @@ async function getStockLevelReport(filters, user) {
        END, 0), lbc.cost_price, p.cost_price, 0) AS store_cost_price,
        COALESCE(bt.current_stock, 0) AS current_stock,
        COALESCE(sir.qty, 0) AS stock_in,
-       COALESCE(msor.qty, 0) + COALESCE(sor.qty, 0) AS stock_out
+       COALESCE(msor.qty, 0) + COALESCE(sor.qty, 0) + COALESCE(tor.qty, 0) AS stock_out
 
      FROM eligible_pairs ps
      INNER JOIN products p ON p.id = ps.product_id
@@ -1532,6 +1622,7 @@ async function getStockLevelReport(filters, user) {
      LEFT JOIN stock_in_range sir ON sir.product_id = ps.product_id AND sir.store_id = ps.store_id
      LEFT JOIN manual_stock_out_range msor ON msor.product_id = ps.product_id AND msor.store_id = ps.store_id
      LEFT JOIN sales_out_range sor ON sor.product_id = ps.product_id AND sor.store_id = ps.store_id
+     LEFT JOIN transfer_out_range tor ON tor.product_id = ps.product_id AND tor.store_id = ps.store_id
      LEFT JOIN latest_stock_in_mrp lsim ON lsim.product_id = ps.product_id AND lsim.store_id = ps.store_id
      LEFT JOIN latest_stock_in_cost lsic ON lsic.product_id = ps.product_id AND lsic.store_id = ps.store_id
      LEFT JOIN latest_transfer_mrp ltm ON ltm.product_id = ps.product_id AND ltm.store_id = ps.store_id
@@ -2690,6 +2781,182 @@ async function getInventoryFamilyReport(reportKey, filters, user) {
   return getStockLevelReport(filters, user);
 }
 
+async function getStockMovementReport(filters, user) {
+  const range = parseDateRange(filters.date_range);
+  const fromDate = range.from;
+  const toDate = range.to;
+
+  const params = [];
+  const conditions = ["COALESCE(p.is_active, TRUE) = TRUE"];
+
+  addStoreScope({
+    conditions,
+    params,
+    user,
+    alias: "ps",
+    requestedStoreId: filters.store,
+  });
+
+  const storeOnlyInventory =
+    user.permissions?.includes("VIEW_STORE_PRODUCT_INVENTORY") &&
+    !user.permissions?.some((permission) =>
+      ["VIEW_STORE_REPORTS", "VIEW_FINANCIAL_REPORTS", "*"].includes(permission),
+    );
+  if (storeOnlyInventory)
+    conditions.push(
+      "LOWER(COALESCE(s.meta->>'locationType', 'Store')) = 'store'",
+    );
+
+  if (filters.product && String(filters.product).trim()) {
+    params.push(`%${String(filters.product).trim()}%`);
+    conditions.push(
+      `(p.name ILIKE $${params.length} OR COALESCE(p.sku,'') ILIKE $${params.length} OR COALESCE(p.barcode,'') ILIKE $${params.length})`,
+    );
+  }
+
+  params.push(fromDate);
+  const pFrom = params.length;
+  params.push(toDate);
+  const pTo = params.length;
+
+  const res = await query(
+    `WITH pair_sources AS (
+       SELECT product_id, store_id FROM product_saleability
+       UNION ALL
+       SELECT product_id, store_id FROM inventory_batches
+       UNION ALL
+       SELECT sii.product_id, si.destination_id AS store_id
+       FROM stock_in_items sii
+       JOIN stock_in si ON si.id = sii.stock_in_id
+       WHERE si.status = 'confirmed'
+       UNION ALL
+       SELECT sti.product_id, st.destination_id AS store_id
+       FROM stock_transfer_items sti
+       JOIN stock_transfer st ON st.id = sti.stock_transfer_id
+       WHERE st.status = 'confirmed'
+       UNION ALL
+       SELECT sti.product_id, st.source_id AS store_id
+       FROM stock_transfer_items sti
+       JOIN stock_transfer st ON st.id = sti.stock_transfer_id
+       WHERE st.status IN ('confirmed', 'completed', 'dispatched', 'in_transit', 'received', 'partially_received')
+     ),
+     eligible_pairs AS (
+       SELECT DISTINCT ps.product_id, ps.store_id
+       FROM pair_sources ps
+       INNER JOIN products p ON p.id = ps.product_id
+       LEFT JOIN stores s ON s.id = ps.store_id
+       WHERE ${conditions.join(" AND ")}
+     ),
+     batch_totals AS (
+       SELECT ib.product_id, ib.store_id, SUM(ib.available_qty) AS current_stock
+       FROM inventory_batches ib
+       JOIN eligible_pairs ep ON ep.product_id = ib.product_id AND ep.store_id = ib.store_id
+       WHERE ib.status = 'active'
+       GROUP BY ib.product_id, ib.store_id
+     ),
+     stock_in_range AS (
+       SELECT in_union.product_id, in_union.store_id, SUM(in_union.qty) AS qty
+       FROM (
+         SELECT sii.product_id, si.destination_id AS store_id, sii.qty
+         FROM stock_in_items sii
+         JOIN stock_in si ON si.id = sii.stock_in_id
+         WHERE si.status = 'confirmed'
+           AND COALESCE(si.confirmed_at, si.created_at) >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
+           AND COALESCE(si.confirmed_at, si.created_at) < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+         UNION ALL
+         SELECT sti.product_id, st.destination_id AS store_id, COALESCE(NULLIF(sti.accepted_qty, 0), NULLIF(sti.received_qty, 0), sti.qty) AS qty
+         FROM stock_transfer_items sti
+         JOIN stock_transfer st ON st.id = sti.stock_transfer_id
+         WHERE st.status IN ('confirmed', 'completed', 'received', 'partially_received')
+           AND COALESCE(st.received_at, st.confirmed_at, st.created_at) >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
+           AND COALESCE(st.received_at, st.confirmed_at, st.created_at) < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+       ) in_union
+       JOIN eligible_pairs ep ON ep.product_id = in_union.product_id AND ep.store_id = in_union.store_id
+       GROUP BY in_union.product_id, in_union.store_id
+     ),
+     manual_stock_out_range AS (
+       SELECT soi.product_id, COALESCE(so.source_id, so.destination_id) AS store_id, SUM(soi.qty) AS qty
+       FROM stock_out_items soi
+       JOIN stock_out so ON so.id = soi.stock_out_id
+       JOIN eligible_pairs ep ON ep.product_id = soi.product_id AND ep.store_id = COALESCE(so.source_id, so.destination_id)
+       WHERE so.status = 'confirmed'
+         AND COALESCE(so.reference_type, '') <> 'sales_bill'
+         AND COALESCE(so.confirmed_at, so.created_at) >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
+         AND COALESCE(so.confirmed_at, so.created_at) < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+       GROUP BY soi.product_id, COALESCE(so.source_id, so.destination_id)
+     ),
+     sales_out_range AS (
+       SELECT sbi.product_id, sb.store_id, SUM(sbi.qty) AS qty
+       FROM sales_bill_items sbi
+       JOIN sales_bills sb ON sb.id = sbi.sales_bill_id
+       JOIN eligible_pairs ep ON ep.product_id = sbi.product_id AND ep.store_id = sb.store_id
+       WHERE sb.status IN ('paid', 'completed')
+         AND sb.created_at >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
+         AND sb.created_at < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+       GROUP BY sbi.product_id, sb.store_id
+     ),
+     transfer_out_range AS (
+       SELECT sti.product_id, st.source_id AS store_id, SUM(COALESCE(NULLIF(sti.dispatched_qty, 0), sti.qty)) AS qty
+       FROM stock_transfer_items sti
+       JOIN stock_transfer st ON st.id = sti.stock_transfer_id
+       JOIN eligible_pairs ep ON ep.product_id = sti.product_id AND ep.store_id = st.source_id
+       WHERE st.status IN ('confirmed', 'completed', 'dispatched', 'in_transit', 'received', 'partially_received')
+         AND COALESCE(st.dispatched_at, st.confirmed_at, st.created_at) >= ($${pFrom}::date::timestamp AT TIME ZONE 'Asia/Kolkata')
+         AND COALESCE(st.dispatched_at, st.confirmed_at, st.created_at) < (($${pTo}::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+       GROUP BY sti.product_id, st.source_id
+     )
+     SELECT
+       p.id,
+       p.name  AS product,
+       p.sku,
+       p.barcode,
+       p.unit,
+       COALESCE(s.name, 'Unknown Store') AS store,
+       COALESCE(sale.low_stock_value, 0) AS low_stock_value,
+       COALESCE(bt.current_stock, 0) AS current_stock,
+       COALESCE(sir.qty, 0) AS stock_in,
+       COALESCE(msor.qty, 0) + COALESCE(sor.qty, 0) + COALESCE(tor.qty, 0) AS stock_out
+     FROM eligible_pairs ps
+     INNER JOIN products p ON p.id = ps.product_id
+     LEFT  JOIN stores s ON s.id = ps.store_id
+     LEFT JOIN product_saleability sale ON sale.product_id = ps.product_id AND sale.store_id = ps.store_id
+     LEFT JOIN batch_totals bt ON bt.product_id = ps.product_id AND bt.store_id = ps.store_id
+     LEFT JOIN stock_in_range sir ON sir.product_id = ps.product_id AND sir.store_id = ps.store_id
+     LEFT JOIN manual_stock_out_range msor ON msor.product_id = ps.product_id AND msor.store_id = ps.store_id
+     LEFT JOIN sales_out_range sor ON sor.product_id = ps.product_id AND sor.store_id = ps.store_id
+     LEFT JOIN transfer_out_range tor ON tor.product_id = ps.product_id AND tor.store_id = ps.store_id
+     ORDER BY p.name ASC, s.name ASC`,
+    params,
+  );
+
+  return res.rows.map((row) => {
+    const stockIn = number(row.stock_in);
+    const stockOut = number(row.stock_out);
+    const currentStock = number(row.current_stock);
+    const lowStockValue = number(row.low_stock_value);
+    const openingStock = Math.max(0, currentStock - stockIn + stockOut);
+    const displayUnit = getStockDisplayUnit(row.unit);
+    return {
+      id: `mov-${row.id}-${row.store}`,
+      product: row.product,
+      barcode: row.barcode || "-",
+      sku: row.sku || "-",
+      store: row.store,
+      opening_stock: stockDisplayQty(openingStock, row.unit),
+      stock_in: stockDisplayQty(stockIn, row.unit),
+      stock_out: stockDisplayQty(stockOut, row.unit),
+      current_stock: stockDisplayQty(currentStock, row.unit),
+      unit: displayUnit,
+      status:
+        lowStockValue > 0 && currentStock <= lowStockValue
+          ? "Low Stock"
+          : currentStock <= 0
+            ? "Out of Stock"
+            : "In Stock",
+    };
+  });
+}
+
 async function getStockLedgerSummaryReport(filters, user) {
   const range = parseDateRange(filters.date_range);
   const params = [range.from, range.to];
@@ -2806,23 +3073,23 @@ async function getStockLedgerSummaryReport(filters, user) {
          '-' AS trans_ref2,
          '-' AS audit_id,
          COUNT(sti.id)::numeric AS total_item_count,
-         (COALESCE(SUM(sti.qty), 0) * -1)::numeric AS total_item_quantity,
-         (COALESCE(NULLIF(st.total_cost, 0), SUM(sti.qty * COALESCE(sti.cost_price, 0)), 0) * -1)::numeric AS total_transaction_value,
+         (COALESCE(SUM(COALESCE(NULLIF(sti.dispatched_qty, 0), sti.qty)), 0) * -1)::numeric AS total_item_quantity,
+         (COALESCE(NULLIF(st.total_cost, 0), SUM(COALESCE(NULLIF(sti.dispatched_qty, 0), sti.qty) * COALESCE(sti.cost_price, 0)), 0) * -1)::numeric AS total_transaction_value,
          COALESCE(NULLIF(st.meta->>'createdByName', ''), NULLIF(st.meta->>'userName', ''), '-') AS transaction_user,
-         COALESCE(st.confirmed_at, st.created_at) AS transaction_time,
-         (COALESCE(SUM(sti.qty), 0) * -1)::numeric AS total_approved_quantity,
-         (COALESCE(NULLIF(st.total_cost, 0), SUM(sti.qty * COALESCE(sti.cost_price, 0)), 0) * -1)::numeric AS total_approved_value,
-         CASE WHEN LOWER(COALESCE(st.status, '')) IN ('confirmed', 'completed') THEN 'AUTO_APPROVED' ELSE UPPER(COALESCE(st.status, 'DRAFT')) END AS approval_status,
+         COALESCE(st.dispatched_at, st.confirmed_at, st.created_at) AS transaction_time,
+         (COALESCE(SUM(COALESCE(NULLIF(sti.dispatched_qty, 0), sti.qty)), 0) * -1)::numeric AS total_approved_quantity,
+         (COALESCE(NULLIF(st.total_cost, 0), SUM(COALESCE(NULLIF(sti.dispatched_qty, 0), sti.qty) * COALESCE(sti.cost_price, 0)), 0) * -1)::numeric AS total_approved_value,
+         CASE WHEN LOWER(COALESCE(st.status, '')) IN ('confirmed', 'completed', 'received', 'partially_received') THEN 'APPROVED' ELSE UPPER(COALESCE(st.status, 'DRAFT')) END AS approval_status,
          COALESCE(NULLIF(st.meta->>'approvedByName', ''), NULLIF(st.meta->>'createdByName', ''), '-') AS approval_user,
          COALESCE(st.confirmed_at, st.created_at) AS approval_time,
-         CASE WHEN LOWER(COALESCE(st.status, '')) IN ('confirmed', 'completed') THEN 'SYNCED' ELSE 'PENDING' END AS inventory_sync_status,
+         CASE WHEN LOWER(COALESCE(st.status, '')) IN ('confirmed', 'completed', 'dispatched', 'in_transit', 'received', 'partially_received') THEN 'SYNCED' ELSE 'PENDING' END AS inventory_sync_status,
          COALESCE(st.confirmed_at, st.created_at) AS inventory_sync_time,
          st.created_at AS log_time
        FROM stock_transfer st
        LEFT JOIN stock_transfer_items sti ON sti.stock_transfer_id = st.id
        LEFT JOIN stores src ON src.id = st.source_id
        LEFT JOIN stores dst ON dst.id = st.destination_id
-       WHERE LOWER(COALESCE(st.status, 'draft')) IN ('confirmed', 'completed')
+       WHERE LOWER(COALESCE(st.status, 'draft')) IN ('confirmed', 'completed', 'dispatched', 'in_transit', 'received', 'partially_received')
        GROUP BY st.id, src.name, dst.name
 
        UNION ALL
@@ -2843,23 +3110,23 @@ async function getStockLedgerSummaryReport(filters, user) {
          '-' AS trans_ref2,
          '-' AS audit_id,
          COUNT(sti.id)::numeric AS total_item_count,
-         COALESCE(SUM(sti.qty), 0)::numeric AS total_item_quantity,
-         COALESCE(NULLIF(st.total_cost, 0), SUM(sti.qty * COALESCE(sti.cost_price, 0)), 0)::numeric AS total_transaction_value,
+         COALESCE(SUM(COALESCE(NULLIF(sti.accepted_qty, 0), NULLIF(sti.received_qty, 0), sti.qty)), 0)::numeric AS total_item_quantity,
+         COALESCE(NULLIF(st.total_cost, 0), SUM(COALESCE(NULLIF(sti.accepted_qty, 0), NULLIF(sti.received_qty, 0), sti.qty) * COALESCE(sti.cost_price, 0)), 0)::numeric AS total_transaction_value,
          COALESCE(NULLIF(st.meta->>'createdByName', ''), NULLIF(st.meta->>'userName', ''), '-') AS transaction_user,
-         COALESCE(st.confirmed_at, st.created_at) AS transaction_time,
-         COALESCE(SUM(sti.qty), 0)::numeric AS total_approved_quantity,
-         COALESCE(NULLIF(st.total_cost, 0), SUM(sti.qty * COALESCE(sti.cost_price, 0)), 0)::numeric AS total_approved_value,
-         CASE WHEN LOWER(COALESCE(st.status, '')) IN ('confirmed', 'completed') THEN 'AUTO_APPROVED' ELSE UPPER(COALESCE(st.status, 'DRAFT')) END AS approval_status,
+         COALESCE(st.received_at, st.confirmed_at, st.created_at) AS transaction_time,
+         COALESCE(SUM(COALESCE(NULLIF(sti.accepted_qty, 0), NULLIF(sti.received_qty, 0), sti.qty)), 0)::numeric AS total_approved_quantity,
+         COALESCE(NULLIF(st.total_cost, 0), SUM(COALESCE(NULLIF(sti.accepted_qty, 0), NULLIF(sti.received_qty, 0), sti.qty) * COALESCE(sti.cost_price, 0)), 0)::numeric AS total_approved_value,
+         CASE WHEN LOWER(COALESCE(st.status, '')) IN ('confirmed', 'completed', 'received', 'partially_received') THEN 'RECEIVED' ELSE UPPER(COALESCE(st.status, 'DRAFT')) END AS approval_status,
          COALESCE(NULLIF(st.meta->>'approvedByName', ''), NULLIF(st.meta->>'createdByName', ''), '-') AS approval_user,
          COALESCE(st.confirmed_at, st.created_at) AS approval_time,
-         CASE WHEN LOWER(COALESCE(st.status, '')) IN ('confirmed', 'completed') THEN 'SYNCED' ELSE 'PENDING' END AS inventory_sync_status,
+         CASE WHEN LOWER(COALESCE(st.status, '')) IN ('confirmed', 'completed', 'received', 'partially_received') THEN 'SYNCED' ELSE 'PENDING' END AS inventory_sync_status,
          COALESCE(st.confirmed_at, st.created_at) AS inventory_sync_time,
          st.created_at AS log_time
        FROM stock_transfer st
        LEFT JOIN stock_transfer_items sti ON sti.stock_transfer_id = st.id
        LEFT JOIN stores src ON src.id = st.source_id
        LEFT JOIN stores dst ON dst.id = st.destination_id
-       WHERE LOWER(COALESCE(st.status, 'draft')) IN ('confirmed', 'completed')
+       WHERE LOWER(COALESCE(st.status, 'draft')) IN ('confirmed', 'completed', 'received', 'partially_received')
        GROUP BY st.id, src.name, dst.name
 
        UNION ALL
@@ -3117,7 +3384,7 @@ async function getUnfulfilledStockTransfersReport(filters, user) {
   }));
 }
 
-async function getStockMovementReport(filters, user) {
+async function getStockMovementDetailLogsReport(filters, user) {
   const range = parseDateRange(filters.date_range);
   const assignedStores = (user.assigned_stores || [])
     .map(Number)
