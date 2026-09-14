@@ -2090,9 +2090,7 @@ function StockTransferPreviewDialog({
                   </p>
                   <p className="mt-1">{transfer.meta.marginHoldReleaseError}</p>
                   <p className="mt-2 font-semibold">
-                    Source stock restore hone ya transfer quantities correct
-                    hone ke baad hi destination batches safely create ho sakte
-                    hain.
+                    Destination batches can only be safely created once source stock is replenished or transfer quantities are adjusted.
                   </p>
                 </div>
               )}

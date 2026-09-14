@@ -198,11 +198,11 @@ export default function AssignProductsToStorePage() {
     }
     const costPrice = Number(editingRow.franchise_cost || 0);
     if (editForm.is_assigned && sellingPrice > mrp) {
-      return alert("Selling Price MRP se zyada nahi ho sakta.");
+      return alert("Selling Price cannot be greater than MRP.");
     }
     if (editForm.is_assigned && costPrice > mrp) {
       return alert(
-        `MRP Franchise Cost/CP (${costPrice}) se kam nahi ho sakta. Pehle CP ya MRP correct karein.`,
+        `MRP cannot be lower than Store Cost/CP (${costPrice}). Please correct CP or MRP first.`,
       );
     }
     setSaving(true);

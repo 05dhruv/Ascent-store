@@ -707,283 +707,625 @@ export default function EmployeeStaffPage() {
   return (
     <MainLayout>
       <div className="min-h-screen">
-        <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-5">
-          <Link href="/employee" className="text-blue-600 hover:underline font-medium">Employee</Link>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
-          <span className="text-blue-600 font-semibold">Employees</span>
-        </nav>
-
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
-          <div>
-            <h1 className="text-[22px] font-bold text-gray-900">Employees</h1>
-            <p className="text-[12.5px] text-gray-500 mt-1">
-              List of all the users and respective stores.{' '}
-              <span className="text-blue-600 cursor-pointer hover:underline font-medium">Need Help?</span>
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="relative" ref={bulkRef}>
+        {showCreate ? (
+          /* Inline Create / Edit Employee Page matching standard app layout */
+          <div className="pb-12 animate-in fade-in duration-200">
+            {/* Breadcrumbs */}
+            <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-5">
+              <Link href="/employee" className="text-blue-600 hover:underline font-medium">Employee</Link>
+              <i className="ti ti-chevron-right text-[11px] text-gray-400" />
               <button
-                onClick={() => setBulkOpen((current) => !current)}
-                className="flex items-center gap-1.5 px-4 py-2 border border-blue-600 text-blue-600 bg-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-50 transition-colors shadow-sm"
+                type="button"
+                onClick={() => { setShowCreate(false); resetForm(); }}
+                className="text-blue-600 hover:underline font-medium"
               >
-                Bulk Operations
-                <i className={`ti ti-chevron-down text-[12px] transition-transform ${bulkOpen ? 'rotate-180' : ''}`} />
+                Employees
               </button>
-              {bulkOpen && (
-                <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-                  {['Export', 'Deactivate Selected', 'Delete Selected'].map((operation) => (
-                    <button
-                      key={operation}
-                      onClick={() => setBulkOpen(false)}
-                      className="block w-full text-left px-4 py-2 text-[12.5px] text-gray-700 hover:bg-gray-50 transition"
-                    >
-                      {operation}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+              <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+              <span className="text-slate-700 font-semibold">{editingId ? 'Edit Employee' : 'Create Employee'}</span>
+            </nav>
 
-            <button
-              onClick={() => { setEditingId(null); setShowCreate(true); resetForm(); }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-blue-700 text-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-800 transition-colors shadow-sm"
-            >
-              <i className="ti ti-plus text-[14px]" />
-              Create Employee
-            </button>
-          </div>
-        </div>
-
-        {(passwordRequestsLoading || passwordRequests.length > 0) && (
-          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-3">
+            {/* Page Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-[14px] font-bold text-amber-950">Password Change Requests</h2>
-                <p className="mt-0.5 text-[12px] text-amber-800">
-                  Approving a request activates the new password after 5 minutes.
+                <h1 className="text-[22px] font-bold text-gray-900">{editingId ? 'Edit Employee' : 'Create Employee'}</h1>
+                <p className="text-[12.5px] text-gray-500 mt-1">
+                  Admin controls employee ID, login credentials, role permissions, site store access, and warehouse access.
                 </p>
               </div>
-              <button
-                onClick={loadPasswordRequests}
-                className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-amber-800 hover:bg-amber-100"
-              >
-                Refresh
-              </button>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowCreate(false); resetForm(); }}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 transition shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-blue-800 transition shadow-sm disabled:opacity-50"
+                >
+                  <i className="ti ti-check text-sm" />
+                  {saving ? 'Saving...' : editingId ? 'Update Employee' : 'Save Employee'}
+                </button>
+              </div>
             </div>
 
-            {passwordRequestsLoading ? (
-              <div className="text-[12.5px] text-amber-800">Loading password requests...</div>
-            ) : (
-              <div className="space-y-2">
-                {passwordRequests.map((request) => {
-                  const employeeName =
-                    [request.first_name, request.last_name].filter(Boolean).join(' ').trim() ||
-                    request.user_name ||
-                    request.username ||
-                    request.user_email;
+            {/* Form Body Card */}
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+              <h4 className="text-sm font-bold text-blue-700 mb-6 flex items-center gap-2">
+                <i className="ti ti-user-circle text-lg" />
+                Staff Information
+              </h4>
 
-                  return (
-                    <div
-                      key={request.id}
-                      className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-[13px] font-semibold text-gray-900">{employeeName}</div>
-                        <div className="mt-0.5 text-[12px] text-gray-500">
-                          {request.user_email} {request.role_name ? `- ${request.role_name}` : ''}
-                        </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">First Name <span className="text-red-500">*</span></label>
+                  <input
+                    required
+                    value={form.firstName}
+                    onChange={(event) => setForm({ ...form, firstName: event.target.value })}
+                    placeholder="First Name"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Last Name</label>
+                  <input
+                    value={form.lastName}
+                    onChange={(event) => setForm({ ...form, lastName: event.target.value })}
+                    placeholder="Last Name"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Username <span className="text-red-500">*</span></label>
+                  <input
+                    required
+                    value={form.username}
+                    onChange={(event) => setForm({ ...form, username: event.target.value })}
+                    placeholder="Username"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <SelectField
+                  label="Gender"
+                  value={form.gender}
+                  onChange={(gender) => setForm({ ...form, gender })}
+                  options={[
+                    { value: 'Male', label: 'Male' },
+                    { value: 'Female', label: 'Female' },
+                    { value: 'Other', label: 'Other' },
+                  ]}
+                />
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Password {editingId ? '(leave blank to keep current)' : <span className="text-red-500">*</span>}</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      required={!editingId}
+                      value={form.password}
+                      onChange={(event) => setForm({ ...form, password: event.target.value })}
+                      placeholder="Password"
+                      className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                    />
+                    {!editingId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const password = randomPassword();
+                          setForm((current) => ({ ...current, password, confirmPassword: password }));
+                        }}
+                        className="px-3.5 py-2.5 border border-blue-300 rounded-xl text-[12px] font-semibold text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap"
+                      >
+                        Auto Generate
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Confirm Password {editingId ? '(if changing)' : <span className="text-red-500">*</span>}</label>
+                  <input
+                    type="password"
+                    required={!editingId || !!form.password}
+                    value={form.confirmPassword}
+                    onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })}
+                    placeholder="Confirm Password"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Mobile Number <span className="text-red-500">*</span></label>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]{10}"
+                    maxLength={10}
+                    required
+                    value={form.mobileNumber}
+                    onChange={(event) => {
+                      const value = event.target.value.replace(/\D/g, '').slice(0, 10);
+                      setForm({ ...form, mobileNumber: value });
+                    }}
+                    placeholder="Mobile Number (10 digits)"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                  {form.mobileNumber && !validatePhoneNumber(form.mobileNumber).isValid && (
+                    <p className="text-[11px] text-red-600 mt-1">{validatePhoneNumber(form.mobileNumber).error}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                  <input
+                    type="email"
+                    required
+                    value={form.emailAddress}
+                    onChange={(event) => setForm({ ...form, emailAddress: event.target.value })}
+                    placeholder="Email Address"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <SelectField
+                  label="Admin-defined Role"
+                  value={form.roleId}
+                  onChange={(roleId) => {
+                    const selectedRole = roles.find((role) => String(role.id) === String(roleId));
+                    setForm({
+                      ...form,
+                      roleId,
+                      roleName: selectedRole?.roleName || selectedRole?.role_name || '',
+                      permissions: Array.isArray(selectedRole?.permissions) ? selectedRole.permissions : [],
+                    });
+                  }}
+                  options={roleOptions}
+                />
+
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-semibold text-gray-600">Role permissions</label>
+                  <div className="min-h-[42px] rounded-xl border border-gray-200 bg-slate-50 px-3.5 py-2.5">
+                    {form.permissions.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {form.permissions.map((perm) => (
+                          <span key={perm} className="rounded-md bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-800">
+                            {perm}
+                          </span>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-2">
+                    ) : (
+                      <p className="text-[12px] text-gray-400">Select an admin-defined role to view its permissions.</p>
+                    )}
+                  </div>
+                </div>
+
+                <MultiSelect
+                  label="Assigned Sites & Site Stores"
+                  options={storeOptions}
+                  value={form.regionStore}
+                  onChange={(regionStore) => setForm({ ...form, regionStore })}
+                  placeholder="Select sites / site stores"
+                  showSelectAll
+                />
+
+                <MultiSelect
+                  label="Assigned Warehouses"
+                  options={warehouseOptions}
+                  value={form.warehouse}
+                  onChange={(warehouse) => setForm({ ...form, warehouse })}
+                  placeholder="Select warehouses"
+                  showSelectAll
+                />
+
+                <SelectField
+                  label="Department"
+                  value={form.departmentId}
+                  onChange={(departmentId) => setForm({ ...form, departmentId })}
+                  options={departmentOptions}
+                />
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Employee Code</label>
+                  <input
+                    value={form.employeeCode}
+                    onChange={(event) => setForm({ ...form, employeeCode: event.target.value.toUpperCase() })}
+                    placeholder="e.g. ASC-EMP-001"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={form.dateOfBirth ? String(form.dateOfBirth).slice(0, 10) : ''}
+                    onChange={(event) => setForm({ ...form, dateOfBirth: event.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Date of Joining</label>
+                  <input
+                    type="date"
+                    value={form.dateOfJoining ? String(form.dateOfJoining).slice(0, 10) : ''}
+                    onChange={(event) => setForm({ ...form, dateOfJoining: event.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Date of Leaving</label>
+                  <input
+                    type="date"
+                    value={form.dateOfLeaving ? String(form.dateOfLeaving).slice(0, 10) : ''}
+                    onChange={(event) => setForm({ ...form, dateOfLeaving: event.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <SelectField
+                  label="Employment Type"
+                  value={form.employmentType}
+                  onChange={(employmentType) => setForm({ ...form, employmentType })}
+                  options={[
+                    { value: 'Payroll', label: 'Payroll' },
+                    { value: 'Contractor', label: 'Contractor' },
+                    { value: 'Temporary', label: 'Temporary' },
+                  ]}
+                />
+
+                <SelectField
+                  label="User Type"
+                  value={form.userType}
+                  onChange={(userType) => setForm({ ...form, userType })}
+                  options={[
+                    { value: 'Regular', label: 'Regular' },
+                    { value: 'Field User', label: 'Field User' },
+                  ]}
+                />
+
+                <div className="md:col-span-2">
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Address</label>
+                  <textarea
+                    rows={2}
+                    value={form.address}
+                    onChange={(event) => setForm({ ...form, address: event.target.value })}
+                    placeholder="Employee Address"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Contractor Name</label>
+                  <input
+                    value={form.contractorName}
+                    onChange={(event) => setForm({ ...form, contractorName: event.target.value })}
+                    placeholder="Contractor Name"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-[13px] text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all"
+                  />
+                </div>
+
+                <SelectField
+                  label="Employment Status"
+                  value={form.employmentStatus}
+                  onChange={(employmentStatus) => setForm({ ...form, employmentStatus })}
+                  options={[
+                    { value: 'Active', label: 'Active' },
+                    { value: 'Inactive', label: 'Inactive' },
+                  ]}
+                />
+              </div>
+
+              {/* Bottom Action Buttons */}
+              <div className="mt-8 flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
+                <button
+                  type="button"
+                  onClick={() => { setShowCreate(false); resetForm(); }}
+                  className="rounded-xl border border-gray-200 px-6 py-2.5 text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="rounded-xl bg-blue-700 px-7 py-2.5 text-[13px] font-semibold text-white hover:bg-blue-800 transition-colors shadow-sm disabled:opacity-50"
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : editingId ? 'Update Employee' : 'Save Employee'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Table View */
+          <>
+            <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-5">
+              <Link href="/employee" className="text-blue-600 hover:underline font-medium">Employee</Link>
+              <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+              <span className="text-blue-600 font-semibold">Employees</span>
+            </nav>
+
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+              <div>
+                <h1 className="text-[22px] font-bold text-gray-900">Employees</h1>
+                <p className="text-[12.5px] text-gray-500 mt-1">
+                  List of all the users and respective stores.{' '}
+                  <span className="text-blue-600 cursor-pointer hover:underline font-medium">Need Help?</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="relative" ref={bulkRef}>
+                  <button
+                    onClick={() => setBulkOpen((current) => !current)}
+                    className="flex items-center gap-1.5 px-4 py-2 border border-blue-600 text-blue-600 bg-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-50 transition-colors shadow-sm"
+                  >
+                    Bulk Operations
+                    <i className={`ti ti-chevron-down text-[12px] transition-transform ${bulkOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {bulkOpen && (
+                    <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+                      {['Export', 'Deactivate Selected', 'Delete Selected'].map((operation) => (
                         <button
-                          onClick={() => handlePasswordRequestAction(request.id, 'reject')}
-                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:bg-gray-50"
+                          key={operation}
+                          onClick={() => setBulkOpen(false)}
+                          className="block w-full text-left px-4 py-2 text-[12.5px] text-gray-700 hover:bg-gray-50 transition"
                         >
-                          Reject
+                          {operation}
                         </button>
-                        <button
-                          onClick={() => handlePasswordRequestAction(request.id, 'approve')}
-                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-700"
-                        >
-                          Approve
-                        </button>
-                      </div>
+                      ))}
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+
+                <button
+                  onClick={() => { setEditingId(null); setShowCreate(true); resetForm(); }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-700 text-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-800 transition-colors shadow-sm"
+                >
+                  <i className="ti ti-plus text-[14px]" />
+                  Create Employee
+                </button>
+              </div>
+            </div>
+
+            {(passwordRequestsLoading || passwordRequests.length > 0) && (
+              <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-[14px] font-bold text-amber-950">Password Change Requests</h2>
+                    <p className="mt-0.5 text-[12px] text-amber-800">
+                      Approving a request activates the new password after 5 minutes.
+                    </p>
+                  </div>
+                  <button
+                    onClick={loadPasswordRequests}
+                    className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-[12px] font-semibold text-amber-800 hover:bg-amber-100"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {passwordRequestsLoading ? (
+                  <div className="text-[12.5px] text-amber-800">Loading password requests...</div>
+                ) : (
+                  <div className="space-y-2">
+                    {passwordRequests.map((request) => {
+                      const employeeName =
+                        [request.first_name, request.last_name].filter(Boolean).join(' ').trim() ||
+                        request.user_name ||
+                        request.username ||
+                        request.user_email;
+
+                      return (
+                        <div
+                          key={request.id}
+                          className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-[13px] font-semibold text-gray-900">{employeeName}</div>
+                            <div className="mt-0.5 text-[12px] text-gray-500">
+                              {request.user_email} {request.role_name ? `- ${request.role_name}` : ''}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handlePasswordRequestAction(request.id, 'reject')}
+                              className="rounded-lg border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 hover:bg-gray-50"
+                            >
+                              Reject
+                            </button>
+                            <button
+                              onClick={() => handlePasswordRequestAction(request.id, 'approve')}
+                              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-emerald-700"
+                            >
+                              Approve
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        <div className="flex justify-end mb-4">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 w-full sm:w-[280px] shadow-sm">
-            <i className="ti ti-search text-gray-400 text-[15px]" />
-            <input
-              type="text"
-              placeholder="Search"
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              className="bg-transparent text-[13px] text-gray-700 outline-none flex-1 placeholder-gray-400 min-w-0"
-            />
-            {search && (
-              <button onClick={() => setSearch('')}>
-                <i className="ti ti-x text-gray-400 text-[13px]" />
-              </button>
-            )}
-          </div>
-        </div>
+            <div className="flex justify-end mb-4">
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 w-full sm:w-[280px] shadow-sm">
+                <i className="ti ti-search text-gray-400 text-[15px]" />
+                <input
+                  type="text"
+                  placeholder="Search"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
+                  className="bg-transparent text-[13px] text-gray-700 outline-none flex-1 placeholder-gray-400 min-w-0"
+                />
+                {search && (
+                  <button onClick={() => setSearch('')}>
+                    <i className="ti ti-x text-gray-400 text-[13px]" />
+                  </button>
+                )}
+              </div>
+            </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-[12.5px]">
-              <thead>
-                <tr className="border-b border-gray-100 bg-white">
-                  <th className="px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      checked={allChecked}
-                      onChange={handleAllCheck}
-                      className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 cursor-pointer"
-                    />
-                  </th>
-                  {columns.map((column) => (
-                    <th key={column.key} className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">
-                      <span className="flex items-center gap-1">
-                        {column.label}
-                        {column.key !== 'employmentStatus' && column.key !== 'actions' && (
-                          <span className="text-gray-300 text-[10px] leading-none">↑↓</span>
-                        )}
-                      </span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={columns.length + 1} className="text-center text-gray-400 py-16 text-[13px]">
-                      Loading employees...
-                    </td>
-                  </tr>
-                ) : paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={columns.length + 1} className="text-center text-gray-400 py-16 text-[13px]">
-                      Staff list empty
-                    </td>
-                  </tr>
-                ) : (
-                  paginated.map((row, index) => (
-                    <tr key={row.id} className="border-t border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3">
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] text-[12.5px]">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-white">
+                      <th className="px-4 py-3 w-10">
                         <input
                           type="checkbox"
-                          checked={checkedRows.includes(row.id)}
-                          onChange={() => handleRowCheck(row.id)}
+                          checked={allChecked}
+                          onChange={handleAllCheck}
                           className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 cursor-pointer"
                         />
-                      </td>
-                      {columns.map((column) => {
-                        if (column.key === 'actions') {
-                          return (
-                            <td key={column.key} className="px-4 py-3">
-                              <div className="flex items-center gap-2">
+                      </th>
+                      {columns.map((column) => (
+                        <th key={column.key} className="text-left px-4 py-3 font-semibold text-gray-600 whitespace-nowrap">
+                          {column.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={columns.length + 1} className="text-center py-16 text-gray-400">
+                          <i className="ti ti-loader animate-spin text-[24px] block mb-2" />
+                          Loading employees...
+                        </td>
+                      </tr>
+                    ) : paginated.length === 0 ? (
+                      <tr>
+                        <td colSpan={columns.length + 1} className="text-center py-16 text-gray-400">
+                          <i className="ti ti-users-minus text-[32px] block mb-2 text-gray-300" />
+                          No employees found
+                        </td>
+                      </tr>
+                    ) : (
+                      paginated.map((employee, index) => {
+                        const isChecked = checkedRows.includes(employee.id);
+                        const serialNumber = (page - 1) * pageSize + index + 1;
+
+                        return (
+                          <tr
+                            key={employee.id}
+                            className={`border-b border-gray-50 hover:bg-gray-50/70 transition ${isChecked ? 'bg-blue-50/40' : ''}`}
+                          >
+                            <td className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleRowCheck(employee.id)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 accent-blue-600 cursor-pointer"
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-gray-500 font-mono text-[11.5px]">{serialNumber}</td>
+                            <td className="px-4 py-3 text-gray-900 font-medium">{employee.username || '-'}</td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{employee.name || '-'}</td>
+                            <td className="px-4 py-3 text-gray-600">{employee.employeeCode || '-'}</td>
+                            <td className="px-4 py-3">
+                              <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700">
+                                {employee.role || '-'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">{employee.department || '-'}</td>
+                            <td className="px-4 py-3 text-gray-600">{employee.employeeType || '-'}</td>
+                            <td className="px-4 py-3 text-gray-600">{employee.contractorName || '-'}</td>
+                            <td className="px-4 py-3 text-gray-600">{employee.mobileNumber || '-'}</td>
+                            <td className="px-4 py-3 text-gray-600">{employee.emailAddress || '-'}</td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                                  employee.employmentStatus === 'Active'
+                                    ? 'bg-green-50 text-green-700'
+                                    : 'bg-red-50 text-red-600'
+                                }`}
+                              >
+                                {employee.employmentStatus || 'Active'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1.5">
                                 <button
-                                  onClick={() => handleEdit(row)}
-                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                  title="Edit"
+                                  onClick={() => handleEdit(employee)}
+                                  className="p-1 rounded hover:bg-blue-50 text-blue-600 transition"
+                                  title="Edit Employee"
                                 >
-                                  <i className="ti ti-edit text-[16px]" />
+                                  <i className="ti ti-edit text-[15px]" />
                                 </button>
                                 <button
-                                  onClick={() => setDeleteConfirm(row.id)}
-                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
-                                  title="Delete"
+                                  onClick={() => setDeleteConfirm(employee.id)}
+                                  className="p-1 rounded hover:bg-red-50 text-red-600 transition"
+                                  title="Delete Employee"
                                 >
-                                  <i className="ti ti-trash text-[16px]" />
+                                  <i className="ti ti-trash text-[15px]" />
                                 </button>
                               </div>
                             </td>
-                          );
-                        }
-
-                        const value = column.key === 'sno' ? startIndex + index : row[column.key];
-                        return (
-                          <td key={column.key} className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                            {column.key === 'employmentStatus' && value ? (
-                              <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                                value === 'Active' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
-                              }`}>
-                                {value}
-                              </span>
-                            ) : (
-                              value || <span className="text-gray-300">—</span>
-                            )}
-                          </td>
+                          </tr>
                         );
-                      })}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-        <div className="flex items-center gap-3 mt-4">
-          <div className="relative">
-            <select
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(Number(event.target.value));
-                setPage(1);
-              }}
-              className="appearance-none border border-gray-300 rounded-lg px-3 py-1.5 pr-7 bg-white text-[12.5px] text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 shadow-sm"
-            >
-              {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-            </select>
-            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
-              <i className="ti ti-chevron-down text-[11px]" />
-            </span>
-          </div>
-          <span className="text-[12.5px] text-gray-400">
-            Showing {startIndex} to {endIndex} of {totalCount} staff(s)
-          </span>
-
-          {totalPages > 1 && (
-            <div className="flex items-center gap-1 ml-auto">
-              <button
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                disabled={page === 1}
-                className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <i className="ti ti-chevron-left text-gray-600 text-[14px]" />
-              </button>
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, index) => {
-                const pg = totalPages <= 5 ? index + 1 : page <= 3 ? index + 1 : page >= totalPages - 2 ? totalPages - 4 + index : page - 2 + index;
-                return (
-                  <button
-                    key={pg}
-                    onClick={() => setPage(pg)}
-                    className={`w-8 h-8 rounded-lg text-[12.5px] font-semibold transition-colors ${page === pg ? 'bg-blue-700 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-t border-gray-100 gap-3 text-[12.5px] text-gray-500">
+                <div className="flex items-center gap-2">
+                  <span>Show</span>
+                  <select
+                    value={pageSize}
+                    onChange={(event) => {
+                      setPageSize(Number(event.target.value));
+                      setPage(1);
+                    }}
+                    className="border border-gray-200 rounded-md px-2 py-1 bg-white text-gray-700 outline-none"
                   >
-                    {pg}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                disabled={page === totalPages}
-                className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <i className="ti ti-chevron-right text-gray-600 text-[14px]" />
-              </button>
+                    {PAGE_SIZES.map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                  <span>entries</span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <span>Showing {startIndex} to {endIndex} of {totalCount} entries</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      disabled={page === 1}
+                      onClick={() => setPage((current) => Math.max(1, current - 1))}
+                      className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <i className="ti ti-chevron-left text-gray-600 text-[14px]" />
+                    </button>
+                    <span className="font-semibold text-gray-700 px-1">{page} / {totalPages}</span>
+                    <button
+                      disabled={page === totalPages || totalPages === 0}
+                      onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                      className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <i className="ti ti-chevron-right text-gray-600 text-[14px]" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -1022,361 +1364,6 @@ export default function EmployeeStaffPage() {
           </div>
         </div>,
         document.body
-      )}
-
-      {/* Create/Edit Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-[100] bg-white">
-          <div className="flex h-full flex-col bg-slate-50">
-            <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-8">
-              <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">{editingId ? 'Edit Employee' : 'Create Employee'}</h2>
-                <p className="mt-1 text-[12.5px] text-gray-500">Admin controls employee ID, login, role, permissions, site access and warehouse access.</p>
-              </div>
-              <button onClick={() => { setShowCreate(false); resetForm(); }} className="rounded-lg p-2 hover:bg-gray-100" aria-label="Close employee form">
-                <i className="ti ti-x text-gray-500 text-[16px]" />
-              </button>
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8">
-            <div className="mx-auto w-full max-w-7xl rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
-              <h4 className="text-sm text-blue-700 font-semibold mb-6">Staff Information</h4>
-
-              <div className="grid grid-cols-2 gap-x-12 gap-y-6">
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">First Name <span className="text-red-500">*</span></label>
-                  <input
-                    required
-                    value={form.firstName}
-                    onChange={(event) => setForm({ ...form, firstName: event.target.value })}
-                    placeholder="First Name"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Last Name</label>
-                  <input
-                    value={form.lastName}
-                    onChange={(event) => setForm({ ...form, lastName: event.target.value })}
-                    placeholder="Last Name"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Username <span className="text-red-500">*</span></label>
-                  <input
-                    required
-                    value={form.username}
-                    onChange={(event) => setForm({ ...form, username: event.target.value })}
-                    placeholder="Username"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div>
-
-                <SelectField
-                  label="Gender"
-                  value={form.gender}
-                  onChange={(gender) => setForm({ ...form, gender })}
-                  options={[
-                    { value: 'Male', label: 'Male' },
-                    { value: 'Female', label: 'Female' },
-                    { value: 'Other', label: 'Other' },
-                  ]}
-                />
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Password {editingId ? '(leave blank to keep current)' : <span className="text-red-500">*</span>}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      required={!editingId}
-                      value={form.password}
-                      onChange={(event) => setForm({ ...form, password: event.target.value })}
-                      placeholder="Password"
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                    />
-                    {!editingId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const password = randomPassword();
-                          setForm((current) => ({ ...current, password, confirmPassword: password }));
-                        }}
-                        className="px-3 py-2 border border-blue-300 rounded-lg text-[12px] font-semibold text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap"
-                      >
-                        Auto Generate
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Confirm Password {editingId ? '(if changing)' : <span className="text-red-500">*</span>}</label>
-                  <input
-                    type="password"
-                    required={!editingId || !!form.password}
-                    value={form.confirmPassword}
-                    onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })}
-                    placeholder="Confirm Password"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Mobile Number <span className="text-red-500">*</span></label>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    pattern="[0-9]{10}"
-                    maxLength={10}
-                    required
-                    value={form.mobileNumber}
-                    onChange={(event) => {
-                      const value = event.target.value.replace(/\D/g, '').slice(0, 10);
-                      setForm({ ...form, mobileNumber: value });
-                    }}
-                    placeholder="Mobile Number (10 digits)"
-                    
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                  {form.mobileNumber && !validatePhoneNumber(form.mobileNumber).isValid && (
-                    <p className="text-[11px] text-red-600 mt-1">{validatePhoneNumber(form.mobileNumber).error}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Email Address <span className="text-red-500">*</span></label>
-                  <input
-                    type="email"
-                    required
-                    value={form.emailAddress}
-                    onChange={(event) => setForm({ ...form, emailAddress: event.target.value })}
-                    placeholder="Email Address"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div>
-
-                <SelectField
-                  label="Admin-defined Role"
-                  value={form.roleId}
-                  onChange={(roleId) => {
-                    const selectedRole = roles.find((role) => String(role.id) === String(roleId));
-                    setForm({
-                      ...form,
-                      roleId,
-                      roleName: selectedRole?.roleName || selectedRole?.role_name || '',
-                      permissions: Array.isArray(selectedRole?.permissions) ? selectedRole.permissions : [],
-                    });
-                  }}
-                  options={roleOptions}
-                />
-
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-semibold text-gray-600">Role permissions</label>
-                  <div className="min-h-[42px] rounded-lg border border-gray-200 bg-slate-50 px-3 py-2">
-                    {form.permissions.length ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {form.permissions.map((permission) => (
-                          <span key={permission} className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-800">
-                            {permissionOptions.find((option) => option.value === permission)?.label || permission}
-                          </span>
-                        ))}
-                      </div>
-                    ) : <span className="text-[12px] text-gray-400">Select an admin-defined role to view its permissions.</span>}
-                  </div>
-                  <p className="mt-1 text-[11px] text-gray-400">Permissions come from the selected role. Edit them only from Roles & Permissions.</p>
-                </div>
-
-                <MultiSelect
-                  label="Assigned Sites & Site Stores"
-                  options={storeOptions}
-                  value={form.regionStore}
-                  onChange={(regionStore) => setForm({ ...form, regionStore })}
-                  placeholder="Select sites / site stores"
-                  showSelectAll
-                />
-
-                <MultiSelect
-                  label="Assigned Warehouses"
-                  options={warehouseOptions}
-                  value={form.warehouse}
-                  onChange={(warehouse) => setForm({ ...form, warehouse })}
-                  placeholder="Select warehouses"
-                  showSelectAll
-                />
-
-                <SelectField
-                  label="Employee Department"
-                  value={form.departmentId}
-                  onChange={(departmentId) => setForm({ ...form, departmentId })}
-                  options={departmentOptions}
-                />
-
-                <SelectField
-                  label="Employment Type"
-                  value={form.employmentType}
-                  onChange={(employmentType) => setForm({ ...form, employmentType })}
-                  options={[
-                    { value: 'Payroll', label: 'Payroll' },
-                    { value: 'Contractor', label: 'Contractor' },
-                    { value: 'Temporary', label: 'Temporary' },
-                  ]}
-                />
-
-                <SelectField
-                  label="User Type"
-                  value={form.userType}
-                  onChange={(userType) => setForm({ ...form, userType })}
-                  options={[
-                    { value: 'Regular', label: 'Regular' },
-                    { value: 'Field User', label: 'Field User' },
-                  ]}
-                />
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Employee ID / Code</label>
-                  <input
-                    value={form.employeeCode}
-                    onChange={(event) => setForm({ ...form, employeeCode: event.target.value.toUpperCase() })}
-                    placeholder="Example: ASC-EMP-001"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div>
-
-                {/* <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Date of Birth</label>
-                  <input
-                    type="date"
-                    value={form.dateOfBirth}
-                    onChange={(event) => setForm({ ...form, dateOfBirth: event.target.value })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div> */}
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Date of Joining</label>
-                  <input
-                    type="date"
-                    value={form.dateOfJoining}
-                    onChange={(event) => setForm({ ...form, dateOfJoining: event.target.value })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div>
-
-                {/* <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Date of Leaving</label>
-                  <input
-                    type="date"
-                    value={form.dateOfLeaving}
-                    onChange={(event) => setForm({ ...form, dateOfLeaving: event.target.value })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div> */}
-
-                {/* <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Employee Code</label>
-                  <input
-                    value={form.employeeCode}
-                    onChange={(event) => setForm({ ...form, employeeCode: event.target.value })}
-                    placeholder="Employee Code"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div> */}
-
-                {/* <div className="flex items-center gap-2 pt-6">
-                  <input
-                    type="checkbox"
-                    checked={form.createCustomerSameDetails}
-                    onChange={(event) => setForm({ ...form, createCustomerSameDetails: event.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-[12px] text-gray-700">Create a customer with same details</span>
-                </div> */}
-              </div>
-            </div>
-
-            {/* <div className="border border-gray-200 rounded-xl p-5 mt-6">
-              <h4 className="text-sm text-blue-700 font-semibold mb-6">Discount Limits</h4>
-
-              <div className="grid grid-cols-2 gap-x-12 gap-y-6">
-                <SelectField
-                  label="Discount Limit Type"
-                  value={form.discountLimitType}
-                  onChange={(discountLimitType) => setForm({ ...form, discountLimitType })}
-                  options={[
-                    { value: 'Percentage', label: 'Percentage' },
-                    { value: 'Amount', label: 'Amount' },
-                  ]}
-                />
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Discount Limit Value</label>
-                  <input
-                    type="number"
-                    value={form.discountLimitValue}
-                    onChange={(event) => setForm({ ...form, discountLimitValue: event.target.value })}
-                    placeholder="0"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Maximum Discount Amount</label>
-                  <input
-                    type="number"
-                    value={form.maximumDiscountAmount}
-                    onChange={(event) => setForm({ ...form, maximumDiscountAmount: event.target.value })}
-                    placeholder="0"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                  />
-                </div>
-              </div>
-            </div> */}
-
-            <div className="mt-6 grid grid-cols-2 gap-x-12 gap-y-6">
-              <div>
-                <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Contractor Name</label>
-                <input
-                  value={form.contractorName}
-                  onChange={(event) => setForm({ ...form, contractorName: event.target.value })}
-                  placeholder="Contractor Name"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all"
-                />
-              </div>
-
-              <SelectField
-                label="Employment Status"
-                value={form.employmentStatus}
-                onChange={(employmentStatus) => setForm({ ...form, employmentStatus })}
-                options={[
-                  { value: 'Active', label: 'Active' },
-                  { value: 'Inactive', label: 'Inactive' },
-                ]}
-              />
-            </div>
-
-            <div className="mt-6 flex gap-2">
-              <button
-                onClick={() => { setShowCreate(false); resetForm(); }}
-                className="flex-1 py-2.5 border border-gray-200 rounded-lg text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="flex-1 py-2.5 bg-blue-700 text-white rounded-lg text-[13px] font-semibold hover:bg-blue-800 transition-colors"
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : editingId ? 'Update' : 'Save'}
-              </button>
-            </div>
-          </div>
-          </div>
-        </div>
       )}
     </MainLayout>
   );
