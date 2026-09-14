@@ -425,8 +425,8 @@ export async function POST(request) {
  * Content-Type: application/json
  * 
  * {
- *   "email": "admin@buyzaarsync.com",
- *   "password": "admin@123"
+ *   "email": "owner@Ascentstore.com",
+ *   "password": "Ascent@12345"
  * }
  * 
  * Expected: 302 Redirect to /home with access_token & refresh_token cookies

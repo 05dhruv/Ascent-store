@@ -36,6 +36,7 @@ function LoginPageContent() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const resolveRedirect = async (fallback = "/home") => {
     const explicitNext = searchParams?.get("next");
@@ -245,7 +246,7 @@ function LoginPageContent() {
               name="email"
               value={form.email}
               onChange={onChange}
-              placeholder="admin@buyzaarsync.com"
+              placeholder="owner@Ascentstore.com"
               required
               disabled={loading}
               className="w-full bg-transparent text-[13px] text-gray-900 outline-none placeholder:text-gray-400 disabled:cursor-not-allowed disabled:opacity-50"
@@ -265,7 +266,7 @@ function LoginPageContent() {
             <i className="ti ti-lock text-[16px] text-gray-400" />
             <input
               id="login-password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="password"
               value={form.password}
               onChange={onChange}
@@ -274,6 +275,16 @@ function LoginPageContent() {
               disabled={loading}
               className="w-full bg-transparent text-[13px] text-gray-900 outline-none placeholder:text-gray-400 disabled:cursor-not-allowed disabled:opacity-50"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              tabIndex={-1}
+              className="flex items-center text-gray-400 hover:text-gray-600 focus:outline-none transition-colors p-1 -mr-1 cursor-pointer"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              title={showPassword ? "Hide password" : "Show password"}
+            >
+              <i className={`ti ${showPassword ? "ti-eye-off" : "ti-eye"} text-[18px]`} />
+            </button>
           </div>
         </div>
 

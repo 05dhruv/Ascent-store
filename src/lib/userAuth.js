@@ -17,8 +17,8 @@ const CREATE_USERS_TABLE_SQL = `
 
 const globalForUsers = globalThis;
 
-const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'superadmin@grocerymart.local';
-const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'SuperAdmin@123';
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || 'owner@Ascentstore.com';
+const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'Ascent@12345';
 const SUPER_ADMIN_NAME = process.env.SUPER_ADMIN_NAME || 'Super Admin';
 const SUPER_ADMIN_PHONE = process.env.SUPER_ADMIN_PHONE || 'super-admin';
 
