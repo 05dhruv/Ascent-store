@@ -34,11 +34,11 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const [autoChecking, setAutoChecking] = useState(true);
   const [form, setForm] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  const resolveRedirect = async (fallback = "/home") => {
+  const resolveRedirect = async (fallback = "/construction/projects") => {
     const explicitNext = searchParams?.get("next");
     if (explicitNext) return explicitNext;
 
@@ -117,8 +117,7 @@ function LoginPageContent() {
         const redirectFromApi = normalizeRedirectLocation(
           res.headers.get("location"),
         );
-        window.location.href =
-          redirectFromApi || (await resolveRedirect("/home"));
+        window.location.href = redirectFromApi || (await resolveRedirect());
         return;
       }
 
@@ -135,7 +134,7 @@ function LoginPageContent() {
           console.log("[LOGIN PAGE] Login successful");
           window.location.href = json.data?.user
             ? getDefaultRouteForUser(json.data.user)
-            : await resolveRedirect("/home");
+            : await resolveRedirect();
           return;
         }
 
@@ -246,7 +245,7 @@ function LoginPageContent() {
               name="email"
               value={form.email}
               onChange={onChange}
-              placeholder="owner@Ascentstore.com"
+              placeholder="admin@buyzaarsync.com"
               required
               disabled={loading}
               className="w-full bg-transparent text-[13px] text-gray-900 outline-none placeholder:text-gray-400 disabled:cursor-not-allowed disabled:opacity-50"
@@ -277,13 +276,15 @@ function LoginPageContent() {
             />
             <button
               type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              tabIndex={-1}
-              className="flex items-center text-gray-400 hover:text-gray-600 focus:outline-none transition-colors p-1 -mr-1 cursor-pointer"
+              onClick={() => setShowPassword((visible) => !visible)}
+              disabled={loading}
+              className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label={showPassword ? "Hide password" : "Show password"}
               title={showPassword ? "Hide password" : "Show password"}
             >
-              <i className={`ti ${showPassword ? "ti-eye-off" : "ti-eye"} text-[18px]`} />
+              <i
+                className={`ti ${showPassword ? "ti-eye-off" : "ti-eye"} text-[17px]`}
+              />
             </button>
           </div>
         </div>

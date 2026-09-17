@@ -1,23 +1,43 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
-import { requireAuth, requirePermission, requireStore, canAccessAllStores } from '@/lib/api-protection';
-import { ensureMovementWorkflowSchema } from '@/lib/movementWorkflowSchema';
-import { parseMovementFilters } from '@/lib/movementReportFilters.mjs';
+import { NextResponse } from "next/server";
+import { query } from "@/lib/db";
+import {
+  requireAuth,
+  requirePermission,
+  requireStore,
+  canAccessAllStores,
+} from "@/lib/api-protection";
+import { ensureMovementWorkflowSchema } from "@/lib/movementWorkflowSchema";
+import { parseMovementFilters } from "@/lib/movementReportFilters.mjs";
 
 export async function GET(request) {
-  const auth=await requireAuth(request);if(auth.error)return auth.error;
-  const permission=requirePermission(auth.user,'VIEW_INVENTORY','MANAGE_INVENTORY');if(permission.error)return permission.error;
+  const auth = await requireAuth(request);
+  if (auth.error) return auth.error;
+  const permission = requirePermission(
+    auth.user,
+    "VIEW_INVENTORY",
+    "MANAGE_INVENTORY",
+  );
+  if (permission.error) return permission.error;
   try {
-    const sp=new URL(request.url).searchParams;
+    const sp = new URL(request.url).searchParams;
     let filters;
-    try { filters=parseMovementFilters(sp); }
-    catch(error) { return NextResponse.json({error:error.message},{status:400}); }
-    const {store,project,search,from,to}=filters;
-    if(store){const check=requireStore(auth.user,store);if(check.error)return check.error;}
+    try {
+      filters = parseMovementFilters(sp);
+    } catch (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    const { store, project, search, from, to } = filters;
+    if (store) {
+      const check = requireStore(auth.user, store);
+      if (check.error) return check.error;
+    }
     await ensureMovementWorkflowSchema();
-    const scope=canAccessAllStores(auth.user)?null:(auth.user.assigned_stores||[]).map(Number);
-    const params=[scope,store,project,`%${search}%`,from,to];
-    const transfers=await query(`SELECT t.id,t.transaction_id,t.source_id,t.destination_id,t.status,t.workflow_version,
+    const scope = canAccessAllStores(auth.user)
+      ? null
+      : (auth.user.assigned_stores || []).map(Number);
+    const params = [scope, store, project, `%${search}%`, from, to];
+    const transfers = await query(
+      `SELECT t.id,t.transaction_id,t.source_id,t.destination_id,t.status,t.workflow_version,
       t.vehicle_number,t.challan_number,t.expected_arrival_at,t.dispatched_at,t.received_at,t.created_at,
       s.name source_name,d.name destination_name,
       COALESCE(SUM(i.qty),0) requested,COALESCE(SUM(i.dispatched_qty),0) dispatched,
@@ -35,8 +55,11 @@ export async function GET(request) {
         OR EXISTS(SELECT 1 FROM stock_transfer_items x WHERE x.stock_transfer_id=t.id AND concat_ws(' ',x.product_name,x.sku,x.barcode,x.meta->>'batchNo') ILIKE $4))
       AND ($5::date IS NULL OR t.created_at >= ($5::date::timestamp AT TIME ZONE 'Asia/Kolkata'))
       AND ($6::date IS NULL OR t.created_at < (($6::date+INTERVAL '1 day') AT TIME ZONE 'Asia/Kolkata'))
-      GROUP BY t.id,s.name,d.name ORDER BY t.id DESC LIMIT 501`,params);
-    const buckets=await query(`SELECT b.store_id,s.name location,p.id product_id,p.name product,p.sku,p.unit,
+      GROUP BY t.id,s.name,d.name ORDER BY t.id DESC LIMIT 501`,
+      params,
+    );
+    const buckets = await query(
+      `SELECT b.store_id,s.name location,COALESCE(NULLIF(s.meta->>'locationType',''),'Store') location_type,p.id product_id,p.name product,p.sku,p.unit,
       SUM(CASE WHEN b.status='active' AND (b.expiry_date IS NULL OR b.expiry_date >= CURRENT_DATE) THEN b.available_qty-b.reserved_qty ELSE 0 END) available,
       SUM(b.reserved_qty) reserved,
       SUM(CASE WHEN b.status IN ('quarantine','blocked') THEN b.available_qty-b.reserved_qty ELSE 0 END) quarantine,
@@ -44,14 +67,16 @@ export async function GET(request) {
       SUM(CASE WHEN b.status='rejected' THEN b.available_qty-b.reserved_qty ELSE 0 END) rejected,
       SUM(CASE WHEN b.status='active' AND b.expiry_date < CURRENT_DATE THEN b.available_qty-b.reserved_qty ELSE 0 END) expired,
       SUM(CASE WHEN b.status NOT IN ('active','quarantine','blocked','damaged','rejected') THEN b.available_qty-b.reserved_qty ELSE 0 END) inactive,
-      SUM(b.available_qty) physical_qty,
-      SUM(b.available_qty*b.cost_price) physical_value
+      SUM(b.available_qty) physical_qty
       FROM inventory_batches b JOIN products p ON p.id=b.product_id JOIN stores s ON s.id=b.store_id
       WHERE ($1::int[] IS NULL OR b.store_id=ANY($1)) AND ($2::int IS NULL OR b.store_id=$2)
       AND ($3::bigint IS NULL OR EXISTS(SELECT 1 FROM construction_sites cs WHERE cs.project_id=$3 AND cs.store_id=b.store_id))
       AND concat_ws(' ',p.name,p.sku,b.batch_no,s.name) ILIKE $4
-      GROUP BY b.store_id,s.name,p.id ORDER BY s.name,p.name LIMIT 501`,params.slice(0,4));
-    const ledger=await query(`WITH movements AS (
+      GROUP BY b.store_id,s.name,s.meta,p.id ORDER BY s.name,p.name LIMIT 501`,
+      params.slice(0, 4),
+    );
+    const ledger = await query(
+      `WITH movements AS (
       SELECT m.*,SUM(CASE WHEN direction='in' THEN qty WHEN direction='out' THEN -qty ELSE 0 END)
         OVER(PARTITION BY store_id,product_id ORDER BY created_at,id) recorded_balance FROM inventory_batch_movements m
       ) SELECT m.id,m.created_at,m.product_id,p.name product,p.sku,p.unit,s.name location,m.store_id,m.direction,m.qty,
@@ -65,11 +90,34 @@ export async function GET(request) {
       AND concat_ws(' ',p.name,p.sku,b.batch_no,m.reference_id,m.meta->>'transactionId',s.name) ILIKE $4
       AND ($5::date IS NULL OR m.created_at >= ($5::date::timestamp AT TIME ZONE 'Asia/Kolkata'))
       AND ($6::date IS NULL OR m.created_at < (($6::date+INTERVAL '1 day') AT TIME ZONE 'Asia/Kolkata'))
-      ORDER BY m.created_at DESC,m.id DESC LIMIT 501`,params);
-    const projects=await query(`SELECT DISTINCT p.id,p.name FROM construction_projects p JOIN construction_sites s ON s.project_id=p.id
-      WHERE $1::int[] IS NULL OR s.store_id=ANY($1) ORDER BY p.name`,[scope]);
-    const stores=await query('SELECT id,name FROM stores WHERE $1::int[] IS NULL OR id=ANY($1) ORDER BY name',[scope]);
-    return NextResponse.json({transfers:transfers.rows.slice(0,500),buckets:buckets.rows.slice(0,500),ledger:ledger.rows.slice(0,500),
-      projects:projects.rows,stores:stores.rows,truncated:transfers.rows.length>500||buckets.rows.length>500||ledger.rows.length>500});
-  }catch(error){console.error('[movement tracker]',error.message);return NextResponse.json({error:'Unable to load movement reports'},{status:500});}
+      ORDER BY m.created_at DESC,m.id DESC LIMIT 501`,
+      params,
+    );
+    const projects = await query(
+      `SELECT DISTINCT p.id,p.name FROM construction_projects p JOIN construction_sites s ON s.project_id=p.id
+      WHERE $1::int[] IS NULL OR s.store_id=ANY($1) ORDER BY p.name`,
+      [scope],
+    );
+    const stores = await query(
+      "SELECT id,name FROM stores WHERE $1::int[] IS NULL OR id=ANY($1) ORDER BY name",
+      [scope],
+    );
+    return NextResponse.json({
+      transfers: transfers.rows.slice(0, 500),
+      buckets: buckets.rows.slice(0, 500),
+      ledger: ledger.rows.slice(0, 500),
+      projects: projects.rows,
+      stores: stores.rows,
+      truncated:
+        transfers.rows.length > 500 ||
+        buckets.rows.length > 500 ||
+        ledger.rows.length > 500,
+    });
+  } catch (error) {
+    console.error("[movement tracker]", error.message);
+    return NextResponse.json(
+      { error: "Unable to load movement reports" },
+      { status: 500 },
+    );
+  }
 }

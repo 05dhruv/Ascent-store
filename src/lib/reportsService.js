@@ -244,49 +244,20 @@ const REPORTS = {
     ],
   },
   "inventory/store-wise-batch-report": {
-    title: "Store Wise Batch Report",
-    worksheet: "Store Batch Report",
+    title: "Batch & Lot Trace",
+    worksheet: "Batch Lot Trace",
     columns: [
-      { key: "store", label: "Store" },
-      { key: "product", label: "Product" },
-      { key: "barcode", label: "Barcode" },
-      { key: "sku", label: "SKU" },
-      { key: "batch_no", label: "Batch No" },
+      { key: "store", label: "Location" },
+      { key: "product", label: "Material" },
+      { key: "sku", label: "Material Code" },
+      { key: "batch_no", label: "Batch / Lot No." },
       { key: "mfg_date", label: "MFG Date" },
       { key: "expiry_date", label: "Expiry Date" },
       { key: "received_qty", label: "Received Qty" },
       { key: "available_qty", label: "Available Qty" },
       { key: "unit", label: "Unit" },
-      { key: "cost_price", label: "Cost Price" },
-      { key: "selling_price", label: "Selling Price" },
-      { key: "mrp", label: "MRP" },
-      { key: "stock_value", label: "Stock Value" },
       { key: "status", label: "Status" },
       { key: "source_type", label: "Source" },
-    ],
-  },
-  "inventory/store-batch-price-audit": {
-    title: "Store Batch Price Audit",
-    worksheet: "Batch Price Audit",
-    columns: [
-      { key: "audit_status", label: "Audit Status" },
-      { key: "store", label: "Store" },
-      { key: "product", label: "Product" },
-      { key: "barcode", label: "Barcode" },
-      { key: "sku", label: "SKU" },
-      { key: "batch_no", label: "Batch No" },
-      { key: "available_qty", label: "Available Qty" },
-      { key: "batch_cost_price", label: "Batch Cost Price" },
-      { key: "assigned_cost_price", label: "Assigned Store Cost Price" },
-      { key: "cost_check", label: "Cost Check" },
-      { key: "batch_selling_price", label: "Batch Selling Price" },
-      { key: "assigned_selling_price", label: "Assigned Store Selling Price" },
-      { key: "selling_price_check", label: "Selling Price Check" },
-      { key: "batch_mrp", label: "Batch MRP" },
-      { key: "assigned_mrp", label: "Assigned Store MRP" },
-      { key: "mrp_check", label: "MRP Check" },
-      { key: "source_type", label: "Source" },
-      { key: "created_at", label: "Batch Created At" },
     ],
   },
   "inventory/stock-level": {
@@ -357,6 +328,79 @@ const REPORTS = {
       { key: "amount", label: "Amount (₹)" },
       { key: "user_name", label: "User / Creator" },
       { key: "reference_id", label: "Reference" },
+    ],
+  },
+  "inventory/stock-requisition": {
+    title: "Stock Requisition Report",
+    worksheet: "Stock Requisition",
+    columns: [
+      { key: "requisition_id", label: "Requisition ID" },
+      { key: "date", label: "Requisition Date" },
+      { key: "destination", label: "Requesting Site / Store" },
+      { key: "requested_by_name", label: "Requested By" },
+      { key: "source", label: "Source Warehouse" },
+      { key: "product", label: "Product / Material" },
+      { key: "sku", label: "SKU" },
+      { key: "unit", label: "Unit" },
+      { key: "dimensions", label: "Dimensions" },
+      { key: "requested_qty", label: "Requested Qty" },
+      { key: "available_qty", label: "Warehouse Stock" },
+      { key: "shortage_qty", label: "Shortage Qty" },
+      { key: "fulfilled_qty", label: "Fulfilled Qty" },
+      { key: "pending_qty", label: "Pending Qty" },
+      { key: "shortage_status", label: "Shortage Status" },
+      { key: "approval_status", label: "Approval Status" },
+      { key: "approved_by_name", label: "Approved By" },
+      { key: "approved_at", label: "Approved At" },
+      { key: "purchase_order_id", label: "Linked PO No" },
+      { key: "vendor_name", label: "Matched Vendor" },
+      { key: "vendor_email", label: "Vendor Email" },
+      { key: "po_emailed_at", label: "PO Emailed At" },
+      { key: "fulfillment_status", label: "Fulfillment Status" },
+    ],
+  },
+  "inventory/unfulfilled-stock-requests": {
+    title: "Unfulfilled Stock Requests",
+    worksheet: "Unfulfilled Requests",
+    columns: [
+      { key: "requisition_id", label: "Requisition ID" },
+      { key: "date", label: "Date" },
+      { key: "destination", label: "Requesting Site" },
+      { key: "requested_by_name", label: "Requested By" },
+      { key: "source", label: "Source Warehouse" },
+      { key: "product", label: "Product" },
+      { key: "unit", label: "Unit" },
+      { key: "dimensions", label: "Dimensions" },
+      { key: "requested_qty", label: "Requested Qty" },
+      { key: "available_qty", label: "Warehouse Stock" },
+      { key: "shortage_qty", label: "Shortage Qty" },
+      { key: "fulfilled_qty", label: "Fulfilled Qty" },
+      { key: "pending_qty", label: "Pending Qty" },
+      { key: "shortage_status", label: "Shortage Status" },
+      { key: "purchase_order_id", label: "PO No" },
+      { key: "vendor_name", label: "Vendor" },
+      { key: "vendor_email", label: "Vendor Email" },
+      { key: "po_emailed_at", label: "PO Emailed At" },
+      { key: "approval_status", label: "Approval Status" },
+    ],
+  },
+  "inventory/stock-fulfillment": {
+    title: "Stock Fulfillment Report",
+    worksheet: "Stock Fulfillment",
+    columns: [
+      { key: "requisition_id", label: "Requisition ID" },
+      { key: "date", label: "Date" },
+      { key: "destination", label: "Destination Site" },
+      { key: "source", label: "Source Warehouse" },
+      { key: "product", label: "Product" },
+      { key: "unit", label: "Unit" },
+      { key: "requested_qty", label: "Requested Qty" },
+      { key: "fulfilled_qty", label: "Fulfilled Qty" },
+      { key: "pending_qty", label: "Pending Qty" },
+      { key: "shortage_qty", label: "Shortage Qty" },
+      { key: "fulfillment_status", label: "Status" },
+      { key: "purchase_order_id", label: "Linked PO" },
+      { key: "vendor_name", label: "Vendor" },
     ],
   },
   "stock-level": {
@@ -2745,6 +2789,167 @@ async function getAccountingTaxReport(reportKey, filters, user) {
   }));
 }
 
+async function getStockRequisitionReport(reportKey, filters = {}, user = {}) {
+  await ensureStockRequisitionSchema();
+  const range = parseDateRange(filters.date_range);
+  const fromDate = range.from;
+  const toDate = range.to;
+
+  const params = [];
+  const conditions = [];
+
+  if (fromDate) {
+    params.push(fromDate);
+    conditions.push(
+      `DATE(COALESCE(sr.requisition_date, sr.created_at) AT TIME ZONE 'Asia/Kolkata') >= $${params.length}`,
+    );
+  }
+  if (toDate) {
+    params.push(toDate);
+    conditions.push(
+      `DATE(COALESCE(sr.requisition_date, sr.created_at) AT TIME ZONE 'Asia/Kolkata') <= $${params.length}`,
+    );
+  }
+
+  if (filters.store) {
+    const storeId = Number(filters.store);
+    if (storeId) {
+      params.push(storeId);
+      conditions.push(
+        `(sr.source_id = $${params.length} OR sr.destination_id = $${params.length})`,
+      );
+    }
+  }
+
+  const assignedStores = (user?.assigned_stores || [])
+    .map(Number)
+    .filter(Number.isFinite);
+  if (user?.role !== "super_admin" && assignedStores.length > 0) {
+    params.push(assignedStores);
+    conditions.push(
+      `(sr.source_id = ANY($${params.length}::int[]) OR sr.destination_id = ANY($${params.length}::int[]))`,
+    );
+  }
+
+  if (reportKey.includes("unfulfilled-stock-requests")) {
+    conditions.push(
+      `(sr.status != 'fulfilled' OR COALESCE(sri.fulfilled_qty, 0) < sri.requested_qty)`,
+    );
+  }
+
+  if (filters.product && String(filters.product).trim()) {
+    params.push(`%${String(filters.product).trim()}%`);
+    conditions.push(
+      `(p.name ILIKE $${params.length} OR COALESCE(p.sku,'') ILIKE $${params.length} OR COALESCE(p.barcode,'') ILIKE $${params.length})`,
+    );
+  }
+
+  const whereClause = conditions.length
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
+
+  const sql = `
+    SELECT 
+      sr.id AS requisition_id,
+      COALESCE(sr.created_at) AS date,
+      sr.created_at,
+      sr.source_id,
+      s_src.name AS source_name,
+      sr.destination_id,
+      s_dest.name AS destination_name,
+      sr.status AS fulfillment_status,
+      sr.approval_status,
+      sr.approved_at,
+      COALESCE(u_req.name, sr.requested_by) AS requester_name,
+      COALESCE(u_req.email, sr.mail_to) AS requester_email,
+      u_app.name AS approver_name,
+      sr.stock_transfer_id,
+      sr.purchase_order_id,
+      po.transaction_id AS po_transaction_id,
+      sr.vendor_id,
+      COALESCE(sr.vendor_email, v.email) AS vendor_email,
+      COALESCE(v.name, sr.remarks) AS vendor_name,
+      sr.po_emailed_at,
+      sr.shortage_status,
+      sr.total_shortage_qty,
+      sri.id AS item_id,
+      sri.product_id,
+      COALESCE(sri.product_name, p.name) AS product_name,
+      p.sku AS product_sku,
+      p.barcode AS product_barcode,
+      COALESCE(sri.unit, p.unit, 'PCS') AS unit,
+      COALESCE(sri.dimensions, p.dimensions, '-') AS dimensions,
+      sri.qty AS requested_qty,
+      sri.qty AS approved_qty,
+      COALESCE(sri.fulfilled_qty, 0) AS fulfilled_qty,
+      COALESCE(sri.available_qty, 0) AS available_qty,
+      COALESCE(sri.shortage_qty, 0) AS shortage_qty
+    FROM stock_requisitions sr
+    JOIN stock_requisition_items sri ON sri.requisition_id = sr.id
+    LEFT JOIN stores s_src ON s_src.id = sr.source_id
+    LEFT JOIN stores s_dest ON s_dest.id = sr.destination_id
+    LEFT JOIN users u_req ON u_req.id = sr.requested_by_user_id
+    LEFT JOIN users u_app ON u_app.id = sr.approved_by_user_id
+    LEFT JOIN products p ON p.id = sri.product_id
+    LEFT JOIN purchase_orders po ON po.id = sr.purchase_order_id
+    LEFT JOIN vendors v ON v.id = sr.vendor_id
+    ${whereClause}
+    ORDER BY sr.id DESC, sri.id ASC
+  `;
+
+  const res = await query(sql, params);
+
+  return res.rows.map((row, idx) => {
+    const reqQty = number(row.requested_qty);
+    const fulQty = number(row.fulfilled_qty);
+    const availQty = number(row.available_qty);
+    const shortQty = number(row.shortage_qty);
+    const pendingQty = Math.max(0, reqQty - fulQty);
+
+    return {
+      id: `${row.requisition_id}-${row.item_id || idx}`,
+      requisition_id: `REQ-${row.requisition_id}`,
+      date: isoDate(row.date),
+      created_at: isoDate(row.created_at),
+      source: row.source_name || `Warehouse #${row.source_id || "-"}`,
+      destination: row.destination_name || `Site #${row.destination_id || "-"}`,
+      requested_by_name: row.requester_name || "Admin / System",
+      requested_by_email: row.requester_email || "-",
+      approved_by_name: row.approver_name || "-",
+      approved_at: row.approved_at ? isoDate(row.approved_at) : "-",
+      product: row.product_name || "Unknown Item",
+      sku: row.product_sku || "-",
+      barcode: row.product_barcode || "-",
+      unit: row.unit || "PCS",
+      dimensions: row.dimensions || "-",
+      requested_qty: reqQty,
+      available_qty: availQty,
+      shortage_qty: shortQty,
+      fulfilled_qty: fulQty,
+      pending_qty: pendingQty,
+      approval_status: (row.approval_status || "pending").toUpperCase(),
+      fulfillment_status: (row.fulfillment_status || "pending").toUpperCase(),
+      shortage_status: row.shortage_status
+        ? row.shortage_status.toUpperCase()
+        : shortQty > 0
+          ? "SHORTAGE_DETECTED"
+          : "IN_STOCK",
+      purchase_order_id:
+        row.po_transaction_id ||
+        (row.purchase_order_id ? `PO-${row.purchase_order_id}` : "-"),
+      vendor_name: row.vendor_name || "-",
+      vendor_email: row.vendor_email || "-",
+      po_emailed_at: row.po_emailed_at ? isoDate(row.po_emailed_at) : "-",
+      po_email_status: row.po_emailed_at
+        ? "SENT"
+        : row.purchase_order_id
+          ? "PENDING"
+          : "-",
+      status: (row.fulfillment_status || "pending").toUpperCase(),
+    };
+  });
+}
+
 async function getInventoryFamilyReport(reportKey, filters, user) {
   if (
     reportKey.includes("stock-requisition") ||
@@ -3251,84 +3456,6 @@ async function getStockLedgerSummaryReport(filters, user) {
     inventory_sync_time: row.inventory_sync_time_display || "",
     log_time: row.log_time_display || "-",
   }));
-}
-
-async function getStockRequisitionReport(reportKey, filters, user) {
-  const range = parseDateRange(filters.date_range);
-  const params = [range.from, range.to];
-  const conditions = [
-    `DATE(sr.created_at AT TIME ZONE 'Asia/Kolkata') BETWEEN $1 AND $2`,
-  ];
-  addStoreColumnScope({
-    conditions,
-    params,
-    user,
-    columnName: "sr.destination_id",
-    requestedStoreId: filters.store,
-  });
-
-  if (reportKey.includes("unfulfilled-stock-requests")) {
-    conditions.push(`sr.fulfillment_status <> 'completed'`);
-    conditions.push(`sr.approval_status <> 'rejected'`);
-  } else if (reportKey.includes("stock-fulfillment")) {
-    conditions.push(`sr.approval_status = 'approved'`);
-  }
-
-  const res = await query(
-    `SELECT sr.id, sr.transaction_id, sr.created_at, sr.requested_by, sr.mail_to, sr.remarks,
-            sr.status, sr.approval_status, sr.fulfillment_status, sr.approved_at, sr.fulfilled_at,
-            sr.purchase_order_id, sr.stock_transfer_id, sr.rejection_reason,
-            COALESCE(src.name, '') AS source_name,
-            COALESCE(dst.name, '') AS destination_name,
-            COALESCE(p.name, sri.product_name, 'Product') AS product,
-            COALESCE(p.sku, '') AS sku,
-            sri.qty, sri.fulfilled_qty
-     FROM stock_requisitions sr
-     LEFT JOIN stores src ON src.id = sr.source_id
-     LEFT JOIN stores dst ON dst.id = sr.destination_id
-     LEFT JOIN stock_requisition_items sri ON sri.requisition_id = sr.id
-     LEFT JOIN products p ON p.id = sri.product_id
-     WHERE ${conditions.join(" AND ")}
-     ORDER BY sr.created_at DESC, sr.id DESC, product ASC
-     LIMIT 1000`,
-    params,
-  );
-
-  return res.rows.map((row) => {
-    const requestedQty = number(row.qty);
-    const fulfilledQty =
-      row.fulfillment_status === "completed"
-        ? requestedQty
-        : number(row.fulfilled_qty);
-    return {
-      id: `req-${row.id}-${row.sku || row.product}`,
-      requisition_id:
-        row.transaction_id || `REQ-${String(row.id).padStart(4, "0")}`,
-      date: isoDate(row.created_at),
-      requested_time: displayTime(row.created_at),
-      source: row.source_name || "",
-      destination: row.destination_name || "",
-      store: row.destination_name || "",
-      product: row.product,
-      sku: row.sku || "",
-      requested_qty: requestedQty,
-      fulfilled_qty: fulfilledQty,
-      pending_qty: Math.max(0, requestedQty - fulfilledQty),
-      requested_by: row.requested_by || "",
-      mail_to: row.mail_to || "",
-      remarks: row.remarks || row.rejection_reason || "",
-      approval_status: row.approval_status || "",
-      fulfillment_status: row.fulfillment_status || "",
-      purchase_order_id: row.purchase_order_id || "",
-      stock_transfer_id: row.stock_transfer_id || "",
-      status: row.status || "",
-      unit: "PCS",
-      opening_stock: requestedQty,
-      stock_in: fulfilledQty,
-      stock_out: Math.max(0, requestedQty - fulfilledQty),
-      current_stock: Math.max(0, requestedQty - fulfilledQty),
-    };
-  });
 }
 
 async function getUnfulfilledStockTransfersReport(filters, user) {

@@ -16,16 +16,26 @@ const filters = [
 const columns = [
   { "key": "requisition_id", "label": "Requisition ID" },
   { "key": "date", "label": "Date" },
-  { "key": "source", "label": "Source" },
-  { "key": "destination", "label": "Destination" },
-  { "key": "product", "label": "Product" },
+  { "key": "destination", "label": "Requesting Site" },
+  { "key": "requested_by_name", "label": "Requested By" },
+  { "key": "source", "label": "Source Warehouse" },
+  { "key": "product", "label": "Product / Material" },
   { "key": "sku", "label": "SKU" },
+  { "key": "unit", "label": "Unit" },
+  { "key": "dimensions", "label": "Dimensions" },
   { "key": "requested_qty", "label": "Requested Qty" },
+  { "key": "available_qty", "label": "Warehouse Stock" },
+  { "key": "shortage_qty", "label": "Shortage Qty" },
   { "key": "fulfilled_qty", "label": "Fulfilled Qty" },
   { "key": "pending_qty", "label": "Pending Qty" },
-  { "key": "approval_status", "label": "Approval Status" },
-  { "key": "fulfillment_status", "label": "Fulfillment Status" },
-  { "key": "status", "label": "Status" }
+  { "key": "shortage_status", "label": "Shortage Status" },
+  { "key": "approval_status", "label": "Approval" },
+  { "key": "approved_by_name", "label": "Approved By" },
+  { "key": "purchase_order_id", "label": "Linked PO" },
+  { "key": "vendor_name", "label": "Vendor" },
+  { "key": "vendor_email", "label": "Vendor Email" },
+  { "key": "po_email_status", "label": "PO Email" },
+  { "key": "fulfillment_status", "label": "Fulfillment Status" }
 ];
 
 export default function InventoryStockRequisitionPage() {

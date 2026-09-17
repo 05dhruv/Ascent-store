@@ -1,17 +1,50 @@
 const ROLE_HOME_PATHS = {
   super_admin: "/home/master-dashboard",
-  admin: "/home",
-  manager: "/home",
+  admin: "/home/master-dashboard",
+  manager: "/inventory/hub",
   user: "/construction/projects",
 };
 
 const SUPER_ADMIN_PERMISSION = "*";
 
+// Legacy retail data is retained for history, but its screens do not belong in
+// the construction-material workspace. Block these paths for every role so a
+// copied URL cannot reopen a POS or customer workflow.
+const CONSTRUCTION_HIDDEN_ROUTE_PREFIXES = [
+  "/sales",
+  "/sales-order",
+  "/customer",
+  "/delivery",
+  "/accounts",
+  "/reports/sales",
+  "/reports/accounting",
+];
+
+function isConstructionHiddenRoute(pathname = "") {
+  return (
+    pathname === "/home" ||
+    CONSTRUCTION_HIDDEN_ROUTE_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  );
+}
+
 const SECTION_PERMISSION_RULES = {
   Dashboard: ["DASHBOARD_VIEW"],
   Projects: ["PROJECT_VIEW", "PROJECT_CREATE", "SITE_VIEW", "SITE_CREATE"],
-  Materials: ["MATERIAL_VIEW", "MATERIAL_CREATE", "MATERIAL_EDIT", "MATERIAL_IMPORT"],
-  Movement: ["STOCK_VIEW", "SITE_REQUEST_CREATE", "TRANSFER_VIEW", "TRANSFER_CREATE", "MATERIAL_ISSUE_CREATE"],
+  Materials: [
+    "MATERIAL_VIEW",
+    "MATERIAL_CREATE",
+    "MATERIAL_EDIT",
+    "MATERIAL_IMPORT",
+  ],
+  Movement: [
+    "STOCK_VIEW",
+    "SITE_REQUEST_CREATE",
+    "TRANSFER_VIEW",
+    "TRANSFER_CREATE",
+    "MATERIAL_ISSUE_CREATE",
+  ],
   Team: ["TEAM_VIEW", "TEAM_MANAGE", "ROLE_MANAGE"],
   Home: ["ACCESS_DASHBOARD"],
   Sales: [
@@ -21,8 +54,21 @@ const SECTION_PERMISSION_RULES = {
     "PROCESS_STORE_BILL_EXCHANGE",
     "APPROVE_STORE_BILL_EXCHANGE",
   ],
-  Catalog: ["MATERIAL_VIEW", "MATERIAL_CREATE", "MATERIAL_EDIT", "MATERIAL_IMPORT"],
-  Inventory: ["STOCK_VIEW", "GRN_CREATE", "SITE_REQUEST_CREATE", "TRANSFER_VIEW", "TRANSFER_CREATE", "MATERIAL_ISSUE_CREATE", "STOCK_AUDIT"],
+  Catalog: [
+    "MATERIAL_VIEW",
+    "MATERIAL_CREATE",
+    "MATERIAL_EDIT",
+    "MATERIAL_IMPORT",
+  ],
+  Inventory: [
+    "STOCK_VIEW",
+    "GRN_CREATE",
+    "SITE_REQUEST_CREATE",
+    "TRANSFER_VIEW",
+    "TRANSFER_CREATE",
+    "MATERIAL_ISSUE_CREATE",
+    "STOCK_AUDIT",
+  ],
   Purchase: [
     "VIEW_PURCHASE_ORDERS",
     "MANAGE_PURCHASE_ORDERS",
@@ -53,7 +99,12 @@ const SECTION_PERMISSION_RULES = {
 };
 
 const ITEM_PERMISSION_RULES = {
-  "/inventory/movement-tracker": ["TRANSFER_VIEW", "TRANSFER_CREATE", "TRANSFER_DISPATCH", "TRANSFER_RECEIVE"],
+  "/inventory/movement-tracker": [
+    "TRANSFER_VIEW",
+    "TRANSFER_CREATE",
+    "TRANSFER_DISPATCH",
+    "TRANSFER_RECEIVE",
+  ],
   "/": ["ACCESS_DASHBOARD"],
   "/home": ["ACCESS_DASHBOARD"],
   "/home/master-dashboard": ["ACCESS_DASHBOARD"],
@@ -76,17 +127,41 @@ const ITEM_PERMISSION_RULES = {
     "PROCESS_STORE_BILL_EXCHANGE",
     "APPROVE_STORE_BILL_EXCHANGE",
   ],
-  "/catalog": ["MATERIAL_VIEW", "MATERIAL_CREATE", "MATERIAL_EDIT", "MATERIAL_IMPORT"],
-  "/inventory": ["STOCK_VIEW", "GRN_CREATE", "SITE_REQUEST_CREATE", "TRANSFER_VIEW", "MATERIAL_ISSUE_CREATE", "STOCK_AUDIT"],
-  "/inventory/hub": ["STOCK_VIEW", "GRN_CREATE", "TRANSFER_VIEW", "SITE_REQUEST_CREATE"],
-  "/inventory/ops": ["STOCK_VIEW", "STOCK_ADJUST", "STOCK_AUDIT"],
-  "/inventory/stockin": ["STOCK_VIEW", "GRN_CREATE", "GRN_APPROVE"],
-  "/inventory/stockout": ["STOCK_VIEW", "MATERIAL_ISSUE_CREATE", "MATERIAL_RETURN_CREATE"],
-  "/inventory/stocktransfer": ["TRANSFER_VIEW", "TRANSFER_CREATE", "TRANSFER_APPROVE", "TRANSFER_DISPATCH", "TRANSFER_RECEIVE"],
-  "/inventory/stockvalidation": [
+  "/catalog": [
+    "MATERIAL_VIEW",
+    "MATERIAL_CREATE",
+    "MATERIAL_EDIT",
+    "MATERIAL_IMPORT",
+  ],
+  "/inventory": [
     "STOCK_VIEW",
+    "GRN_CREATE",
+    "SITE_REQUEST_CREATE",
+    "TRANSFER_VIEW",
+    "MATERIAL_ISSUE_CREATE",
     "STOCK_AUDIT",
   ],
+  "/inventory/hub": [
+    "STOCK_VIEW",
+    "GRN_CREATE",
+    "TRANSFER_VIEW",
+    "SITE_REQUEST_CREATE",
+  ],
+  "/inventory/ops": ["STOCK_VIEW", "STOCK_ADJUST", "STOCK_AUDIT"],
+  "/inventory/stockin": ["STOCK_VIEW", "GRN_CREATE", "GRN_APPROVE"],
+  "/inventory/stockout": [
+    "STOCK_VIEW",
+    "MATERIAL_ISSUE_CREATE",
+    "MATERIAL_RETURN_CREATE",
+  ],
+  "/inventory/stocktransfer": [
+    "TRANSFER_VIEW",
+    "TRANSFER_CREATE",
+    "TRANSFER_APPROVE",
+    "TRANSFER_DISPATCH",
+    "TRANSFER_RECEIVE",
+  ],
+  "/inventory/stockvalidation": ["STOCK_VIEW", "STOCK_AUDIT"],
   "/inventory/stockrequisition": [
     "SITE_REQUEST_CREATE",
     "SITE_REQUEST_APPROVE",
@@ -150,9 +225,7 @@ const ITEM_PERMISSION_RULES = {
     "VIEW_STORE_REPORTS",
     "VIEW_FINANCIAL_REPORTS",
   ],
-  "/reports/accounting/store-wise-tax-breakup": [
-    "VIEW_TAX_WISE_REPORTS",
-  ],
+  "/reports/accounting/store-wise-tax-breakup": ["VIEW_TAX_WISE_REPORTS"],
   "/purchase/quotations": [
     "VIEW_PURCHASE_ORDERS",
     "MANAGE_PURCHASE_ORDERS",
@@ -211,15 +284,28 @@ const ITEM_PERMISSION_RULES = {
   "/admin/assistant": ["*"],
   "/admin/recycle-bin": ["MANAGE_RECYCLE_BIN"],
   "/customer": ["MANAGE_CUSTOMERS", "VIEW_CUSTOMERS"],
-  "/reports": ["VIEW_FINANCIAL_REPORTS", "VIEW_STORE_REPORTS", "VIEW_TAX_WISE_REPORTS"],
+  "/reports": [
+    "VIEW_FINANCIAL_REPORTS",
+    "VIEW_STORE_REPORTS",
+    "VIEW_TAX_WISE_REPORTS",
+  ],
   "/employee": ["TEAM_VIEW", "TEAM_MANAGE", "ROLE_MANAGE"],
   "/employee/staffdepartments": ["TEAM_VIEW", "TEAM_MANAGE"],
   "/employee/staff": ["TEAM_VIEW", "TEAM_MANAGE"],
   "/employee/user-counter-session": ["OPEN_CLOSE_SESSION"],
   "/settings": ["PROJECT_VIEW", "SITE_VIEW", "WAREHOUSE_VIEW", "MATERIAL_VIEW"],
   "/settings/stores": ["SITE_VIEW", "SITE_CREATE", "SITE_EDIT"],
-  "/settings/warehouses": ["WAREHOUSE_VIEW", "WAREHOUSE_CREATE", "WAREHOUSE_EDIT"],
-  "/settings/regions": ["PROJECT_VIEW", "PROJECT_EDIT", "SITE_VIEW", "SITE_EDIT"],
+  "/settings/warehouses": [
+    "WAREHOUSE_VIEW",
+    "WAREHOUSE_CREATE",
+    "WAREHOUSE_EDIT",
+  ],
+  "/settings/regions": [
+    "PROJECT_VIEW",
+    "PROJECT_EDIT",
+    "SITE_VIEW",
+    "SITE_EDIT",
+  ],
   "/settings/device-config/store-device-map": ["MANAGE_STORES"],
   "/settings/device-config/application-device-settings": ["MANAGE_STORES"],
   "/settings/device-config/device-sync-logs": ["MANAGE_STORES"],
@@ -259,7 +345,17 @@ const ROUTE_PERMISSION_RULES = [
   { prefix: "/login", permissions: [] },
   { prefix: "/home/master-dashboard", permissions: ["ACCESS_DASHBOARD"] },
   { prefix: "/home", permissions: ["ACCESS_DASHBOARD"] },
-  { prefix: "/construction", permissions: ["PROJECT_VIEW", "PROJECT_CREATE", "PROJECT_EDIT", "SITE_VIEW", "SITE_CREATE", "SITE_EDIT"] },
+  {
+    prefix: "/construction",
+    permissions: [
+      "PROJECT_VIEW",
+      "PROJECT_CREATE",
+      "PROJECT_EDIT",
+      "SITE_VIEW",
+      "SITE_CREATE",
+      "SITE_EDIT",
+    ],
+  },
   { prefix: "/delivery", permissions: ["MANAGE_DELIVERIES"] },
   { prefix: "/sales/pos", permissions: ["CREATE_POS_BILL"] },
   {
@@ -293,21 +389,22 @@ const ROUTE_PERMISSION_RULES = [
     prefix: "/sales",
     permissions: ["CREATE_POS_BILL", "MANAGE_ORDERS", "VIEW_ORDERS"],
   },
-  { prefix: "/catalog", permissions: ["MATERIAL_VIEW", "MATERIAL_CREATE", "MATERIAL_EDIT", "MATERIAL_IMPORT"] },
   {
-    prefix: "/inventory/stockvalidation",
+    prefix: "/catalog",
     permissions: [
-      "STOCK_VIEW",
-      "STOCK_AUDIT",
+      "MATERIAL_VIEW",
+      "MATERIAL_CREATE",
+      "MATERIAL_EDIT",
+      "MATERIAL_IMPORT",
     ],
   },
   {
+    prefix: "/inventory/stockvalidation",
+    permissions: ["STOCK_VIEW", "STOCK_AUDIT"],
+  },
+  {
     prefix: "/inventory/stockrequisition",
-    permissions: [
-      "SITE_REQUEST_CREATE",
-      "SITE_REQUEST_APPROVE",
-      "STOCK_VIEW",
-    ],
+    permissions: ["SITE_REQUEST_CREATE", "SITE_REQUEST_APPROVE", "STOCK_VIEW"],
   },
   {
     prefix: "/inventory/expiry-alerts",
@@ -396,7 +493,10 @@ const ROUTE_PERMISSION_RULES = [
     prefix: "/employee",
     permissions: ["TEAM_VIEW", "TEAM_MANAGE", "ROLE_MANAGE"],
   },
-  { prefix: "/settings/stores", permissions: ["SITE_VIEW", "SITE_CREATE", "SITE_EDIT"] },
+  {
+    prefix: "/settings/stores",
+    permissions: ["SITE_VIEW", "SITE_CREATE", "SITE_EDIT"],
+  },
   {
     prefix: "/settings/warehouses",
     permissions: ["WAREHOUSE_VIEW", "WAREHOUSE_CREATE", "WAREHOUSE_EDIT"],
@@ -424,7 +524,12 @@ const ROUTE_PERMISSION_RULES = [
   { prefix: "/settings/store-payment-modes", permissions: ["MANAGE_PAYMENTS"] },
   {
     prefix: "/settings",
-    permissions: ["PROJECT_VIEW", "SITE_VIEW", "WAREHOUSE_VIEW", "MATERIAL_VIEW"],
+    permissions: [
+      "PROJECT_VIEW",
+      "SITE_VIEW",
+      "WAREHOUSE_VIEW",
+      "MATERIAL_VIEW",
+    ],
   },
   { prefix: "/customer", permissions: ["MANAGE_CUSTOMERS", "VIEW_CUSTOMERS"] },
   { prefix: "/reports", permissions: ["REPORT_VIEW", "AUDIT_LOG_VIEW"] },
@@ -540,10 +645,11 @@ export function getDefaultRouteForUser(user) {
   // Return based on role
   const rolePath = ROLE_HOME_PATHS[user?.role];
   if (rolePath) return rolePath;
-  return "/home";
+  return "/construction/projects";
 }
 
 export function canAccessPath(user, pathname) {
+  if (isConstructionHiddenRoute(pathname)) return false;
   if (isSuperAdmin(user)) return true;
 
   const rule = getMatchingRouteRule(pathname);

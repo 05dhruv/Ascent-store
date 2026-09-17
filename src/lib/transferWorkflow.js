@@ -23,8 +23,25 @@ export async function transferAction(client, transfer, action, body, user) {
   if (Number(transfer.source_id) === Number(transfer.destination_id)) throw new Error('Source and destination must be different');
   const items = (await client.query('SELECT * FROM stock_transfer_items WHERE stock_transfer_id=$1 ORDER BY id FOR UPDATE', [id])).rows;
   if (!items.length) throw new Error('Transfer has no items');
-  const details = { requestSignature:requestSignature(body), remarks: body.remarks || '', evidence: body.evidence || '', actorName: user.name || '', ...(['dispatch'].includes(action) ? { vehicle: body.vehicle, challan: body.challan, transporter: body.transporter, driver: body.driver, eta: body.eta } : {}) };
   let state = transfer.workflow_status;
+  // The normal construction flow is deliberately kept to three visible steps:
+  // request, approve-and-dispatch, and site receipt. We retain the individual
+  // events internally so reservations and audit history stay intact.
+  if (action === 'approve_dispatch') {
+    if (state !== 'submitted') throw new Error('Only submitted transfers can be approved and dispatched');
+    if (requestKey.length > 90) throw new Error('Request identifier is too long');
+    await transferAction(client, transfer, 'approve', { ...body, requestKey: `${requestKey}:approve` }, user);
+    const approved = (await client.query('SELECT * FROM stock_transfer WHERE id=$1 FOR UPDATE', [id])).rows[0];
+    await transferAction(client, approved, 'pick', { ...body, requestKey: `${requestKey}:pick` }, user);
+    const picked = (await client.query('SELECT * FROM stock_transfer WHERE id=$1 FOR UPDATE', [id])).rows[0];
+    const result = await transferAction(client, picked, 'dispatch', { ...body, requestKey: `${requestKey}:dispatch` }, user);
+    await recordEvent(client, id, action, user.id, requestKey, {
+      requestSignature: requestSignature(body), remarks: body.remarks || '', evidence: body.evidence || '',
+      actorName: user.name || '', vehicle: body.vehicle, challan: body.challan, eta: body.eta,
+    });
+    return result;
+  }
+  const details = { requestSignature:requestSignature(body), remarks: body.remarks || '', evidence: body.evidence || '', actorName: user.name || '', ...(['dispatch'].includes(action) ? { vehicle: body.vehicle, challan: body.challan, transporter: body.transporter, driver: body.driver, eta: body.eta } : {}) };
   if (action === 'approve') {
     if (state !== 'submitted') throw new Error('Only submitted transfers can be approved');
     // Lock batches in deterministic product order. Other allocations share these locks.

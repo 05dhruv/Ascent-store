@@ -9,6 +9,7 @@ import { auditLog, requireAuth, requirePermission } from "@/lib/api-protection";
 import { setRecycleBinContext } from "@/lib/recycleBin";
 import { ensureProductDiscountSchema } from "@/lib/productDiscountSchema";
 import { ensureProductImageSchema } from "@/lib/productImageSchema";
+import { ensureProductDimensionsSchema } from "@/lib/productDimensionsSchema";
 import { validatePriceSet } from "@/lib/priceIntegrity";
 import { ensureInventoryBatchSchema } from "@/lib/inventoryBatching";
 import { ensureStockInSchema } from "@/lib/stockInSchema";
@@ -25,12 +26,55 @@ function duplicateProductMessage(error) {
   return "A product with one of these unique identifiers already exists";
 }
 
+const VALID_UNITS = [
+  "PCS",
+  "BAGS",
+  "KG",
+  "TONNE",
+  "MTR",
+  "RFT",
+  "SQFT",
+  "SQMT",
+  "CUM",
+  "CFT",
+  "LTR",
+  "BUNDLE",
+  "BOX",
+  "GRAMS",
+  "NOS",
+  "SET",
+  "COIL",
+  "ROLL",
+  "PKT",
+  "TRIP",
+  "BRASS",
+];
+
 function normalizeUnit(value) {
   const unit = String(value || "PCS")
     .trim()
     .toUpperCase();
   if (["G", "GM", "GRAM", "GRAMS"].includes(unit)) return "GRAMS";
-  return ["PCS", "KG", "GRAMS", "LTR"].includes(unit) ? unit : "PCS";
+  if (["BAG", "BAGS"].includes(unit)) return "BAGS";
+  if (["TON", "TONS", "TONNE", "TONNES", "MT"].includes(unit)) return "TONNE";
+  if (["METER", "METRE", "METERS", "MTR", "M"].includes(unit)) return "MTR";
+  if (["RFT", "RUNNING FEET", "RUNNING FOOT", "RMT"].includes(unit)) return "RFT";
+  if (["SQFT", "SQ.FT", "SQ FT", "SFT"].includes(unit)) return "SQFT";
+  if (["SQMT", "SQM", "SQ.MTR", "SQ MTR"].includes(unit)) return "SQMT";
+  if (["CUM", "CU.M", "CUBIC METER", "CUBIC METRE"].includes(unit)) return "CUM";
+  if (["CFT", "CU.FT", "CUBIC FEET"].includes(unit)) return "CFT";
+  if (["L", "LTR", "LITRE", "LITER", "LITRES"].includes(unit)) return "LTR";
+  if (["BUNDLE", "BDL", "BUNDLES"].includes(unit)) return "BUNDLE";
+  if (["BOX", "BOXES", "CTN", "CARTON"].includes(unit)) return "BOX";
+  if (["NO", "NOS", "NUMBERS", "PIECE", "PIECES"].includes(unit)) return "NOS";
+  if (["SET", "SETS"].includes(unit)) return "SET";
+  if (["COIL", "COILS"].includes(unit)) return "COIL";
+  if (["ROLL", "ROLLS"].includes(unit)) return "ROLL";
+  if (["PKT", "PACKET", "PACK"].includes(unit)) return "PKT";
+  if (["TRIP", "TRIPS"].includes(unit)) return "TRIP";
+  if (["BRASS"].includes(unit)) return "BRASS";
+
+  return VALID_UNITS.includes(unit) ? unit : "PCS";
 }
 
 function normalizeStockItemType(value) {
@@ -75,6 +119,7 @@ const SELECT_PRODUCT = `
   SELECT
     p.id, p.product_id, p.name, p.description, p.barcode, p.sku,
     p.mrp, p.selling_price, p.cost_price, p.unit,
+    p.length, p.width, p.height, p.dimension_unit, p.dimensions, p.weight_per_unit,
     p.is_active, p.is_service, p.image_url, p.allow_discount_on_pos, p.include_tax,
     p.stock_item_type, p.inventory_method, p.hsn_code, p.charge_id,
     COALESCE(p.category_id, b.category_id) AS category_id,
@@ -103,6 +148,7 @@ const SELECT_PRODUCT = `
 // ─── GET /api/catalog/products/[id] ──────────────────────────
 export async function GET(request, { params }) {
   try {
+    await ensureProductDimensionsSchema();
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
     const permissionCheck = requirePermission(auth.user, "MATERIAL_VIEW", "MATERIAL_EDIT");
@@ -117,11 +163,7 @@ export async function GET(request, { params }) {
       productId,
     ]);
     if (!result.rows.length) return notFoundError("Product not found");
-    // The product record itself must remain editable even if legacy batch data
-    // cannot be read. Previously an invalid/old batch row (or a schema
-    // migration lock) made this whole endpoint return 500 and the UI sent the
-    // user back to the list. Batch Management is supplementary information,
-    // so load it independently after the master product has been found.
+
     let batches = [];
     let batchLoadWarning = "";
     try {
@@ -200,7 +242,6 @@ export async function GET(request, { params }) {
       );
       batches = batchResult.rows;
     } catch (batchError) {
-      // Keep the edit page usable and leave an actionable server-side trace.
       console.error(`Unable to load batches for product ${productId}:`, batchError);
       batchLoadWarning =
         "Batch information could not be loaded for this product. You can still edit and save its product details.";
@@ -215,6 +256,7 @@ export async function GET(request, { params }) {
 // ─── PUT /api/catalog/products/[id] ──────────────────────────
 export async function PUT(request, { params }) {
   try {
+    await ensureProductDimensionsSchema();
     await ensureProductDiscountSchema();
     await ensureProductImageSchema();
     const auth = await requireAuth(request);
@@ -239,9 +281,7 @@ export async function PUT(request, { params }) {
     if (!body.name?.trim()) {
       return validationError({ name: "Product name is required" });
     }
-    // A product image/details save sends the complete edit form too. Existing
-    // legacy prices must not block an unrelated image-only edit; validate when
-    // the user is actually changing any price value.
+
     const nextPrices = {
       mrp: body.mrp ?? previous.mrp,
       sellingPrice: body.selling_price ?? previous.selling_price,
@@ -282,17 +322,23 @@ export async function PUT(request, { params }) {
         selling_price   = $14,
         cost_price      = $15,
         unit            = $16,
-        is_active       = $17,
-        is_service      = $18,
-        image_url       = $19,
-        allow_discount_on_pos = $20,
-        include_tax     = $21,
-        stock_item_type = $22,
-        inventory_method = $23,
-        hsn_code        = $24,
-        charge_id       = $25,
+        length          = $17,
+        width           = $18,
+        height          = $19,
+        dimension_unit  = $20,
+        dimensions      = $21,
+        weight_per_unit = $22,
+        is_active       = $23,
+        is_service      = $24,
+        image_url       = $25,
+        allow_discount_on_pos = $26,
+        include_tax     = $27,
+        stock_item_type = $28,
+        inventory_method = $29,
+        hsn_code        = $30,
+        charge_id       = $31,
         updated_at      = NOW()
-       WHERE id = $26
+       WHERE id = $32
        RETURNING *`,
       [
         body.product_id || null,
@@ -311,6 +357,12 @@ export async function PUT(request, { params }) {
         body.selling_price || 0,
         body.cost_price || 0,
         normalizeUnit(body.unit),
+        body.length ? Number(body.length) : null,
+        body.width ? Number(body.width) : null,
+        body.height ? Number(body.height) : null,
+        body.dimension_unit ? String(body.dimension_unit).trim().toUpperCase() : "MM",
+        body.dimensions?.trim() || null,
+        body.weight_per_unit ? Number(body.weight_per_unit) : null,
         body.is_active ?? true,
         body.is_service ?? false,
         body.image_url || null,

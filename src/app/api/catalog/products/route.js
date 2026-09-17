@@ -13,6 +13,7 @@ import {
 } from "@/lib/inventoryBatching";
 import { ensureProductDiscountSchema } from "@/lib/productDiscountSchema";
 import { ensureProductImageSchema } from "@/lib/productImageSchema";
+import { ensureProductDimensionsSchema } from "@/lib/productDimensionsSchema";
 import {
   getAssignedStoreIds,
   requireAuth,
@@ -33,12 +34,55 @@ function duplicateProductMessage(error) {
   return "A product with one of these unique identifiers already exists";
 }
 
+const VALID_UNITS = [
+  "PCS",
+  "BAGS",
+  "KG",
+  "TONNE",
+  "MTR",
+  "RFT",
+  "SQFT",
+  "SQMT",
+  "CUM",
+  "CFT",
+  "LTR",
+  "BUNDLE",
+  "BOX",
+  "GRAMS",
+  "NOS",
+  "SET",
+  "COIL",
+  "ROLL",
+  "PKT",
+  "TRIP",
+  "BRASS",
+];
+
 function normalizeUnit(value) {
   const unit = String(value || "PCS")
     .trim()
     .toUpperCase();
   if (["G", "GM", "GRAM", "GRAMS"].includes(unit)) return "GRAMS";
-  return ["PCS", "KG", "GRAMS", "LTR"].includes(unit) ? unit : "PCS";
+  if (["BAG", "BAGS"].includes(unit)) return "BAGS";
+  if (["TON", "TONS", "TONNE", "TONNES", "MT"].includes(unit)) return "TONNE";
+  if (["METER", "METRE", "METERS", "MTR", "M"].includes(unit)) return "MTR";
+  if (["RFT", "RUNNING FEET", "RUNNING FOOT", "RMT"].includes(unit)) return "RFT";
+  if (["SQFT", "SQ.FT", "SQ FT", "SFT"].includes(unit)) return "SQFT";
+  if (["SQMT", "SQM", "SQ.MTR", "SQ MTR"].includes(unit)) return "SQMT";
+  if (["CUM", "CU.M", "CUBIC METER", "CUBIC METRE"].includes(unit)) return "CUM";
+  if (["CFT", "CU.FT", "CUBIC FEET"].includes(unit)) return "CFT";
+  if (["L", "LTR", "LITRE", "LITER", "LITRES"].includes(unit)) return "LTR";
+  if (["BUNDLE", "BDL", "BUNDLES"].includes(unit)) return "BUNDLE";
+  if (["BOX", "BOXES", "CTN", "CARTON"].includes(unit)) return "BOX";
+  if (["NO", "NOS", "NUMBERS", "PIECE", "PIECES"].includes(unit)) return "NOS";
+  if (["SET", "SETS"].includes(unit)) return "SET";
+  if (["COIL", "COILS"].includes(unit)) return "COIL";
+  if (["ROLL", "ROLLS"].includes(unit)) return "ROLL";
+  if (["PKT", "PACKET", "PACK"].includes(unit)) return "PKT";
+  if (["TRIP", "TRIPS"].includes(unit)) return "TRIP";
+  if (["BRASS"].includes(unit)) return "BRASS";
+
+  return VALID_UNITS.includes(unit) ? unit : "PCS";
 }
 
 function normalizeLegacyGramPrices(row) {
@@ -75,10 +119,6 @@ function resolveInventoryUnit(row) {
     row.max_selling_price || row.selling_price || 0,
   );
 
-  // Older loose-stock imports did not snapshot their transaction unit and a
-  // few product masters were consequently left as PCS.  A large active stock
-  // with sub-rupee batch prices is unambiguous per-gram inventory evidence.
-  // Keep ordinary packaged products on their explicitly saved master unit.
   const isLegacyLooseGramStock =
     masterUnit === "PCS" &&
     activeBatches > 0 &&
@@ -144,6 +184,7 @@ export async function GET(request) {
       ensureSalesBillingSchema(),
       ensureInventoryBatchSchema(),
       ensureProductImageSchema(),
+      ensureProductDimensionsSchema(),
     ]);
 
     await ensureProductDiscountSchema();
@@ -227,8 +268,6 @@ export async function GET(request) {
           `EXISTS (SELECT 1 FROM product_saleability ps_scope WHERE ps_scope.product_id = p.id AND ps_scope.store_id = $${i} AND ps_scope.is_active = TRUE)`,
         );
       } else {
-        // Keep the store parameter referenced in the count query while allowing
-        // promotion lookups to search the complete product master.
         conditions.push(`$${i}::bigint IS NOT NULL`);
       }
       params.push(requestedStoreId);
@@ -252,9 +291,6 @@ export async function GET(request) {
     if (requestedWarehouseId) {
       const warehouseCheck = requireStore(auth.user, requestedWarehouseId);
       if (warehouseCheck.error) return warehouseCheck.error;
-      // Keep the warehouse parameter part of the main product predicate too.
-      // The count query uses this predicate, while the stock aggregation below
-      // uses the same placeholder to calculate the displayed stock.
       conditions.push(
         `(p.id IN (SELECT ib_scope.product_id FROM inventory_batches ib_scope WHERE ib_scope.store_id = $${i} AND ib_scope.status = 'active' AND ib_scope.available_qty > 0))`,
       );
@@ -265,7 +301,7 @@ export async function GET(request) {
 
     if (search) {
       conditions.push(
-        `(p.name ILIKE $${i} OR p.barcode ILIKE $${i} OR p.sku ILIKE $${i} OR p.product_id ILIKE $${i})`,
+        `(p.name ILIKE $${i} OR p.barcode ILIKE $${i} OR p.sku ILIKE $${i} OR p.product_id ILIKE $${i} OR p.dimensions ILIKE $${i})`,
       );
       params.push(`%${search}%`);
       i++;
@@ -304,9 +340,7 @@ export async function GET(request) {
 
     const paginationSql = returnAll ? "" : `LIMIT $${i} OFFSET $${i + 1}`;
     const queryParams = returnAll ? params : [...params, pageSize, offset];
-    // Store-specific assignments are an explicit pricing fallback. Batch
-    // prices remain the primary source because transfers snapshot the actual
-    // price that applies at the destination location.
+
     const storeAssignmentJoin = `LEFT JOIN product_saleability ps_store
            ON ps_store.product_id = p.id
           AND ps_store.store_id = ${requestedStoreId || 0}
@@ -322,6 +356,7 @@ export async function GET(request) {
         COALESCE(NULLIF(latest_store_batch.selling_price, 0), NULLIF(batch_agg.min_selling_price, 0), NULLIF(ps_store.selling_price, 0), p.selling_price, 0) AS selling_price,
         COALESCE(NULLIF(latest_store_batch.cost_price, 0), NULLIF(batch_agg.min_cost_price, 0), NULLIF(batch_agg.stock_cost / NULLIF(batch_agg.qty, 0), 0), NULLIF(ps_store.franchise_cost, 0), p.cost_price, 0) AS cost_price,
         p.unit,
+        p.length, p.width, p.height, p.dimension_unit, p.dimensions, p.weight_per_unit,
         p.is_active, p.is_service, p.image_url, p.allow_discount_on_pos, p.include_tax,
         p.stock_item_type, p.inventory_method, p.hsn_code, p.charge_id,
         p.created_at, p.updated_at,
@@ -418,10 +453,14 @@ export async function GET(request) {
 // ─── POST /api/catalog/products ──────────────────────────────
 export async function POST(request) {
   try {
-    await ensureStockInSchema();
-    await ensureInventoryBatchSchema();
-    await ensureProductDiscountSchema();
-    await ensureProductImageSchema();
+    await Promise.allSettled([
+      ensureStockInSchema(),
+      ensureInventoryBatchSchema(),
+      ensureProductDiscountSchema(),
+      ensureProductImageSchema(),
+      ensureProductDimensionsSchema(),
+    ]);
+
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
@@ -460,6 +499,7 @@ export async function POST(request) {
           category_id, sub_category_id, brand_id, manufacturer_id,
           department_id, income_head_id, tax_id,
           mrp, selling_price, cost_price, unit,
+          length, width, height, dimension_unit, dimensions, weight_per_unit,
           is_active, is_service, image_url, allow_discount_on_pos, include_tax,
           stock_item_type, inventory_method, hsn_code, charge_id
         ) VALUES (
@@ -467,8 +507,9 @@ export async function POST(request) {
           $6, $7, $8, $9,
           $10, $11, $12,
           $13, $14, $15, COALESCE($16, 'PCS'),
-          COALESCE($17, true), COALESCE($18, false), $19, COALESCE($20, false), COALESCE($21, false),
-          $22, $23, $24, $25
+          $17, $18, $19, COALESCE($20, 'MM'), $21, $22,
+          COALESCE($23, true), COALESCE($24, false), $25, COALESCE($26, false), COALESCE($27, false),
+          $28, $29, $30, $31
         ) RETURNING *`,
         [
           body.product_id || null,
@@ -487,6 +528,12 @@ export async function POST(request) {
           body.selling_price || 0,
           body.cost_price || 0,
           normalizeUnit(body.unit),
+          body.length ? Number(body.length) : null,
+          body.width ? Number(body.width) : null,
+          body.height ? Number(body.height) : null,
+          body.dimension_unit ? String(body.dimension_unit).trim().toUpperCase() : "MM",
+          body.dimensions?.trim() || null,
+          body.weight_per_unit ? Number(body.weight_per_unit) : null,
           body.is_active ?? true,
           body.is_service ?? false,
           body.image_url || null,

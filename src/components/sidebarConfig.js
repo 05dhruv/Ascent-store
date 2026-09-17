@@ -17,6 +17,7 @@ export const menuItems = [
           icon: "ti-building",
           items: [
             { label: "Projects & Sites", href: "/construction/projects" },
+            { label: "BOQ & Project Controls", href: "/construction/controls" },
             { label: "Site Stores", href: "/construction/projects?view=sites" },
             { label: "Warehouses", href: "/settings/warehouses" },
             { label: "Project Team", href: "/employee/staff" },
@@ -68,7 +69,10 @@ export const menuItems = [
             { label: "Purchase Orders", href: "/purchase/purchase-orders" },
             { label: "Quotation Comparison", href: "/purchase/quotations" },
             { label: "Material Receipt (GRN)", href: "/purchase/grn" },
-            { label: "Margin / Price Approvals", href: "/purchase/margin-approvals" },
+            {
+              label: "Margin / Price Approvals",
+              href: "/purchase/margin-approvals",
+            },
             { label: "Supplier Returns", href: "/purchase/returns" },
             { label: "Supplier Invoices", href: "/purchase/vendor-invoices" },
             { label: "Supplier Ledger", href: "/purchase/vendor-ledger" },

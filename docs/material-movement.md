@@ -4,12 +4,9 @@ Open **Inventory → Material Movement / Receipts** (`/inventory/movement-tracke
 
 ## Transfer
 
-1. Create a transfer using the existing item/bulk-entry screen. **Submit Transfer** saves the request without moving stock. Pricing holds require explicit resubmission after approval; opening a list never posts stock.
-2. At the movement tracker, **Approve & reserve** blocks stock against the request. Core FIFO/FEFO allocation excludes reserved quantities.
-3. Enter packing-proof reference and **Confirm picking**.
-4. Enter actual dispatch quantities, vehicle, challan, expected arrival and dispatch proof. **Dispatch material** deducts source stock and releases unused reservation. Destination stock remains unchanged.
-5. The assigned destination user enters incremental received, accepted, damaged, rejected and final-short quantities, with acknowledgement/proof. A later delivery stays pending; it should not be recorded as short.
-6. Accepted quantity is usable. Damaged/rejected stock is isolated. Short/excess/damaged/rejected receipts open cases. Source-authorized users resolve cases with reason/evidence. All pending quantities and cases must be settled before closure.
+1. Create a transfer using the item-entry screen. **Submit Transfer** saves the request without moving stock.
+2. The warehouse user enters dispatch quantities, vehicle, challan, expected arrival and proof, then selects **Approve & dispatch to site**. The system reserves stock, records the packing event and dispatches in one controlled action. Destination stock remains unchanged until the site confirms receipt.
+3. The assigned site user confirms received and accepted quantities. Damaged, rejected, short and excess quantities are entered only when there is an issue. Accepted quantity becomes usable site stock; issue quantities open a case for follow-up.
 
 Excess requires a source approval event before receipt. Enter per-line excess on the tracker, add explanation and approve it. The receiver selects the available approval from the receipt screen; each approval is single-use. Resolution records the investigation/claim; it does not automatically make damaged goods usable.
 

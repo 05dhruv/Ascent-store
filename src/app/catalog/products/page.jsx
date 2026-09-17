@@ -23,19 +23,21 @@ const columns = [
   { key: "sno", label: "S. No.", sortable: true },
   { key: "image", label: "Image", sortable: false },
   { key: "name", label: "Material Name", sortable: true },
-  { key: "barcode", label: "Barcode", sortable: true },
-  { key: "category", label: "Category", sortable: true },
-  { key: "brand", label: "Brand", sortable: true },
+  { key: "dimensions", label: "Dimensions / Spec", sortable: true },
+  { key: "unit", label: "Unit", sortable: true },
+  { key: "barcode", label: "Material Code / Barcode (Opt)", sortable: true },
+  { key: "category", label: "Material Category", sortable: true },
+  { key: "brand", label: "Make / Brand", sortable: true },
   { key: "hsn", label: "HSN / SAC", sortable: true },
   { key: "gst", label: "GST", sortable: true },
-  { key: "mrp", label: "Reference Rate", sortable: true },
-  { key: "costPrice", label: "Cost Price", sortable: true },
-  { key: "sellingPrice", label: "Issue Rate", sortable: true },
-  { key: "stock", label: "Stock", sortable: true },
+  { key: "mrp", label: "Reference Rate (₹)", sortable: true },
+  { key: "costPrice", label: "Est. Purchase Rate (₹)", sortable: true },
+  { key: "sellingPrice", label: "Issue Rate (₹)", sortable: true },
+  { key: "stock", label: "Current Stock", sortable: true },
 ];
 
 const UNIT_OPTIONS = [
-  "PCS", "NOS", "BAG", "KG", "MT", "CUM", "CFT", "MTR", "SQM", "RMT", "LTR", "SET", "ROLL",
+  "PCS", "BAGS", "KG", "TONNE", "MTR", "RFT", "SQFT", "SQMT", "CUM", "CFT", "LTR", "BUNDLE", "BOX", "GRAMS", "NOS", "SET", "COIL", "ROLL", "PKT", "TRIP", "BRASS"
 ];
 const INVENTORY_METHOD_OPTIONS = ["direct", "indirect"];
 const STOCK_ITEM_TYPE_OPTIONS = ["unbatched", "batched"];
@@ -58,28 +60,29 @@ const MATERIAL_MASTER_TEMPLATE_HEADERS = [
   "Supplier / Internal SKU",
   "Remarks",
 ];
+
 const BULK_EDIT_HEADERS = [
-  "Product ID",
-  "Product Name",
+  "Material ID",
+  "Material Name",
   "Description",
   "Image URL",
-  "Barcode",
+  "Material Code / Barcode",
   "SKU",
   "Brand ID",
-  "Brand",
+  "Make / Brand",
   "Category ID",
   "Category",
   "Department ID",
   "Department",
   "Tax ID",
   "Tax",
-  "MRP",
-  "Cost Price",
-  "Selling Price",
+  "Reference Rate",
+  "Purchase Cost",
+  "Issue Rate",
   "Unit",
   "Status",
   "Price Includes Tax",
-  "Allow Discount On POS",
+  "Require Rate Approval",
   "Inventory Method",
   "Stock Item Type",
 ];
@@ -157,8 +160,6 @@ function formatPriceRange(minimum, maximum, fallback) {
   const value = Number(fallback);
   const withPricePrecision = (price) =>
     Number.isFinite(price) ? price.toFixed(5) : "0.00000";
-  // PostgreSQL returns null when a product has no active batch. Number(null)
-  // becomes 0 in JavaScript, which must not override product-master pricing.
   if (!(hasPriceRange && min > 0 && max > 0)) {
     return `${String.fromCharCode(8377)}${withPricePrecision(value)}`;
   }
@@ -1594,6 +1595,7 @@ export default function ProductsPage() {
             </div>
           ),
           name: record.name,
+          dimensions: record.dimensions || (record.length && record.width ? `${record.length}×${record.width}${record.height ? `×${record.height}` : ""} ${record.dimension_unit || "MM"}` : "—"),
           barcode: record.barcode || "—",
           category: record.category_name || "—",
           brand: record.brand_name || "—",

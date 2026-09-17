@@ -78,6 +78,25 @@ export async function ensureUsersTable() {
       }
 
       const passwordHash = await bcrypt.hash(SUPER_ADMIN_PASSWORD, 10);
+
+      // A configured bootstrap account may be absent from an older database while
+      // its configured phone number is already assigned to a real employee. Do
+      // not make every sign-in fail in that case: existing users can still sign
+      // in, and the administrator can correct the bootstrap configuration later.
+      if (existingSuperAdmin.rows.length === 0) {
+        const phoneOwner = await query(
+          `SELECT id FROM users WHERE phone = $1 LIMIT 1`,
+          [superAdminPhone]
+        );
+
+        if (phoneOwner.rows.length > 0) {
+          console.warn(
+            '[AUTH] Default super-admin was not created because SUPER_ADMIN_PHONE is already assigned to an existing user.'
+          );
+          return;
+        }
+      }
+
       await query(
         `INSERT INTO users (name, email, phone, password_hash, role, is_active, created_at, updated_at)
          VALUES ($1, $2, $3, $4, 'super_admin', TRUE, NOW(), NOW())

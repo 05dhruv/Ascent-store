@@ -8,41 +8,41 @@ const STORE_INVENTORY_PERMISSIONS = ['VIEW_STORE_INVENTORY_DASHBOARD', 'VIEW_STO
 
 const baseStats = [
   { key: 'inventory_value_retail', label: 'On-hand value', note: 'Stock × price' },
-  { key: 'stockout_risk', label: 'Stockout risk', note: 'Low-stock SKUs' },
-  { key: 'low_moving', label: 'Low moving', note: 'Slow-moving SKUs' },
-  { key: 'total_products', label: 'Total SKUs', note: 'Live product count' },
+  { key: 'stockout_risk', label: 'Materials to replenish', note: 'Below reorder level' },
+  { key: 'low_moving', label: 'Low-use materials', note: 'Review before new purchase' },
+  { key: 'total_products', label: 'Materials available', note: 'Active material master records' },
 ];
 
 const insights = [
   {
-    title: 'Restock coach',
-    text: "We'll flag SKUs approaching reorder level once reorderLevel is set.",
-    button: 'Stock operations',
-    href: '/inventory/ops',
+    title: 'Need to procure?',
+    text: 'Review material shortages and create a purchase order only when warehouse stock is insufficient.',
+    button: 'Site requests',
+    href: '/inventory/stockrequisition',
   },
   {
-    title: 'Transfer suggestions',
-    text: 'Rebalance slow-moving stock between stores before it expires.',
-    button: 'Stock transfer',
+    title: 'Send material to site',
+    text: 'Approve a site request, then pick and dispatch the requested material from the warehouse.',
+    button: 'Transfer to site',
     href: '/inventory/stocktransfer',
   },
   {
-    title: 'Batch attention',
-    text: 'Short-shelf-life items flagged for first-in-first-out review.',
-    button: 'Expiring',
-    href: '/inventory/batches',
+    title: 'Track receipt and issue',
+    text: 'Confirm site receipt before issuing material for construction work.',
+    button: 'Movement tracker',
+    href: '/inventory/movement-tracker',
   },
 ];
 
 const cards = [
-  { title: 'Stock operations', text: 'Unified in/out/transfer/audit workspace.', href: '/inventory/ops' },
-  { title: 'Stock in', text: 'Receive stock with GRN and cost capture.', href: '/inventory/stockin' },
-  { title: 'Stock out', text: 'Record outgoing stock and wastage.', href: '/inventory/stockout' },
-  { title: 'Stock transfer', text: 'Move stock between stores or warehouses.', href: '/inventory/stocktransfer' },
-  { title: 'Purchase orders', text: 'Draft, approve, receive vendor POs.', href: '/purchase/purchase-orders' },
-  { title: 'Expiring batches', text: 'Batches approaching best-before.', href: '/inventory/batches' },
-  { title: 'Batches', text: 'Lot codes, expiry, batch-wise stock.', href: '/inventory/batches' },
-  { title: 'Vendors', text: 'Supplier list and vendor-specific catalog.', href: '/purchase/vendors' },
+  { title: '1. Receive at warehouse', text: 'Record supplier delivery through GRN.', href: '/inventory/stockin' },
+  { title: '2. Site material request', text: 'Site engineer requests approved materials.', href: '/inventory/stockrequisition' },
+  { title: '3. Dispatch to site', text: 'Pick, dispatch and track warehouse-to-site transfers.', href: '/inventory/stocktransfer' },
+  { title: '4. Receive / issue at site', text: 'Confirm receipt, then issue material for work.', href: '/inventory/stockout' },
+  { title: 'Material movement tracker', text: 'See all dispatches, receipts and discrepancies.', href: '/inventory/movement-tracker' },
+  { title: 'Purchase orders', text: 'Procure material when warehouse stock is short.', href: '/purchase/purchase-orders' },
+  { title: 'Material stock check', text: 'Verify physical warehouse and site stock.', href: '/inventory/stockvalidation' },
+  { title: 'Suppliers', text: 'Manage material suppliers and contractor vendors.', href: '/purchase/vendors' },
 ];
 
 export default function InventoryHubPage() {
@@ -277,8 +277,8 @@ export default function InventoryHubPage() {
   return (
     <InventoryShell
       breadcrumb={[{ label: 'Home' }, { label: 'Inventory' }]}
-      title="Inventory"
-      subtitle="Stock on hand, purchase orders, transfers and shrinkage across every store."
+      title="Material Control"
+      subtitle="Follow one simple flow: receive at warehouse, request from site, dispatch, receive, then issue to work."
       actions={[]}
       searchPlaceholder="Search"
       stats={loading ? baseStats.map((stat) => ({ label: stat.label, note: stat.note })) : stats}

@@ -127,11 +127,10 @@ const SECTIONS = [
     ],
   },
   {
-    label: 'INVENTORY', count: 17, iconKey: 'box',
+    label: 'INVENTORY', count: 16, iconKey: 'box',
     items: [
       { label: 'Stock Level',                 href: '/reports/inventory/stock-level' },
-      { label: 'Store Wise Batch Report',     href: '/reports/inventory/store-wise-batch-report' },
-      { label: 'Store Batch Price Audit',     href: '/reports/inventory/store-batch-price-audit' },
+      { label: 'Batch & Lot Trace',           href: '/reports/inventory/store-wise-batch-report' },
       { label: 'Store Wise Stock Level',      href: '/reports/inventory/store-wise-stock-level' },
       { label: 'Product Group Stock Level',   href: '/reports/inventory/product-group-stock-level' },
       { label: 'Stock Operations',            href: '/reports/inventory/stock-operations' },

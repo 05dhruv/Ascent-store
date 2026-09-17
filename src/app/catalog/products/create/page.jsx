@@ -36,6 +36,12 @@ const initialForm = {
   selling_price: "",
   cost_price: "",
   unit: "PCS",
+  length: "",
+  width: "",
+  height: "",
+  dimension_unit: "MM",
+  dimensions: "",
+  weight_per_unit: "",
   is_active: true,
   is_service: false,
   is_sellable_on_pos: true,
@@ -54,7 +60,37 @@ const initialForm = {
   image_url: "",
 };
 
-const UNIT_OPTIONS = ["PCS", "KG", "GRAMS", "LTR"];
+const UNIT_OPTIONS = [
+  "PCS",
+  "BAGS",
+  "KG",
+  "TONNE",
+  "MTR",
+  "RFT",
+  "SQFT",
+  "SQMT",
+  "CUM",
+  "CFT",
+  "LTR",
+  "BUNDLE",
+  "BOX",
+  "GRAMS",
+  "NOS",
+  "SET",
+  "COIL",
+  "ROLL",
+  "PKT",
+  "TRIP",
+  "BRASS",
+];
+
+const DIMENSION_UNIT_OPTIONS = [
+  { value: "MM", label: "Millimeter (mm)" },
+  { value: "CM", label: "Centimeter (cm)" },
+  { value: "INCH", label: "Inch (in)" },
+  { value: "FEET", label: "Feet (ft)" },
+  { value: "MTR", label: "Meter (m)" },
+];
 
 const createEmptyStoreRow = () => ({
   enabled: true,
@@ -322,6 +358,12 @@ export default function CreateProductPage() {
           selling_price: form.selling_price || 0,
           cost_price: form.cost_price || 0,
           unit: form.unit || "PCS",
+          length: form.length ? Number(form.length) : null,
+          width: form.width ? Number(form.width) : null,
+          height: form.height ? Number(form.height) : null,
+          dimension_unit: form.dimension_unit || "MM",
+          dimensions: form.dimensions?.trim() || null,
+          weight_per_unit: form.weight_per_unit ? Number(form.weight_per_unit) : null,
           is_active: form.is_active,
           is_service: form.is_service,
           image_url: form.image_url || null,
@@ -700,6 +742,16 @@ export default function CreateProductPage() {
                     label: item.name,
                   }))}
                 />
+                <SearchableSelect
+                  value={form.manufacturer_id}
+                  onChange={(value) => set("manufacturer_id", value)}
+                  placeholder="Select manufacturer"
+                  searchPlaceholder="Search manufacturer..."
+                  options={manufacturers.map((item) => ({
+                    value: item.id,
+                    label: item.name,
+                  }))}
+                />
               </div>
             </div>
           </div>
@@ -758,6 +810,122 @@ export default function CreateProductPage() {
                   {label}
                 </label>
               ))}
+            </div>
+          </div>
+        </Card>
+
+        <Card
+          title="Dimensions & Physical Specifications"
+          description="Specify size, thickness, diameter, and weight for engineering and site tracking."
+        >
+          <div className="grid gap-5 lg:grid-cols-4">
+            <div>
+              <Label>Length</Label>
+              <input
+                type="number"
+                step="any"
+                value={form.length}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  set("length", val);
+                  if (val && form.width) {
+                    const dim = `${val} × ${form.width}${form.height ? ` × ${form.height}` : ""} ${form.dimension_unit || "MM"}`;
+                    set("dimensions", dim);
+                  }
+                }}
+                placeholder="e.g. 2400 or 8"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <Label>Width / Breadth</Label>
+              <input
+                type="number"
+                step="any"
+                value={form.width}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  set("width", val);
+                  if (form.length && val) {
+                    const dim = `${form.length} × ${val}${form.height ? ` × ${form.height}` : ""} ${form.dimension_unit || "MM"}`;
+                    set("dimensions", dim);
+                  }
+                }}
+                placeholder="e.g. 1200 or 4"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <Label>Height / Thickness / Dia</Label>
+              <input
+                type="number"
+                step="any"
+                value={form.height}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  set("height", val);
+                  if (form.length && form.width) {
+                    const dim = `${form.length} × ${form.width} × ${val} ${form.dimension_unit || "MM"}`;
+                    set("dimensions", dim);
+                  } else if (val) {
+                    const dim = `${val} ${form.dimension_unit || "MM"} Dia/Thk`;
+                    set("dimensions", dim);
+                  }
+                }}
+                placeholder="e.g. 18 or 12"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <Label>Dimension Unit</Label>
+              <select
+                value={form.dimension_unit || "MM"}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  set("dimension_unit", val);
+                  if (form.length && form.width) {
+                    const dim = `${form.length} × ${form.width}${form.height ? ` × ${form.height}` : ""} ${val}`;
+                    set("dimensions", dim);
+                  }
+                }}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                {DIMENSION_UNIT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            <div>
+              <Label>Dimensions / Size String</Label>
+              <input
+                type="text"
+                value={form.dimensions || ""}
+                onChange={(event) => set("dimensions", event.target.value)}
+                placeholder="e.g. 2400 × 1200 × 18 MM, 8ft × 4ft, 12mm Dia, 200x100x75 mm"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500 font-mono text-xs sm:text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Auto-computed from L × W × H or enter custom dimension specification.
+              </p>
+            </div>
+            <div>
+              <Label>Weight Per Unit (Kg)</Label>
+              <input
+                type="number"
+                step="any"
+                value={form.weight_per_unit || ""}
+                onChange={(event) => set("weight_per_unit", event.target.value)}
+                placeholder="e.g. 50 (for cement bag) or 0.888 (for 12mm rebar/m)"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Standard unit weight in KG for transport & density calculations.
+              </p>
             </div>
           </div>
         </Card>

@@ -21,6 +21,12 @@ const FIELD_DEFINITIONS = {
   selling_price: { column: "selling_price", type: "number" },
   cost_price: { column: "cost_price", type: "number" },
   unit: { column: "unit", type: "unit" },
+  length: { column: "length", type: "number" },
+  width: { column: "width", type: "number" },
+  height: { column: "height", type: "number" },
+  dimension_unit: { column: "dimension_unit", type: "text" },
+  dimensions: { column: "dimensions", type: "text" },
+  weight_per_unit: { column: "weight_per_unit", type: "number" },
   is_active: { column: "is_active", type: "boolean" },
   allow_discount_on_pos: {
     column: "allow_discount_on_pos",
@@ -45,6 +51,12 @@ const FIELD_LABELS = {
   selling_price: "Selling Price",
   cost_price: "Cost Price",
   unit: "Unit",
+  length: "Length",
+  width: "Width",
+  height: "Height / Thickness",
+  dimension_unit: "Dimension Unit",
+  dimensions: "Dimensions",
+  weight_per_unit: "Weight Per Unit",
   is_active: "Status",
   allow_discount_on_pos: "Allow Discount On POS",
   include_tax: "Price Includes Tax",
@@ -81,6 +93,19 @@ const BULK_EDIT_ALIASES = {
   cost_price: "cost_price",
   selling_price: "selling_price",
   unit: "unit",
+  length: "length",
+  width: "width",
+  height: "height",
+  thickness: "height",
+  dia: "height",
+  diameter: "height",
+  dimension_unit: "dimension_unit",
+  dimensions: "dimensions",
+  dimension: "dimensions",
+  size: "dimensions",
+  specifications: "dimensions",
+  weight: "weight_per_unit",
+  weight_per_unit: "weight_per_unit",
   status: "is_active",
   active: "is_active",
   is_active: "is_active",
@@ -119,12 +144,55 @@ function normalizeRow(row = {}) {
   }, {});
 }
 
+const VALID_UNITS = [
+  "PCS",
+  "BAGS",
+  "KG",
+  "TONNE",
+  "MTR",
+  "RFT",
+  "SQFT",
+  "SQMT",
+  "CUM",
+  "CFT",
+  "LTR",
+  "BUNDLE",
+  "BOX",
+  "GRAMS",
+  "NOS",
+  "SET",
+  "COIL",
+  "ROLL",
+  "PKT",
+  "TRIP",
+  "BRASS",
+];
+
 function normalizeUnit(value) {
   const unit = String(value || "PCS")
     .trim()
     .toUpperCase();
   if (["G", "GM", "GRAM", "GRAMS"].includes(unit)) return "GRAMS";
-  return ["PCS", "KG", "GRAMS", "LTR"].includes(unit) ? unit : "PCS";
+  if (["BAG", "BAGS"].includes(unit)) return "BAGS";
+  if (["TON", "TONS", "TONNE", "TONNES", "MT"].includes(unit)) return "TONNE";
+  if (["METER", "METRE", "METERS", "MTR", "M"].includes(unit)) return "MTR";
+  if (["RFT", "RUNNING FEET", "RUNNING FOOT", "RMT"].includes(unit)) return "RFT";
+  if (["SQFT", "SQ.FT", "SQ FT", "SFT"].includes(unit)) return "SQFT";
+  if (["SQMT", "SQM", "SQ.MTR", "SQ MTR"].includes(unit)) return "SQMT";
+  if (["CUM", "CU.M", "CUBIC METER", "CUBIC METRE"].includes(unit)) return "CUM";
+  if (["CFT", "CU.FT", "CUBIC FEET"].includes(unit)) return "CFT";
+  if (["L", "LTR", "LITRE", "LITER", "LITRES"].includes(unit)) return "LTR";
+  if (["BUNDLE", "BDL", "BUNDLES"].includes(unit)) return "BUNDLE";
+  if (["BOX", "BOXES", "CTN", "CARTON"].includes(unit)) return "BOX";
+  if (["NO", "NOS", "NUMBERS", "PIECE", "PIECES"].includes(unit)) return "NOS";
+  if (["SET", "SETS"].includes(unit)) return "SET";
+  if (["COIL", "COILS"].includes(unit)) return "COIL";
+  if (["ROLL", "ROLLS"].includes(unit)) return "ROLL";
+  if (["PKT", "PACKET", "PACK"].includes(unit)) return "PKT";
+  if (["TRIP", "TRIPS"].includes(unit)) return "TRIP";
+  if (["BRASS"].includes(unit)) return "BRASS";
+
+  return VALID_UNITS.includes(unit) ? unit : "PCS";
 }
 
 function normalizeValue(type, value) {

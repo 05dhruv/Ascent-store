@@ -498,7 +498,7 @@ export default function StockOutPage() {
                       : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  Stock Out
+                  Material Issue Slip (MIS)
                 </button>
                 <button
                   type="button"
@@ -509,7 +509,7 @@ export default function StockOutPage() {
                       : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  Damage/Dump
+                  Wastage / Scrap / Damaged
                 </button>
                 <button
                   type="button"
@@ -520,7 +520,7 @@ export default function StockOutPage() {
                       : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  Return Vendor
+                  Supplier Return
                 </button>
                 <button
                   type="button"
@@ -531,13 +531,13 @@ export default function StockOutPage() {
                       : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  Return Warehouse
+                  Return to Central Warehouse
                 </button>
               </div>
 
               <div className="mb-5">
                 <label className="mb-2 block text-sm text-gray-800">
-                  Source Store<span className="ml-0.5 text-red-500">*</span>
+                  Issuing Site / Warehouse<span className="ml-0.5 text-red-500">*</span>
                 </label>
                 <select
                   className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-700"

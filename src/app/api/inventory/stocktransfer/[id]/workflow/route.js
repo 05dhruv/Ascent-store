@@ -21,14 +21,16 @@ export async function GET(request,{params}) {
   ]);
   return NextResponse.json({transfer,items:items.rows,events:events.rows,discrepancies:discrepancies.rows,
     canSend:!source.error&&!requirePermission(auth.user,'TRANSFER_DISPATCH').error,
+    canApproveAndDispatch:!source.error&&!requirePermission(auth.user,'TRANSFER_APPROVE').error&&!requirePermission(auth.user,'TRANSFER_DISPATCH').error,
     canReceive:!destination.error&&!requirePermission(auth.user,'TRANSFER_RECEIVE').error});
 }
 
 export async function POST(request,{params}) {
   const auth=await requireAuth(request);if(auth.error)return auth.error;
   const body=await request.json();
-  const actionPermission={dispatch:'TRANSFER_DISPATCH',receive:'TRANSFER_RECEIVE',approve:'TRANSFER_APPROVE',pick:'TRANSFER_DISPATCH',cancel:'TRANSFER_CREATE',approve_excess:'TRANSFER_RECEIVE',resolve:'TRANSFER_RECEIVE'}[body.action] || 'TRANSFER_CREATE';
+  const actionPermission={approve_dispatch:'TRANSFER_APPROVE',dispatch:'TRANSFER_DISPATCH',receive:'TRANSFER_RECEIVE',approve:'TRANSFER_APPROVE',pick:'TRANSFER_DISPATCH',cancel:'TRANSFER_CREATE',approve_excess:'TRANSFER_RECEIVE',resolve:'TRANSFER_RECEIVE'}[body.action] || 'TRANSFER_CREATE';
   const permission=requirePermission(auth.user,actionPermission);if(permission.error)return permission.error;
+  if(body.action==='approve_dispatch') { const approval=requirePermission(auth.user,'TRANSFER_APPROVE','TRANSFER_DISPATCH'); if(approval.error)return approval.error; }
   await ensureMovementWorkflowSchema();
   const {id}=await params;
   const client=await getClient();

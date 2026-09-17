@@ -36,6 +36,12 @@ const initialForm = {
   selling_price: "",
   cost_price: "",
   unit: "PCS",
+  length: "",
+  width: "",
+  height: "",
+  dimension_unit: "MM",
+  dimensions: "",
+  weight_per_unit: "",
   is_active: true,
   is_service: false,
   is_sellable_on_pos: true,
@@ -49,7 +55,37 @@ const initialForm = {
   image_url: "",
 };
 
-const UNIT_OPTIONS = ["PCS", "KG", "GRAMS", "LTR"];
+const UNIT_OPTIONS = [
+  "PCS",
+  "BAGS",
+  "KG",
+  "TONNE",
+  "MTR",
+  "RFT",
+  "SQFT",
+  "SQMT",
+  "CUM",
+  "CFT",
+  "LTR",
+  "BUNDLE",
+  "BOX",
+  "GRAMS",
+  "NOS",
+  "SET",
+  "COIL",
+  "ROLL",
+  "PKT",
+  "TRIP",
+  "BRASS",
+];
+
+const DIMENSION_UNIT_OPTIONS = [
+  { value: "MM", label: "Millimeter (mm)" },
+  { value: "CM", label: "Centimeter (cm)" },
+  { value: "INCH", label: "Inch (in)" },
+  { value: "FEET", label: "Feet (ft)" },
+  { value: "MTR", label: "Meter (m)" },
+];
 
 const compactPrice = (value) => {
   if (value === null || value === undefined) return "";
@@ -201,6 +237,12 @@ export default function EditProductPage() {
               )
                 ? String(product.unit).toUpperCase()
                 : "PCS",
+              length: product.length ?? "",
+              width: product.width ?? "",
+              height: product.height ?? "",
+              dimension_unit: product.dimension_unit || "MM",
+              dimensions: product.dimensions || "",
+              weight_per_unit: product.weight_per_unit ?? "",
               is_active: product.is_active ?? true,
               is_service: product.is_service ?? false,
               allow_discount_on_pos: product.allow_discount_on_pos ?? false,
@@ -399,6 +441,12 @@ export default function EditProductPage() {
           selling_price: form.selling_price || 0,
           cost_price: form.cost_price || 0,
           unit: form.unit || "PCS",
+          length: form.length ? Number(form.length) : null,
+          width: form.width ? Number(form.width) : null,
+          height: form.height ? Number(form.height) : null,
+          dimension_unit: form.dimension_unit || "MM",
+          dimensions: form.dimensions?.trim() || null,
+          weight_per_unit: form.weight_per_unit ? Number(form.weight_per_unit) : null,
           is_active: form.is_active,
           is_service: form.is_service,
           image_url: form.image_url || null,
@@ -853,11 +901,12 @@ export default function EditProductPage() {
                   )}
                 </div>
                 <div>
-                  <Label>Barcode</Label>
+                  <Label>Barcode <span className="text-xs font-normal text-gray-400">(Optional)</span></Label>
                   <input
                     type="text"
                     value={form.barcode}
                     onChange={(event) => set("barcode", event.target.value)}
+                    placeholder="Scan or enter barcode (optional)"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
@@ -982,13 +1031,13 @@ export default function EditProductPage() {
                 ))}
               </select>
               <p className="mt-1 text-xs text-gray-500">
-                For weighted items like 650gm apple, select KG and use MBQ 0.65.
+                Standard measurement unit for material consumption and estimation.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-4 pt-6">
               {[
                 ["is_active", "Active"],
-                ["is_service", "Service Item"],
+                ["is_service", "Service / Labour Item"],
               ].map(([key, label]) => (
                 <label
                   key={key}
@@ -1008,14 +1057,14 @@ export default function EditProductPage() {
         </Card>
 
         <Card
-          title="Pricing Information"
-          description="Master prices are defaults for future stock. A Store Details price change updates only that store's matching active batch prices."
+          title="Rates & Valuation"
+          description="Maintain reference, issue and estimated purchase rates for project material control."
         >
           <div className="grid gap-5 lg:grid-cols-2">
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <Label>MRP</Label>
+                  <Label>Reference Rate / Unit</Label>
                   <input
                     type="number"
                     value={form.mrp}
@@ -1024,7 +1073,7 @@ export default function EditProductPage() {
                   />
                 </div>
                 <div>
-                  <Label>Selling Price</Label>
+                  <Label>Issue Rate / Unit</Label>
                   <input
                     type="number"
                     value={form.selling_price}
@@ -1035,7 +1084,7 @@ export default function EditProductPage() {
                   />
                 </div>
                 <div>
-                  <Label>Cost Price</Label>
+                  <Label>Estimated Purchase Rate / Unit</Label>
                   <input
                     type="number"
                     value={form.cost_price}
@@ -1079,9 +1128,9 @@ export default function EditProductPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {[
-                ["is_sellable_on_pos", "Is Sellable on POS"],
-                ["allow_variable_pricing", "Allow Variable Pricing"],
-                ["allow_discount_on_pos", "Allow Discount on POS"],
+                ["is_sellable_on_pos", "Can Be Issued to Site"],
+                ["allow_variable_pricing", "Allow Issue Rate Override"],
+                ["allow_discount_on_pos", "Require Rate Approval"],
                 ["include_tax", "GST Included"],
               ].map(([key, label]) => (
                 <label

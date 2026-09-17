@@ -3,6 +3,7 @@ import { getClient, query } from '@/lib/db';
 import { ensureStoresSchema } from '@/lib/storesSchema';
 import { ensurePurchaseOrderSchema } from '@/lib/purchaseOrderSchema';
 import { ensureStockRequisitionSchema } from '@/lib/stockRequisitionSchema';
+import { ensureVendorsSchema } from '@/lib/vendorsSchema';
 import { appendStoreScope, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
 
 function toNumber(value, fallback = 0) {
@@ -20,15 +21,25 @@ function mapRow(row) {
     destinationId: row.destination_id,
     destinationName: row.destination_name || '',
     requestedBy: row.requested_by || '',
+    requestedByUserId: row.requested_by_user_id,
+    requesterUserName: row.requester_user_name || '',
+    requesterUserEmail: row.requester_user_email || '',
     mailTo: row.mail_to || '',
     remarks: row.remarks || '',
     status: row.status || 'pending',
     fulfillmentStatus: row.fulfillment_status || 'pending',
     approvalStatus: row.approval_status || 'pending',
+    shortageStatus: row.shortage_status || 'unknown',
+    totalShortageQty: Number(row.total_shortage_qty || 0),
     purchaseOrderId: row.purchase_order_id,
+    poTransactionId: row.po_transaction_id || '',
     stockTransferId: row.stock_transfer_id,
-    requestedByUserId: row.requested_by_user_id,
+    vendorId: row.vendor_id,
+    vendorName: row.vendor_name || '',
+    vendorEmail: row.vendor_email || '',
+    poEmailedAt: row.po_emailed_at,
     approvedByUserId: row.approved_by_user_id,
+    approvedByUserName: row.approved_by_user_name || '',
     rejectionReason: row.rejection_reason || '',
     totalItems: Number(row.total_items || 0),
     createdAt: row.created_at,
@@ -40,14 +51,23 @@ function mapRow(row) {
 
 export async function GET(request) {
   try {
-    await ensureStoresSchema();
-    await ensurePurchaseOrderSchema();
-    await ensureStockRequisitionSchema();
+    await Promise.allSettled([
+      ensureStoresSchema(),
+      ensurePurchaseOrderSchema(),
+      ensureStockRequisitionSchema(),
+      ensureVendorsSchema(),
+    ]);
 
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
 
-    const permissionCheck = requirePermission(auth.user, 'SITE_REQUEST_CREATE', 'SITE_REQUEST_APPROVE', 'STOCK_VIEW');
+    const permissionCheck = requirePermission(
+      auth.user,
+      'SITE_REQUEST_CREATE',
+      'SITE_REQUEST_APPROVE',
+      'STOCK_VIEW',
+      'MANAGE_INVENTORY'
+    );
     if (permissionCheck.error) return permissionCheck.error;
 
     const { searchParams } = new URL(request.url);
@@ -71,6 +91,8 @@ export async function GET(request) {
         OR COALESCE(src.name, '') ILIKE $${params.length}
         OR COALESCE(dst.name, '') ILIKE $${params.length}
         OR COALESCE(sr.requested_by, '') ILIKE $${params.length}
+        OR COALESCE(u_req.name, '') ILIKE $${params.length}
+        OR COALESCE(v.name, '') ILIKE $${params.length}
       )`);
     }
 
@@ -80,6 +102,11 @@ export async function GET(request) {
          sr.*,
          src.name AS source_name,
          dst.name AS destination_name,
+         u_req.name AS requester_user_name,
+         u_req.email AS requester_user_email,
+         u_app.name AS approved_by_user_name,
+         po.transaction_id AS po_transaction_id,
+         v.name AS vendor_name,
          COALESCE(SUM(sri.qty), 0) AS total_items,
          COALESCE(
            JSON_AGG(
@@ -88,7 +115,11 @@ export async function GET(request) {
                'productId', sri.product_id,
                'productName', COALESCE(sri.product_name, p.name),
                'sku', p.sku,
+               'unit', COALESCE(sri.unit, p.unit, 'PCS'),
+               'dimensions', COALESCE(sri.dimensions, p.dimensions, ''),
                'qty', sri.qty,
+               'availableQty', sri.available_qty,
+               'shortageQty', sri.shortage_qty,
                'fulfilledQty', sri.fulfilled_qty,
                'costPrice', COALESCE(NULLIF(sri.cost_price, 0), p.cost_price, 0)
              )
@@ -99,12 +130,16 @@ export async function GET(request) {
        FROM stock_requisitions sr
        LEFT JOIN stores src ON src.id = sr.source_id
        LEFT JOIN stores dst ON dst.id = sr.destination_id
+       LEFT JOIN users u_req ON u_req.id = sr.requested_by_user_id
+       LEFT JOIN users u_app ON u_app.id = sr.approved_by_user_id
+       LEFT JOIN purchase_orders po ON po.id = sr.purchase_order_id
+       LEFT JOIN vendors v ON v.id = sr.vendor_id
        LEFT JOIN stock_requisition_items sri ON sri.requisition_id = sr.id
        LEFT JOIN products p ON p.id = sri.product_id
        ${whereSql}
-       GROUP BY sr.id, src.name, dst.name
+       GROUP BY sr.id, src.name, dst.name, u_req.name, u_req.email, u_app.name, po.transaction_id, v.name
        ORDER BY sr.created_at DESC
-       LIMIT 200`,
+       LIMIT 300`,
       params
     );
 
@@ -117,9 +152,11 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    await ensureStoresSchema();
-    await ensurePurchaseOrderSchema();
-    await ensureStockRequisitionSchema();
+    await Promise.allSettled([
+      ensureStoresSchema(),
+      ensurePurchaseOrderSchema(),
+      ensureStockRequisitionSchema(),
+    ]);
 
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
@@ -132,14 +169,18 @@ export async function POST(request) {
     const destinationId = body.destinationId || body.destination_id || null;
     const items = Array.isArray(body.items) ? body.items : [];
 
-    if (!destinationId) return NextResponse.json({ success: false, message: 'Destination is required' }, { status: 400 });
+    if (!destinationId) {
+      return NextResponse.json({ success: false, message: 'Destination is required' }, { status: 400 });
+    }
     const storeCheck = requireStore(auth.user, destinationId);
     if (storeCheck.error) return storeCheck.error;
-    if (!items.length) return NextResponse.json({ success: false, message: 'Add at least one product' }, { status: 400 });
+    if (!items.length) {
+      return NextResponse.json({ success: false, message: 'Add at least one product' }, { status: 400 });
+    }
 
     const productIds = [...new Set(items.map((item) => Number(item.productId || item.product_id)).filter(Boolean))];
     const productsRes = await query(
-      `SELECT id, name, cost_price FROM products WHERE id = ANY($1::int[])`,
+      `SELECT id, name, unit, dimensions, cost_price FROM products WHERE id = ANY($1::int[])`,
       [productIds]
     );
     const productMap = Object.fromEntries(productsRes.rows.map((row) => [Number(row.id), row]));
@@ -158,12 +199,16 @@ export async function POST(request) {
           productId,
           productName: product?.name || item.productName || item.name || null,
           qty,
+          unit: item.unit || product?.unit || 'PCS',
+          dimensions: item.dimensions || product?.dimensions || null,
           costPrice: toNumber(item.costPrice || item.cost_price || product?.cost_price || 0),
         };
       })
       .filter(Boolean);
 
-    if (!cleanItems.length) return NextResponse.json({ success: false, message: 'Add valid product quantities' }, { status: 400 });
+    if (!cleanItems.length) {
+      return NextResponse.json({ success: false, message: 'Add valid product quantities' }, { status: 400 });
+    }
 
     const client = await getClient();
     try {
@@ -190,9 +235,9 @@ export async function POST(request) {
 
       for (const item of cleanItems) {
         await client.query(
-          `INSERT INTO stock_requisition_items (requisition_id, product_id, product_name, qty, cost_price, created_at)
-           VALUES ($1,$2,$3,$4,$5,NOW())`,
-          [id, item.productId, item.productName, item.qty, item.costPrice]
+          `INSERT INTO stock_requisition_items (requisition_id, product_id, product_name, qty, unit, dimensions, cost_price, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
+          [id, item.productId, item.productName, item.qty, item.unit, item.dimensions, item.costPrice]
         );
       }
 

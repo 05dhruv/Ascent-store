@@ -1,6 +1,6 @@
 import { query } from '@/lib/db';
 
-const STOCK_REQUISITION_SCHEMA_VERSION = 2;
+const STOCK_REQUISITION_SCHEMA_VERSION = 3;
 const globalForStockRequisition = globalThis;
 
 export async function ensureStockRequisitionSchema() {
@@ -19,8 +19,14 @@ export async function ensureStockRequisitionSchema() {
       status VARCHAR(30) DEFAULT 'pending',
       fulfillment_status VARCHAR(30) DEFAULT 'pending',
       approval_status VARCHAR(30) DEFAULT 'pending',
+      shortage_status VARCHAR(50) DEFAULT 'unknown',
+      total_shortage_qty NUMERIC(14, 3) DEFAULT 0,
       purchase_order_id INTEGER REFERENCES purchase_orders(id),
       stock_transfer_id INTEGER,
+      vendor_id INTEGER,
+      vendor_email VARCHAR(255),
+      po_emailed_at TIMESTAMPTZ,
+      email_message_id VARCHAR(255),
       approved_by_user_id INTEGER REFERENCES users(id),
       rejected_at TIMESTAMPTZ,
       rejection_reason TEXT,
@@ -36,8 +42,12 @@ export async function ensureStockRequisitionSchema() {
       product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
       product_name VARCHAR(255),
       qty NUMERIC(14, 3) NOT NULL DEFAULT 1,
+      available_qty NUMERIC(14, 3) DEFAULT 0,
+      shortage_qty NUMERIC(14, 3) DEFAULT 0,
       fulfilled_qty NUMERIC(14, 3) NOT NULL DEFAULT 0,
       cost_price NUMERIC(14, 2) DEFAULT 0,
+      unit VARCHAR(50),
+      dimensions VARCHAR(255),
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -45,11 +55,27 @@ export async function ensureStockRequisitionSchema() {
       ADD COLUMN IF NOT EXISTS requested_by_user_id INTEGER REFERENCES users(id),
       ADD COLUMN IF NOT EXISTS purchase_order_id INTEGER REFERENCES purchase_orders(id),
       ADD COLUMN IF NOT EXISTS stock_transfer_id INTEGER,
+      ADD COLUMN IF NOT EXISTS vendor_id INTEGER,
+      ADD COLUMN IF NOT EXISTS vendor_email VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS po_emailed_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS email_message_id VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS shortage_status VARCHAR(50) DEFAULT 'unknown',
+      ADD COLUMN IF NOT EXISTS total_shortage_qty NUMERIC(14, 3) DEFAULT 0,
       ADD COLUMN IF NOT EXISTS approved_by_user_id INTEGER REFERENCES users(id),
       ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
       ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS fulfilled_at TIMESTAMPTZ;
+
+    ALTER TABLE stock_requisition_items
+      ADD COLUMN IF NOT EXISTS available_qty NUMERIC(14, 3) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS shortage_qty NUMERIC(14, 3) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS unit VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS dimensions VARCHAR(255);
+
+    ALTER TABLE products
+      ADD COLUMN IF NOT EXISTS unit VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS dimensions VARCHAR(255);
 
     CREATE INDEX IF NOT EXISTS idx_stock_requisitions_destination ON stock_requisitions(destination_id);
     CREATE INDEX IF NOT EXISTS idx_stock_requisitions_status ON stock_requisitions(status, approval_status, fulfillment_status);

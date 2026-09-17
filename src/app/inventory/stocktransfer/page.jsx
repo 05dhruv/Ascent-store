@@ -21,10 +21,14 @@ import {
 } from "@/lib/xlsxDropdowns";
 
 async function fetchStores() {
-  const res = await fetch("/api/stores?pageSize=1000&include_locations=all", { cache: "no-store" });
+  const res = await fetch("/api/stores?pageSize=1000&include_locations=all", {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch stores");
   const json = await res.json();
-  return json.data?.records || json.data?.stores || json.records || json.stores || [];
+  return (
+    json.data?.records || json.data?.stores || json.records || json.stores || []
+  );
 }
 
 async function fetchTransfers(sourceId = "", destinationId = "") {
@@ -438,10 +442,7 @@ function buildInventoryProductIndex(records) {
   for (const product of index.records) {
     const barcodeVariants = normalizeBarcodeVariants(product.barcode);
     for (const b of barcodeVariants) {
-      index.barcode.set(b, [
-        ...(index.barcode.get(b) || []),
-        product,
-      ]);
+      index.barcode.set(b, [...(index.barcode.get(b) || []), product]);
     }
     const skuVariants = normalizeBarcodeVariants(product.sku);
     for (const s of skuVariants) {
@@ -572,6 +573,12 @@ export default function StockTransferPage() {
   const [bulkImportResult, setBulkImportResult] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const isSuperAdmin = currentUser?.role === "super_admin";
+  const canCreateTransfer =
+    isSuperAdmin ||
+    (Array.isArray(currentUser?.permissions) &&
+      (currentUser.permissions.includes("*") ||
+        currentUser.permissions.includes("TRANSFER_CREATE") ||
+        currentUser.permissions.includes("MANAGE_INVENTORY")));
 
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" })
@@ -918,7 +925,12 @@ export default function StockTransferPage() {
       for (const row of rows) {
         const rowNumber = Number(row.__row_index || 0) + 2;
         const sourceId = resolveLocationId(
-          getBulkField(row, ["source_issuing_site_warehouse", "source_id", "source_warehouse_yard", "source"]),
+          getBulkField(row, [
+            "source_issuing_site_warehouse",
+            "source_id",
+            "source_warehouse_yard",
+            "source",
+          ]),
           locations,
         );
         const destinationId = resolveLocationId(
@@ -931,7 +943,12 @@ export default function StockTransferPage() {
           locations,
         );
         const barcode = getBulkField(row, ["barcode", "bar_code"]);
-        const sku = getBulkField(row, ["item_code_sku", "material_code", "sku", "item_code"]);
+        const sku = getBulkField(row, [
+          "item_code_sku",
+          "material_code",
+          "sku",
+          "item_code",
+        ]);
         const productName = getBulkField(row, [
           "material_name_specification",
           "material_name",
@@ -939,11 +956,21 @@ export default function StockTransferPage() {
           "product",
         ]);
         const qty = toNumber(
-          getBulkField(row, ["transfer_quantity", "requested_quantity", "quantity", "qty"]),
+          getBulkField(row, [
+            "transfer_quantity",
+            "requested_quantity",
+            "quantity",
+            "qty",
+          ]),
           0,
         );
         const invoiceDate = getRowDate(
-          getBulkField(row, ["dispatch_challan_date", "dispatch_date", "invoice_date", "date"]),
+          getBulkField(row, [
+            "dispatch_challan_date",
+            "dispatch_date",
+            "invoice_date",
+            "date",
+          ]),
         );
         const invoiceNumber = getBulkField(row, [
           "delivery_challan_no",
@@ -952,7 +979,11 @@ export default function StockTransferPage() {
           "challan_no",
         ]);
         const otherCharges = toNumber(
-          getBulkField(row, ["freight_vehicle_charges", "freight_other_charges", "other_charges"]),
+          getBulkField(row, [
+            "freight_vehicle_charges",
+            "freight_other_charges",
+            "other_charges",
+          ]),
           0,
         );
         const remarks = getBulkField(row, [
@@ -1444,12 +1475,9 @@ export default function StockTransferPage() {
           { label: "Transfer to Site" },
         ]}
         title="Site Material Transfer & Dispatch"
-        subtitle="Dispatch, track, and receive material movements between central warehouses, yards, and site stores."
+        subtitle="Create a direct warehouse-to-site transfer, or dispatch an approved site request."
         actions={
-          isSuperAdmin ||
-          (Array.isArray(currentUser?.permissions) &&
-            (currentUser.permissions.includes("*") ||
-              currentUser.permissions.includes("MANAGE_INVENTORY")))
+          canCreateTransfer
             ? [
                 {
                   label: "Movement Tracker / Receive",
@@ -1468,7 +1496,7 @@ export default function StockTransferPage() {
                   icon: "ti ti-download text-slate-500",
                 },
                 {
-                  label: "New Site Transfer",
+                  label: "New Direct Transfer",
                   primary: true,
                   onClick: openModal,
                   icon: "ti ti-plus",
@@ -1536,7 +1564,9 @@ export default function StockTransferPage() {
               }
               className="rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600"
             >
-              <option value="">All Receiving Destinations (Sites / Stores)</option>
+              <option value="">
+                All Receiving Destinations (Sites / Stores)
+              </option>
               {destinationOptions.map((destination) => (
                 <option key={destination.id} value={destination.id}>
                   {destination.name}
@@ -2090,7 +2120,8 @@ function StockTransferPreviewDialog({
                   </p>
                   <p className="mt-1">{transfer.meta.marginHoldReleaseError}</p>
                   <p className="mt-2 font-semibold">
-                    Destination batches can only be safely created once source stock is replenished or transfer quantities are adjusted.
+                    Destination batches can only be safely created once source
+                    stock is replenished or transfer quantities are adjusted.
                   </p>
                 </div>
               )}
@@ -2770,13 +2801,15 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
   };
 
   return (
-    <div className="fixed bottom-0 right-0 top-[104px] z-[35] bg-[#f1f2f5] md:left-[418px] max-md:left-0">
-      <div className="relative h-full overflow-hidden border-t border-gray-200 bg-[#f1f2f5] shadow-[0_-4px_20px_rgba(15,23,42,0.08)]">
-        <div className="flex h-12 items-center justify-between border-b border-gray-200 bg-[#f1f2f5] px-9">
+    <div className="fixed inset-0 z-[60] bg-slate-900/20 p-0 sm:p-5">
+      <div className="relative h-full overflow-hidden bg-slate-50 shadow-2xl sm:rounded-2xl">
+        <div className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
           <div className="flex items-center gap-2 text-[13px]">
-            <span className="text-gray-500">Inventory</span>
+            <span className="text-slate-500">Material Movement</span>
             <i className="ti ti-chevron-right text-[11px] text-gray-400" />
-            <span className="font-semibold text-gray-900">Stock Transfer</span>
+            <span className="font-semibold text-gray-900">
+              Transfer to Site
+            </span>
           </div>
           <button
             type="button"
@@ -2788,265 +2821,239 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
           </button>
         </div>
 
-        <div className="absolute bottom-[88px] left-0 right-0 top-12 grid grid-cols-[350px_minmax(520px,1fr)] gap-6 overflow-auto px-9 py-6 max-lg:grid-cols-1 max-lg:px-4">
-          <aside className="h-full min-h-0 overflow-auto rounded-lg border border-gray-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-            <h3 className="mb-5 text-[15px] font-semibold text-blue-600">
-              Stock Information
-            </h3>
+        <div className="absolute bottom-[92px] left-0 right-0 top-14 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6">
+          <div className="mx-auto grid max-w-7xl items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+            <aside className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="mb-5 text-[15px] font-semibold text-slate-900">
+                Transfer details
+              </h3>
 
-            <div className="mb-4">
-              <label className="mb-1 block text-[12px] text-gray-500">
-                Source
-              </label>
-              <p className="text-[13px] font-medium text-gray-900">
-                {loading ? "..." : draft?.sourceName || "-"}
-              </p>
-            </div>
-            <div className="mb-4">
-              <label className="mb-1 block text-[12px] text-gray-500">
-                Destination
-              </label>
-              <p className="text-[13px] font-medium text-gray-900">
-                {loading ? "..." : draft?.destinationName || "-"}
-              </p>
-            </div>
+              <div className="mb-4">
+                <label className="mb-1 block text-[12px] text-gray-500">
+                  Source
+                </label>
+                <p className="text-[13px] font-medium text-gray-900">
+                  {loading ? "..." : draft?.sourceName || "-"}
+                </p>
+              </div>
+              <div className="mb-4">
+                <label className="mb-1 block text-[12px] text-gray-500">
+                  Destination
+                </label>
+                <p className="text-[13px] font-medium text-gray-900">
+                  {loading ? "..." : draft?.destinationName || "-"}
+                </p>
+              </div>
 
-            <div className="mb-4 grid grid-cols-2 gap-3">
-              <Field label="Invoice Date">
+              <div className="mb-4 grid grid-cols-2 gap-3">
+                <Field label="Invoice Date">
+                  <input
+                    type="date"
+                    value={form.invoice_date}
+                    onChange={(e) =>
+                      setForm({ ...form, invoice_date: e.target.value })
+                    }
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400"
+                  />
+                </Field>
+                <Field label="Invoice Number">
+                  <input
+                    value={form.invoice_number}
+                    onChange={(e) =>
+                      setForm({ ...form, invoice_number: e.target.value })
+                    }
+                    placeholder="10"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
+                  />
+                </Field>
+              </div>
+
+              <Field label="Other Charges">
                 <input
-                  type="date"
-                  value={form.invoice_date}
+                  value={form.other_charges}
                   onChange={(e) =>
-                    setForm({ ...form, invoice_date: e.target.value })
+                    setForm({ ...form, other_charges: e.target.value })
                   }
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none focus:border-blue-400"
-                />
-              </Field>
-              <Field label="Invoice Number">
-                <input
-                  value={form.invoice_number}
-                  onChange={(e) =>
-                    setForm({ ...form, invoice_number: e.target.value })
-                  }
-                  placeholder="10"
+                  placeholder="Other Charges"
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
                 />
               </Field>
-            </div>
+              <Field label="Remarks">
+                <textarea
+                  value={form.remarks}
+                  onChange={(e) =>
+                    setForm({ ...form, remarks: e.target.value })
+                  }
+                  placeholder="Remarks"
+                  rows={5}
+                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
+                />
+              </Field>
+            </aside>
 
-            <Field label="Other Charges">
-              <input
-                value={form.other_charges}
-                onChange={(e) =>
-                  setForm({ ...form, other_charges: e.target.value })
-                }
-                placeholder="Other Charges"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
-              />
-            </Field>
-            <Field label="Remarks">
-              <textarea
-                value={form.remarks}
-                onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-                placeholder="Remarks"
-                rows={5}
-                className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
-              />
-            </Field>
-          </aside>
-
-          <main className="flex h-full min-w-0 flex-col">
-            <div className="mb-4 flex flex-shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-              <i className="ti ti-search text-[16px] text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
-              />
-            </div>
-
-            <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-              <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
-                <div>
-                  <h2 className="text-[14px] font-semibold text-gray-900">
-                    Inventory - Stock Transfer
-                  </h2>
-                  <p className="mt-0.5 text-[12px] text-gray-500">
-                    Select desired products & proceed
-                  </p>
-                </div>
-                <div className="flex min-w-[200px] items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 max-sm:hidden">
-                  <input
-                    type="text"
-                    placeholder="Search"
-                    value={cartFilter}
-                    onChange={(e) => setCartFilter(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
-                  />
-                  <i className="ti ti-search text-[15px] text-gray-400" />
-                </div>
+            <main className="flex min-w-0 flex-col">
+              <div className="mb-4 flex flex-shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+                <i className="ti ti-search text-[16px] text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
+                />
               </div>
 
-              <div className="flex-1 overflow-auto p-4">
-                {products.length > 0 && (
-                  <div className="mb-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
-                    {products.map((product) => (
-                      <button
-                        key={product.id}
-                        type="button"
-                        onClick={() => addToCart(product)}
-                        disabled={
-                          Number(
-                            product.availableStock ||
-                              product.available_stock ||
-                              0,
-                          ) <= 0
-                        }
-                        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-blue-50/60"
-                      >
-                        <div>
-                          <div className="text-[13px] font-medium text-gray-900">
-                            {product.name}
-                          </div>
-                          <div className="text-[12px] text-gray-500">
-                            SKU: {product.sku || "-"}
-                          </div>
-                          <div className="text-[12px] text-gray-500">
-                            Available in source:{" "}
-                            {Number(
+              <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+                <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
+                  <div>
+                    <h2 className="text-[14px] font-semibold text-gray-900">
+                      Materials selected for transfer
+                    </h2>
+                    <p className="mt-0.5 text-[12px] text-gray-500">
+                      Search the source warehouse and add material quantities.
+                    </p>
+                  </div>
+                  <div className="flex min-w-[200px] items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 max-sm:hidden">
+                    <input
+                      type="text"
+                      placeholder="Search"
+                      value={cartFilter}
+                      onChange={(e) => setCartFilter(e.target.value)}
+                      className="min-w-0 flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
+                    />
+                    <i className="ti ti-search text-[15px] text-gray-400" />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-auto p-4">
+                  {products.length > 0 && (
+                    <div className="mb-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
+                      {products.map((product) => (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => addToCart(product)}
+                          disabled={
+                            Number(
                               product.availableStock ||
                                 product.available_stock ||
                                 0,
-                            )}
-                          </div>
-                        </div>
-                        <span className="text-[12px] font-medium text-blue-600">
-                          Add
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {products.length === 0 && !loading && (
-                  <p className="py-8 text-center text-[13px] text-gray-500">
-                    No products found
-                  </p>
-                )}
-
-                {filteredCart.length > 0 ? (
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                          Product
-                        </th>
-                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                          Qty
-                        </th>
-                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                          MRP
-                        </th>
-                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                          Selling
-                        </th>
-                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                          Cost
-                        </th>
-                        <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                          Tax
-                        </th>
-                        <th className="w-10" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredCart.map((item) => (
-                        <tr
-                          key={item.product_id}
-                          className="border-b border-gray-50 hover:bg-gray-50/50"
+                            ) <= 0
+                          }
+                          className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-blue-50/60"
                         >
-                          <td className="px-2 py-3">
+                          <div>
                             <div className="text-[13px] font-medium text-gray-900">
-                              {item.name}
+                              {product.name}
                             </div>
-                            <div className="text-[11px] text-gray-500">
-                              {item.sku}
+                            <div className="text-[12px] text-gray-500">
+                              SKU: {product.sku || "-"}
                             </div>
-                          </td>
-                          <td className="px-2 py-3">
-                            <input
-                              type="number"
-                              min={0.001}
-                              step={0.001}
-                              inputMode="decimal"
-                              value={item.qty}
-                              onChange={(e) =>
-                                updateQty(item.product_id, e.target.value)
-                              }
-                              className="w-20 rounded border border-gray-200 px-2 py-1 text-[13px] text-gray-700"
-                            />
-                          </td>
-                          <td className="px-2 py-3 text-[13px] text-gray-700">
-                            {formatCurrency(item.mrp)}
-                          </td>
-                          <td className="px-2 py-3 text-[13px] font-semibold text-red-700">
-                            {formatCurrency(item.selling_price)}
-                          </td>
-                          <td className="px-2 py-3 text-[13px] text-gray-700">
-                            {formatCurrency(item.cost_price)}
-                          </td>
-                          <td className="px-2 py-3 text-[13px] text-gray-700">
-                            {formatCurrency(item.tax_value)}
-                          </td>
-                          <td className="px-2 py-3">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setCart((current) =>
-                                  current.filter(
-                                    (cartItem) =>
-                                      cartItem.product_id !== item.product_id,
-                                  ),
-                                )
-                              }
-                              className="rounded p-1.5 text-red-500 hover:bg-red-50"
-                            >
-                              <i className="ti ti-trash text-[16px]" />
-                            </button>
-                          </td>
-                        </tr>
+                            <div className="text-[12px] text-gray-500">
+                              Available in source:{" "}
+                              {Number(
+                                product.availableStock ||
+                                  product.available_stock ||
+                                  0,
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-[12px] font-medium text-blue-600">
+                            Add
+                          </span>
+                        </button>
                       ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  !searchTerm.trim() && <div className="min-h-[240px]" />
-                )}
-              </div>
-            </section>
-          </main>
+                    </div>
+                  )}
+
+                  {products.length === 0 && !loading && (
+                    <p className="py-8 text-center text-[13px] text-gray-500">
+                      No products found
+                    </p>
+                  )}
+
+                  {filteredCart.length > 0 ? (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                            Product
+                          </th>
+                          <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                            Available
+                          </th>
+                          <th className="px-2 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                            Transfer quantity
+                          </th>
+                          <th className="w-10" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCart.map((item) => (
+                          <tr
+                            key={item.product_id}
+                            className="border-b border-gray-50 hover:bg-gray-50/50"
+                          >
+                            <td className="px-2 py-3 text-[13px] text-gray-700">
+                              {formatCurrency(item.available_stock)}
+                            </td>
+                            <td className="px-2 py-3">
+                              <div className="text-[13px] font-medium text-gray-900">
+                                {item.name}
+                              </div>
+                              <div className="text-[11px] text-gray-500">
+                                {item.sku}
+                              </div>
+                            </td>
+                            <td className="px-2 py-3">
+                              <input
+                                type="number"
+                                min={0.001}
+                                step={0.001}
+                                inputMode="decimal"
+                                value={item.qty}
+                                onChange={(e) =>
+                                  updateQty(item.product_id, e.target.value)
+                                }
+                                className="w-20 rounded border border-gray-200 px-2 py-1 text-[13px] text-gray-700"
+                              />
+                            </td>
+                            <td className="px-2 py-3">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setCart((current) =>
+                                    current.filter(
+                                      (cartItem) =>
+                                        cartItem.product_id !== item.product_id,
+                                    ),
+                                  )
+                                }
+                                className="rounded p-1.5 text-red-500 hover:bg-red-50"
+                              >
+                                <i className="ti ti-trash text-[16px]" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    !searchTerm.trim() && <div className="min-h-[240px]" />
+                  )}
+                </div>
+              </section>
+            </main>
+          </div>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 h-[88px] border-t border-gray-200 bg-white shadow-[0_-2px_8px_rgba(15,23,42,0.06)]">
-          <div className="flex h-full items-center justify-between px-6 max-md:px-4">
-            <div className="flex flex-wrap items-center gap-10">
+        <div className="absolute bottom-0 left-0 right-0 min-h-[92px] border-t border-slate-200 bg-white">
+          <div className="mx-auto flex min-h-[92px] max-w-7xl flex-col justify-center gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-1">
               <span className="text-[13px] text-gray-600">
-                Total Items:{" "}
+                Material quantity:{" "}
                 <strong className="font-semibold text-gray-900">
                   {totals.totalItems}
-                </strong>
-              </span>
-              <span className="text-[13px] text-gray-600">
-                Total Cost:{" "}
-                <strong className="font-semibold text-gray-900">
-                  {formatCurrency(totals.totalCost)}
-                </strong>
-              </span>
-              <span className="text-[13px] text-gray-600">
-                Total Tax Value:{" "}
-                <strong className="font-semibold text-gray-900">
-                  {formatCurrency(totals.totalTax)}
                 </strong>
               </span>
             </div>

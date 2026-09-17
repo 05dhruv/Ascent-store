@@ -1,8 +1,11 @@
-import { query } from '@/lib/db';
-import { makeSchemaEnsurer } from '@/lib/schemaGuard';
+import { query } from "@/lib/db";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 
-export const ensureConstructionSchema = makeSchemaEnsurer('construction', 1, async () => {
-  await query(`
+export const ensureConstructionSchema = makeSchemaEnsurer(
+  "construction",
+  2,
+  async () => {
+    await query(`
     CREATE TABLE IF NOT EXISTS construction_projects (
       id BIGSERIAL PRIMARY KEY,
       project_code VARCHAR(50) NOT NULL UNIQUE,
@@ -59,6 +62,44 @@ export const ensureConstructionSchema = makeSchemaEnsurer('construction', 1, asy
       status VARCHAR(30) NOT NULL DEFAULT 'planned',
       start_date DATE,
       end_date DATE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS construction_boq_items (
+      id BIGSERIAL PRIMARY KEY,
+      project_id BIGINT NOT NULL REFERENCES construction_projects(id) ON DELETE CASCADE,
+      cost_code_id BIGINT REFERENCES construction_cost_codes(id) ON DELETE SET NULL,
+      activity_id BIGINT REFERENCES construction_work_activities(id) ON DELETE SET NULL,
+      item_code VARCHAR(60),
+      description TEXT NOT NULL,
+      unit VARCHAR(30) NOT NULL DEFAULT 'NOS',
+      planned_qty NUMERIC(16,3) NOT NULL DEFAULT 0 CHECK (planned_qty >= 0),
+      rate NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK (rate >= 0),
+      budget_amount NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK (budget_amount >= 0),
+      consumed_qty NUMERIC(16,3) NOT NULL DEFAULT 0 CHECK (consumed_qty >= 0),
+      actual_amount NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK (actual_amount >= 0),
+      created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS construction_daily_progress (
+      id BIGSERIAL PRIMARY KEY,
+      project_id BIGINT NOT NULL REFERENCES construction_projects(id) ON DELETE CASCADE,
+      site_id BIGINT REFERENCES construction_sites(id) ON DELETE SET NULL,
+      activity_id BIGINT REFERENCES construction_work_activities(id) ON DELETE SET NULL,
+      progress_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      work_done TEXT NOT NULL,
+      progress_percent NUMERIC(5,2) NOT NULL DEFAULT 0 CHECK (progress_percent BETWEEN 0 AND 100),
+      labour_count INTEGER NOT NULL DEFAULT 0 CHECK (labour_count >= 0),
+      labour_hours NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (labour_hours >= 0),
+      equipment JSONB NOT NULL DEFAULT '[]'::jsonb,
+      remarks TEXT,
+      submitted_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+      approval_status VARCHAR(20) NOT NULL DEFAULT 'submitted'
+        CHECK (approval_status IN ('submitted','approved','rejected')),
+      approved_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+      approved_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
@@ -132,9 +173,12 @@ export const ensureConstructionSchema = makeSchemaEnsurer('construction', 1, asy
 
     CREATE INDEX IF NOT EXISTS idx_construction_sites_project ON construction_sites(project_id, status);
     CREATE INDEX IF NOT EXISTS idx_construction_cost_codes_project ON construction_cost_codes(project_id);
+    CREATE INDEX IF NOT EXISTS idx_construction_boq_project ON construction_boq_items(project_id, cost_code_id);
+    CREATE INDEX IF NOT EXISTS idx_construction_progress_project_date ON construction_daily_progress(project_id, progress_date DESC);
     CREATE INDEX IF NOT EXISTS idx_construction_movements_project_site ON construction_inventory_movements(project_id, site_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_construction_movements_product ON construction_inventory_movements(product_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_construction_discrepancies_status ON construction_discrepancies(status, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_stock_transfer_workflow ON stock_transfer(workflow_status, created_at DESC);
   `);
-});
+  },
+);
