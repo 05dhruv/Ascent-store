@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import InventoryShell from "@/components/inventory/InventoryShell";
 import { useUser } from "@/hooks/useUser";
 import { formatIndianDateTime } from "@/lib/dateUtils";
-import { fetchAllCatalogProducts } from "@/lib/productPagination";
+import { fetchCatalogProductPage } from "@/lib/productPagination";
 
 const tableHeaders = [
   "Request ID",
@@ -119,30 +119,44 @@ export default function StockRequisitionPage() {
     }
   };
 
+  const loadProductOptions = async (search = "") => {
+    try {
+      const page = await fetchCatalogProductPage({
+        page: 1,
+        pageSize: 50,
+        params: {
+          search: String(search || "").trim(),
+          is_active: "true",
+        },
+        fetchOptions: { credentials: "include", cache: "no-store" },
+      });
+      setProducts(Array.isArray(page.records) ? page.records : []);
+    } catch {
+      setProducts([]);
+    }
+  };
+
   useEffect(() => {
     loadRecords();
-    Promise.all([
-      fetch("/api/stores?include_locations=all", {
-        credentials: "include",
-      }).then((res) => res.json()),
-      fetchAllCatalogProducts({
-        pageSize: 500,
-        fetchOptions: { credentials: "include" },
-      }),
-    ])
-      .then(([storeData, productData]) => {
-        setStores(normalizeStores(storeData));
-        setProducts(
-          Array.isArray(productData)
-            ? productData
-            : normalizeProducts(productData),
-        );
-      })
-      .catch(() => {
-        setStores([]);
-        setProducts([]);
-      });
+    fetch("/api/stores?include_locations=all", {
+      credentials: "include",
+    })
+      .then((res) => res.json())
+      .then((storeData) => setStores(normalizeStores(storeData)))
+      .catch(() => setStores([]));
+    loadProductOptions("");
   }, []);
+
+  useEffect(() => {
+    if (activeProductPicker == null) return;
+    const term = String(
+      form.items?.[activeProductPicker]?.productSearch || "",
+    ).trim();
+    const timer = setTimeout(() => {
+      loadProductOptions(term);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [activeProductPicker, form.items]);
 
   const openShortageAnalysis = async (row) => {
     setSelectedReq(row);

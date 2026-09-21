@@ -174,7 +174,8 @@ export default function InventoryHubPage() {
           store_id: selectedStoreId,
           dashboard_inventory: 'true',
           page: '1',
-          pageSize: '5000',
+          pageSize: '50',
+          search: storeInventorySearch || '',
         });
         if (canFilterStoreInventoryByVendor && storeInventoryVendor) {
           params.set('vendor', storeInventoryVendor);
@@ -201,7 +202,7 @@ export default function InventoryHubPage() {
     return () => {
       controller.abort();
     };
-  }, [canFilterStoreInventoryByVendor, canViewStoreInventory, selectedStoreId, storeInventoryVendor]);
+  }, [canFilterStoreInventoryByVendor, canViewStoreInventory, selectedStoreId, storeInventoryVendor, storeInventorySearch]);
 
   const stats = useMemo(() => {
     const inventory = data?.inventory || {};

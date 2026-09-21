@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { fetchAllCatalogProducts } from '@/lib/productPagination';
+import { fetchCatalogProductPage } from '@/lib/productPagination';
 
 const COMBO_TYPES = ['Fixed', 'Flexible', 'Meal', 'Bundle'];
 const FOOD_TYPES = ['Veg', 'Non-Veg', 'Egg', 'Vegan', 'Not Applicable'];
@@ -79,7 +79,7 @@ export default function CreateComboPage() {
           fetch('/api/catalog/categories?pageSize=500'),
           fetch('/api/catalog/sub-categories?pageSize=500'),
           fetch('/api/catalog/taxes?pageSize=200'),
-          fetchAllCatalogProducts({ pageSize: 500 }),
+          fetchCatalogProductPage({ page: 1, pageSize: 100 }).then((p) => p.records),
         ]);
         const [catJson, subJson, taxJson] = await Promise.all([
           catRes.json(),

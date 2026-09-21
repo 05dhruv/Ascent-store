@@ -33,7 +33,7 @@ const TEXT_TEMPLATE_HEADERS = ["warehouse_id", "product_id", "sku"];
 
 async function fetchTemplateProducts() {
   return fetchAllCatalogProducts({
-    params: { is_active: "true" },
+    params: { is_active: "true", export: "true" },
     pageSize: 500,
     fetchOptions: { cache: "no-store" },
   });

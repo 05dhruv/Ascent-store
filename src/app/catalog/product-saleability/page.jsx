@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { fetchAllCatalogProducts } from '@/lib/productPagination';
+import { fetchCatalogProductPage } from '@/lib/productPagination';
 
 function SectionCard({ title, description, children, action }) {
   return (
@@ -40,8 +40,7 @@ export default function ProductSaleabilityPage() {
         const [cgRes, storesRes, products, countersRes] = await Promise.all([
           fetch('/api/customer-groups'),
           fetch('/api/stores'),
-          fetchAllCatalogProducts({ pageSize: 500 }),
-          fetch('/api/employee/user-counter-session'),
+          fetchCatalogProductPage({ page: 1, pageSize: 100 }).then((p) => p.records),
         ]);
         const cgJson = await cgRes.json();
         const storesJson = await storesRes.json();

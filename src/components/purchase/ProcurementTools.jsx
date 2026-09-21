@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/MainLayout";
 import { formatIndianDate } from "@/lib/dateUtils";
-import { fetchAllCatalogProducts } from "@/lib/productPagination";
+import { fetchCatalogProductPage } from "@/lib/productPagination";
 
 function money(value) {
   return `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -368,10 +368,12 @@ function useLookups() {
     Promise.all([
       loadLookup("/api/stores"),
       loadLookup("/api/vendors"),
-      fetchAllCatalogProducts({
-        pageSize: 500,
+      fetchCatalogProductPage({
+        page: 1,
+        pageSize: 50,
+        params: { is_active: "true" },
         fetchOptions: { credentials: "include", cache: "no-store" },
-      }),
+      }).then((page) => page.records),
     ])
       .then(([s, v, p]) => {
         setStores(normalizeList(s));

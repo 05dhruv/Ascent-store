@@ -26,9 +26,23 @@ Historical transfers are labelled historical. No receipt quantities or dispatch 
 
 ## Permissions and evidence
 
-The workflow requires `MANAGE_INVENTORY` for changes and `VIEW_INVENTORY` or `MANAGE_INVENTORY` for reads. Source actions check the assigned source; receipt checks the assigned destination. System-super-admin access follows existing policy. Finer job-specific picker/approver/QC permissions and monetary approval limits are not introduced in this release.
+The workflow requires `MANAGE_INVENTORY` for changes and `VIEW_INVENTORY` or `MANAGE_INVENTORY` for reads. Source actions check the assigned source; receipt checks the assigned destination. System-super-admin access follows existing policy.
 
-Evidence fields currently accept document links/references. They are not a file-upload/signature capture system. QR receipt, GPS/automated ETA notifications, controlled quarantine release, and a dedicated work-activity Material Issue/Return module remain follow-up work. The current feature is material receipt, transfer and movement reporting, not full construction ERP/SOP certification.
+### Phase 2 construction ops (shipped)
+
+Schema: `src/lib/constructionOpsSchema.js` (`ensureConstructionOpsSchema`).
+
+| Area | APIs | UI |
+|------|------|-----|
+| Evidence + approval limits | `/api/construction/evidence`, `/api/construction/approval-limits` | `/construction/evidence` |
+| Quarantine release | `/api/construction/quarantine` | `/construction/quarantine` |
+| Activity–stockout link | `/api/construction/activity-issue` | (API; used with material issue) |
+| Transfer QR | `/api/construction/transfer-qr?transferId=` | Construction dashboard QR card |
+| Contractors + BOQ variance | `/api/construction/contractors`, `/api/construction/boq-variance` | `/construction/contractors` |
+| Labour / schedule | `/api/construction/labour`, `/api/construction/schedule` | `/construction/labour`, `/construction/schedule` |
+| Docs / RFIs / equipment / RA | `/api/construction/documents`, `rfis`, `equipment`, `ra-bills` | matching `/construction/*` pages |
+
+Documented approval-limit permission keys (limits table; RBAC still uses inventory/project permissions): `SITE_RECEIVER`, `DISPATCHER`, `QC_APPROVE`. Evidence accepts `file_url` (+ optional `signature_data`) normalized under `/uploads/…`.
 
 ## Data and verification
 

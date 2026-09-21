@@ -11,12 +11,17 @@ const links = [
   ['Material Issue', '/inventory/stockout', 'ti-building-warehouse'],
   ['Physical Stock Check', '/inventory/stockvalidation', 'ti-checklist'],
   ['Movement Ledger', '/reports/inventory/stock-ledger-summary', 'ti-list-details'],
+  ['Quarantine releases', '/construction/quarantine', 'ti-shield-check'],
+  ['Evidence & limits', '/construction/evidence', 'ti-file-certificate'],
 ];
 
 export default function ConstructionDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [transferId, setTransferId] = useState('');
+  const [qr, setQr] = useState(null);
+  const [qrError, setQrError] = useState('');
 
   const loadDashboard = () => {
     setLoading(true);
@@ -88,6 +93,50 @@ export default function ConstructionDashboard() {
           <div className="grid gap-2">{links.map(([label, href, icon]) => <Link key={label} href={href} className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 hover:border-amber-300 hover:bg-amber-50"><span className="flex items-center gap-3 text-sm font-semibold text-slate-700"><i className={`ti ${icon} text-lg text-amber-600`} />{label}</span><i className="ti ti-chevron-right text-slate-400" /></Link>)}</div>
         </section>
       </div>
+
+      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="mb-3 font-black text-slate-900">Transfer QR</h2>
+        <p className="mb-3 text-sm text-slate-500">Generate a QR data URL for a stock transfer (Phase 2 receipt helper).</p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-bold uppercase text-slate-500">Transfer ID</label>
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              value={transferId}
+              onChange={(e) => setTransferId(e.target.value)}
+              placeholder="e.g. 42"
+            />
+          </div>
+          <button
+            type="button"
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950"
+            onClick={async () => {
+              setQrError('');
+              setQr(null);
+              try {
+                const res = await fetch(`/api/construction/transfer-qr?transferId=${encodeURIComponent(transferId)}`, { cache: 'no-store' });
+                const json = await res.json();
+                if (!res.ok || !json.success) throw new Error(json.message || 'Unable to generate QR');
+                setQr(json.data);
+              } catch (err) {
+                setQrError(err.message);
+              }
+            }}
+          >
+            Generate QR
+          </button>
+        </div>
+        {qrError && <p className="mt-2 text-sm text-red-600">{qrError}</p>}
+        {qr?.qrDataUrl && (
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <img src={qr.qrDataUrl} alt="Transfer QR" className="h-40 w-40 rounded-lg border" />
+            <div className="text-sm text-slate-600">
+              <p className="font-semibold text-slate-900">Transfer #{qr.transferId}</p>
+              {qr.transferNumber && <p>{qr.transferNumber}</p>}
+            </div>
+          </div>
+        )}
+      </section>
     </MainLayout>
   );
 }

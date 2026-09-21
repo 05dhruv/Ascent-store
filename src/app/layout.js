@@ -38,7 +38,7 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" href="/ascent-sync-icon.svg" />
         <link
           rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"
+          href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
         />
       </head>
       <body>

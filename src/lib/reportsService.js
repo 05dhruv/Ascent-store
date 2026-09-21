@@ -1759,7 +1759,7 @@ async function getStoreWiseBatchReport(filters, user) {
        ib.expiry_date ASC,
        ib.created_at ASC,
        ib.id ASC
-     LIMIT 5000`,
+     LIMIT 500`,
     params,
   );
 
@@ -1847,7 +1847,7 @@ async function getStoreBatchPriceAuditReport(filters, user) {
       AND ps.is_active = TRUE
      WHERE ${conditions.join(" AND ")}
      ORDER BY s.name ASC, p.name ASC, ib.created_at ASC, ib.id ASC
-     LIMIT 10000`,
+     LIMIT 500`,
     params,
   );
 
@@ -2049,7 +2049,7 @@ async function getProductWiseSalesReport(filters, user) {
        COALESCE(s.name, 'Store'),
        DATE(sb.created_at AT TIME ZONE 'Asia/Kolkata')
      ORDER BY date DESC, gross_bill DESC, product_name ASC
-     LIMIT 5000`,
+     LIMIT 500`,
     params,
   );
 
@@ -2707,7 +2707,7 @@ async function getStoreSalesTaxRegister(filters, user) {
        COALESCE(sbi.barcode, p.barcode, ''), COALESCE(sbi.sku, p.sku, ''),
        COALESCE(p.hsn_code, ''), COALESCE(sbi.tax_name, ''), COALESCE(sbi.tax_rate, 0)
      ORDER BY sale_date DESC, store ASC, tax_rate ASC, product ASC
-     LIMIT 5000`,
+     LIMIT 500`,
     params,
   );
 

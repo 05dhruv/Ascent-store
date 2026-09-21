@@ -37,6 +37,7 @@ async function fetchTemplateProducts(categoryId = "") {
     params: {
       is_active: "true",
       category_id: categoryId,
+      export: "true",
     },
     pageSize: 500,
     fetchOptions: { cache: "no-store" },

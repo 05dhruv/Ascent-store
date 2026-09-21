@@ -22,6 +22,7 @@ import {
 } from "@/lib/api-protection";
 import { generateProductBarcode, normalizeBarcode } from "@/lib/productBarcode";
 import { validatePriceSet } from "@/lib/priceIntegrity";
+import { clampProductPageSize } from "@/lib/productPagination";
 
 function duplicateProductMessage(error) {
   const detail =
@@ -215,11 +216,16 @@ export async function GET(request) {
       ),
     ];
     const is_active = searchParams.get("is_active");
-    const returnAll = ["true", "1", "yes"].includes(
-      String(searchParams.get("all") || "").toLowerCase(),
+    const exportMode = ["true", "1", "yes"].includes(
+      String(searchParams.get("export") || "").toLowerCase(),
     );
-    const page = parseInt(searchParams.get("page") || "1");
-    const pageSize = parseInt(searchParams.get("pageSize") || "10");
+    // Unbounded `all=true` dumps are no longer allowed on interactive GETs.
+    // Export/bulk must paginate with export=true (capped page size).
+    const returnAll = false;
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const pageSize = clampProductPageSize(searchParams.get("pageSize") || "50", {
+      exportMode,
+    });
     const offset = (page - 1) * pageSize;
     const requestedStoreId =
       Number(

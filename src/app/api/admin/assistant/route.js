@@ -1,3 +1,4 @@
+import { ensureHotPathSchemas, schemasReady } from "@/lib/schemaGuard";
 import { requireAuth, requireRole } from "@/lib/api-protection";
 import {
   successResponse,
@@ -312,7 +313,7 @@ async function resolveStoreFilter(message) {
      FROM stores
      WHERE name IS NOT NULL AND TRIM(name) <> ''
      ORDER BY LENGTH(name) DESC
-     LIMIT 500`,
+     LIMIT 50`,
   );
 
   return (
@@ -928,11 +929,17 @@ export async function POST(request) {
     const message = String(body?.message || "").trim();
     if (!message) return validationError("Message is required");
 
-    await Promise.all([
-      ensureSalesBillingSchema(),
-      ensureAuditLogsSchema(),
-      ensureEmployeesSchema(),
+    const warm = await ensureHotPathSchemas([
+      ensureSalesBillingSchema,
+      ensureAuditLogsSchema,
+      ensureEmployeesSchema,
+      ensureCatalogExtrasSchema,
+      ensureInventoryBatchSchema,
+      ensureStockInSchema,
     ]);
+    if (!warm.ready && !schemasReady()) {
+      return errorResponse(warm.message || "Schema warming", warm.status || 503);
+    }
 
     const range = parseDateRange(message);
     let intent = parseIntent(message);

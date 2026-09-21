@@ -111,7 +111,10 @@ export default function ProjectControlsPage() {
           </h1>
           <p className="mt-1 text-sm text-slate-300">
             Plan project quantities and budgets, assign work activities, then
-            record daily labour and equipment progress.
+            record daily labour and equipment progress.{" "}
+            <a href="/construction/contractors" className="text-amber-400 underline">
+              Contractors &amp; BOQ variance
+            </a>
           </p>
         </header>
         <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 sm:flex-row sm:items-center">

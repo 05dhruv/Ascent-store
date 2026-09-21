@@ -11,6 +11,7 @@ import {
   requirePermission,
   requireStore,
 } from "@/lib/api-protection";
+import { clampProductPageSize } from "@/lib/productPagination";
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -94,8 +95,14 @@ export async function GET(request) {
     const includeExpired = ["1", "true", "yes"].includes(
       String(searchParams.get("include_expired") || "").toLowerCase(),
     );
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const exportMode = ["true", "1", "yes"].includes(
+      String(searchParams.get("export") || "").toLowerCase(),
+    );
+    const pageSize = clampProductPageSize(
+      searchParams.get("pageSize") || (dashboardInventory ? "50" : "20"),
+      { exportMode },
+    );
     const offset = (page - 1) * pageSize;
 
     if (warehouseStock) {
@@ -227,7 +234,13 @@ export async function GET(request) {
 
     const storeCheck = requireStore(auth.user, storeId);
     if (storeCheck.error) return storeCheck.error;
-    await repairStockTransferSaleabilityPrices(storeId);
+    // Saleability repair is an admin/job concern — skip on inventory list GET.
+    if (
+      searchParams.get("repair_saleability") === "true" ||
+      process.env.ENABLE_SALEABILITY_REPAIR_ON_READ === "true"
+    ) {
+      await repairStockTransferSaleabilityPrices(storeId);
+    }
 
     if (storeOnlyViewer) {
       const location = await query(`SELECT meta FROM stores WHERE id = $1`, [

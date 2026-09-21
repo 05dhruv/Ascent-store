@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
 import {
   OPTIONS_SHEET_NAME,
   applyTextFormatToColumns,
@@ -12,6 +12,12 @@ import {
   saveWorkbookWithValidations,
   sheetToJsonRows,
 } from "@/lib/xlsxDropdowns";
+
+let XLSX = null;
+async function ensureXlsx() {
+  if (!XLSX) XLSX = await loadXlsx();
+  return XLSX;
+}
 
 // Table cells may intentionally include a currency symbol for on-screen display.
 // Spreadsheet exports must remain plain numeric values so Excel can edit/sum them.
@@ -462,6 +468,7 @@ export default function CatalogListPage({
   // ── Download template ──────────────────────────────────────
   const downloadTemplate = async () => {
     try {
+      await ensureXlsx();
       const productTemplateHeaders = [
         "Product Name",
         "Product Code",
@@ -758,6 +765,7 @@ export default function CatalogListPage({
     setImporting(true);
 
     try {
+      await ensureXlsx();
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data, { cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
@@ -842,7 +850,8 @@ export default function CatalogListPage({
           },
           {
             label: `Export ${bulkImportNoun}`,
-            action: () => {
+            action: async () => {
+              await ensureXlsx();
               const ws = XLSX.utils.json_to_sheet(spreadsheetSafeRows(rows));
               const wb = XLSX.utils.book_new();
               XLSX.utils.book_append_sheet(wb, ws, title);
@@ -864,7 +873,8 @@ export default function CatalogListPage({
             { label: "Download Template", action: downloadTemplate },
             {
               label: "Export Product Groups",
-              action: () => {
+              action: async () => {
+                await ensureXlsx();
                 const ws = XLSX.utils.json_to_sheet(spreadsheetSafeRows(rows));
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, title);
@@ -888,7 +898,8 @@ export default function CatalogListPage({
                   { label: `Download Template`, action: downloadTemplate },
                   {
                     label: `Export ${title}`,
-                    action: () => {
+                    action: async () => {
+                      await ensureXlsx();
                       const ws = XLSX.utils.json_to_sheet(
                         spreadsheetSafeRows(rows),
                       );
@@ -907,7 +918,8 @@ export default function CatalogListPage({
                   { label: `Edit ${title}`, action: null },
                   {
                     label: `Export ${title}`,
-                    action: () => {
+                    action: async () => {
+                      await ensureXlsx();
                       const ws = XLSX.utils.json_to_sheet(
                         spreadsheetSafeRows(rows),
                       );

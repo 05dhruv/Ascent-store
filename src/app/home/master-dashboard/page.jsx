@@ -151,7 +151,7 @@ export default function ConstructionMasterDashboard() {
               </label>
               <button
                 onClick={load}
-                className="rounded-xl bg-amber-500 px-4 py-2 font-black text-slate-950"
+                className="rounded-xl bg-amber-500 px-4 py-2 font-white text-sm font-bold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {refreshing ? "Refreshing…" : "● LIVE"}
               </button>

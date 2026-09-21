@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import SearchableSelect from '@/components/SearchableSelect';
-import { fetchAllCatalogProducts } from '@/lib/productPagination';
+import { fetchCatalogProductPage } from '@/lib/productPagination';
 
 export default function CreateSubCategoryPage() {
   const router = useRouter();
@@ -38,11 +38,12 @@ export default function CreateSubCategoryPage() {
   }, []);
 
   useEffect(() => {
-    fetchAllCatalogProducts({
+    fetchCatalogProductPage({
       params: { search: prodSearch },
-      pageSize: 500,
+      page: 1,
+      pageSize: 50,
     })
-      .then((records) => setProducts(records))
+      .then((page) => setProducts(page.records))
       .catch(() => setProducts([]));
   }, [prodSearch]);
 

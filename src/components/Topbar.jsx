@@ -222,178 +222,74 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
     router.push(href);
   };
 
-  const loadReturnNotifications = useCallback(async () => {
+  const loadNotifications = useCallback(async () => {
     if (!user) {
       setReturnRequests([]);
+      setLowStockAlerts([]);
+      setRequisitionRequests([]);
+      setProcurementAlerts([]);
+      setPasswordRequests([]);
+      setPurchaseOrderEditRequests([]);
+      setPromotionAlerts([]);
       return;
     }
 
     try {
-      const endpoint = canReviewReturns
-        ? "/api/pos/returns?status=pending&pageSize=10"
-        : "/api/pos/returns?scope=mine&status=reviewed&pageSize=10";
-      const response = await fetch(endpoint, { cache: "no-store" });
+      const response = await fetch("/api/notifications/summary", {
+        cache: "no-store",
+        credentials: "include",
+      });
       const json = await response.json();
+      const data = json.success ? json.data || {} : {};
       setReturnRequests(
-        json.success && Array.isArray(json.data) ? json.data : [],
+        Array.isArray(data.returnRequests) ? data.returnRequests : [],
       );
-    } catch {
-      setReturnRequests([]);
-    }
-  }, [canReviewReturns, user]);
-
-  const loadLowStockNotifications = useCallback(async () => {
-    if (!user) {
-      setLowStockAlerts([]);
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/notifications/low-stock", {
-        cache: "no-store",
-      });
-      const json = await response.json();
-      const alerts =
-        json.success && Array.isArray(json.data?.alerts)
-          ? json.data.alerts
-          : [];
-      setLowStockAlerts(alerts);
-    } catch {
-      setLowStockAlerts([]);
-    }
-  }, [user]);
-
-  const loadRequisitionNotifications = useCallback(async () => {
-    if (!user || !canReviewRequisitions) {
-      setRequisitionRequests([]);
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/inventory/stockrequisition", {
-        cache: "no-store",
-      });
-      const json = await response.json();
-      const records = Array.isArray(json.records) ? json.records : [];
+      setLowStockAlerts(
+        Array.isArray(data.lowStockAlerts) ? data.lowStockAlerts : [],
+      );
       setRequisitionRequests(
-        records
-          .filter(
-            (record) =>
-              String(record.approvalStatus || "").toLowerCase() === "pending",
-          )
-          .slice(0, 10),
+        Array.isArray(data.requisitionRequests) ? data.requisitionRequests : [],
       );
-    } catch {
-      setRequisitionRequests([]);
-    }
-  }, [canReviewRequisitions, user]);
-
-  const loadProcurementNotifications = useCallback(async () => {
-    if (!user || !canReviewProcurement) {
-      setProcurementAlerts([]);
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/notifications/procurement", {
-        cache: "no-store",
-      });
-      const json = await response.json();
-      setProcurementAlerts(Array.isArray(json.alerts) ? json.alerts : []);
-    } catch {
-      setProcurementAlerts([]);
-    }
-  }, [canReviewProcurement, user]);
-
-  const loadPasswordRequestNotifications = useCallback(async () => {
-    if (!user || !canReviewPasswordRequests) {
-      setPasswordRequests([]);
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        "/api/auth/password-change-requests?status=pending",
-        { cache: "no-store" },
+      setProcurementAlerts(
+        Array.isArray(data.procurementAlerts) ? data.procurementAlerts : [],
       );
-      const json = await response.json();
-      const requests =
-        json.success && Array.isArray(json.data?.requests)
-          ? json.data.requests
-          : [];
-      setPasswordRequests(requests);
-    } catch {
-      setPasswordRequests([]);
-    }
-  }, [canReviewPasswordRequests, user]);
-
-  const loadPurchaseOrderEditRequestNotifications = useCallback(async () => {
-    if (!user || !canReviewPurchaseOrderEditRequests) {
-      setPurchaseOrderEditRequests([]);
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        "/api/purchase-orders/edit-requests?status=pending",
-        { cache: "no-store" },
+      setPasswordRequests(
+        Array.isArray(data.passwordRequests) ? data.passwordRequests : [],
       );
-      const json = await response.json();
-      const requests =
-        json.success && Array.isArray(json.data?.requests)
-          ? json.data.requests
-          : [];
-      setPurchaseOrderEditRequests(requests);
-    } catch {
-      setPurchaseOrderEditRequests([]);
-    }
-  }, [canReviewPurchaseOrderEditRequests, user]);
-
-  const loadPromotionNotifications = useCallback(async () => {
-    if (!user) return setPromotionAlerts([]);
-    try {
-      const response = await fetch("/api/catalog/promotions?pageSize=100", {
-        cache: "no-store",
-      });
-      const json = await response.json();
-      const records = json.success ? json.data?.records || [] : [];
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const alerts = records.flatMap((promotion) => {
-        const status = String(promotion.status || "").toLowerCase();
-        const start = promotion.start_date
-          ? new Date(`${String(promotion.start_date).slice(0, 10)}T00:00:00`)
-          : null;
-        const end = promotion.end_date
-          ? new Date(`${String(promotion.end_date).slice(0, 10)}T23:59:59`)
-          : null;
-        const daysLeft = end ? Math.ceil((end - today) / 86400000) : null;
-        if (status === "pending")
-          return [{ ...promotion, alertType: "pending" }];
-        if (
-          status === "active" &&
-          daysLeft !== null &&
-          daysLeft >= 0 &&
-          daysLeft <= 7
-        ) {
-          return [{ ...promotion, alertType: "expiring", daysLeft }];
-        }
-        if (status === "active" && end && end < today)
-          return [{ ...promotion, alertType: "expired" }];
-        return [];
-      });
+      setPurchaseOrderEditRequests(
+        Array.isArray(data.purchaseOrderEditRequests)
+          ? data.purchaseOrderEditRequests
+          : [],
+      );
       const dismissed = JSON.parse(
         window.localStorage.getItem("dismissed-promotion-alerts") || "[]",
       );
       setPromotionAlerts(
-        alerts.filter(
+        (Array.isArray(data.promotionAlerts) ? data.promotionAlerts : []).filter(
           (item) => !dismissed.includes(`${item.id}:${item.alertType}`),
         ),
       );
     } catch {
+      setReturnRequests([]);
+      setLowStockAlerts([]);
+      setRequisitionRequests([]);
+      setProcurementAlerts([]);
+      setPasswordRequests([]);
+      setPurchaseOrderEditRequests([]);
       setPromotionAlerts([]);
     }
   }, [user]);
+
+  useEffect(() => {
+    loadNotifications();
+    const intervalId = setInterval(loadNotifications, 90_000);
+    const onFocus = () => loadNotifications();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [loadNotifications]);
 
   const dismissPromotionAlert = (promotion) => {
     const key = `${promotion.id}:${promotion.alertType}`;
@@ -408,28 +304,6 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
       current.filter((item) => `${item.id}:${item.alertType}` !== key),
     );
   };
-
-  const loadNotifications = useCallback(() => {
-    loadReturnNotifications();
-    loadLowStockNotifications();
-    loadRequisitionNotifications();
-    loadProcurementNotifications();
-    loadPasswordRequestNotifications();
-    loadPurchaseOrderEditRequestNotifications();
-    loadPromotionNotifications();
-  }, [
-    loadLowStockNotifications,
-    loadPasswordRequestNotifications,
-    loadProcurementNotifications,
-    loadPurchaseOrderEditRequestNotifications,
-    loadRequisitionNotifications,
-    loadReturnNotifications,
-    loadPromotionNotifications,
-  ]);
-
-  useEffect(() => {
-    loadNotifications();
-  }, [loadNotifications, pathname]);
 
   useEffect(() => {
     setIsClient(true);

@@ -1356,6 +1356,7 @@ export default function StockInPage() {
       const catalogProducts = await fetchAllCatalogProducts({
         pageSize: 500,
         fetchOptions: { cache: "no-store" },
+        params: { export: "true" },
       });
       if (Array.isArray(catalogProducts) && catalogProducts.length) {
         const byId = new Map(
@@ -1652,8 +1653,9 @@ export default function StockInPage() {
       // Fetch catalog products and stores in parallel
       const [productsRes, storeList, vendorList] = await Promise.all([
         fetchAllCatalogProducts({
-          pageSize: 10000,
+          pageSize: 500,
           fetchOptions: { cache: "no-store" },
+          params: { export: "true" },
         }).catch(() => []),
         stores.length ? stores : fetchStores().catch(() => []),
         vendors.length
@@ -2349,10 +2351,22 @@ export default function StockInPage() {
       const json = await res.json();
       let records = Array.isArray(json.records) ? json.records : [];
       if (!records.length && !templateFilters.categoryId && !templateFilters.brandIds?.length) {
-        const catalogRes = await fetch("/api/catalog/products?pageSize=5000", { cache: "no-store" })
+        const catalogRes = await fetch("/api/catalog/products?export=true&pageSize=500&page=1", { cache: "no-store" })
           .then((r) => r.json())
           .catch(() => ({}));
-        const catalogItems = catalogRes.data?.records || catalogRes.records || [];
+        let catalogItems = catalogRes.data?.records || catalogRes.records || [];
+        const totalPages = Math.min(Number(catalogRes.data?.totalPages || 1), 40);
+        for (let page = 2; page <= totalPages; page += 1) {
+          const next = await fetch(
+            `/api/catalog/products?export=true&pageSize=500&page=${page}`,
+            { cache: "no-store" },
+          )
+            .then((r) => r.json())
+            .catch(() => ({}));
+          const rows = next.data?.records || next.records || [];
+          if (!rows.length) break;
+          catalogItems = catalogItems.concat(rows);
+        }
         if (Array.isArray(catalogItems) && catalogItems.length) {
           records = catalogItems.map((p) => ({
             id: p.id,

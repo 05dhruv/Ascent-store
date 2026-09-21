@@ -16,8 +16,10 @@
 import { useOfflineSync } from '@/contexts/OfflineSyncContext';
 
 export default function OfflineIndicator() {
-  const { isOnline, pendingCount, isSyncing, lastSyncTime, syncError } =
+  const { isOnline, pendingCount, isSyncing, lastSyncTime, syncError, offlineActive } =
     useOfflineSync();
+
+  if (!offlineActive) return null;
 
   // Nothing to show when fully up-to-date
   if (isOnline && pendingCount === 0 && !syncError) return null;

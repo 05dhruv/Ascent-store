@@ -2,22 +2,7 @@
  * schemaGuard.js
  *
  * Prevents concurrent schema-init calls from causing PostgreSQL deadlocks.
- *
- * Problem: Multiple simultaneous API requests each call `ensureFooSchema()`.
- * All pass the `if (ensured) return;` check before any query resolves,
- * so they all fire the same DDL concurrently → AccessExclusiveLock deadlock.
- *
- * Solution: Store a per-key Promise on globalThis.
- *   - Already done?     → return immediately (flag)
- *   - Already running?  → return the same in-flight Promise (mutex)
- *   - New call?         → start the Promise, store it, run the fn
- *
- * Usage:
- *   import { makeSchemaEnsurer } from '@/lib/schemaGuard';
- *   import { query } from '@/lib/db';
- *
- *   export const ensureFooSchema = makeSchemaEnsurer('foo', () => query(`...`));
- *   export const ensureFooSchema = makeSchemaEnsurer('foo', 2, () => query(`...`));
+ * Also supports boot-time warming so hot APIs avoid DDL mid-request.
  */
 
 const g = globalThis;
@@ -29,30 +14,83 @@ const g = globalThis;
  * @returns {() => Promise<void>}  Thread-safe schema ensurer
  */
 export function makeSchemaEnsurer(key, versionOrFn, maybeFn) {
-  const hasVersion = typeof versionOrFn !== 'function';
+  const hasVersion = typeof versionOrFn !== "function";
   const version = hasVersion ? versionOrFn : 1;
   const fn = hasVersion ? maybeFn : versionOrFn;
   const normalizedKey = `${key}_v${version}`;
-  const doneKey  = `_schemaEnsured_${normalizedKey}`;
-  const promKey  = `_schemaPromise_${normalizedKey}`;
+  const doneKey = `_schemaEnsured_${normalizedKey}`;
+  const promKey = `_schemaPromise_${normalizedKey}`;
 
   return async function ensureSchema() {
-    // Already completed in this process (survives hot-reload via globalThis)
     if (g[doneKey]) return;
-
-    // Already in-flight — share the same promise (prevents concurrent DDL)
     if (g[promKey]) return g[promKey];
 
-    // First caller — start the work
     g[promKey] = fn()
       .then(() => {
         g[doneKey] = true;
       })
       .finally(() => {
-        // Clear the promise slot so errors allow a clean retry
         g[promKey] = null;
       });
 
     return g[promKey];
   };
+}
+
+/** Register ensurers that should run at process boot. */
+export function registerBootSchemas(ensurers) {
+  const list = Array.isArray(ensurers)
+    ? ensurers.filter((fn) => typeof fn === "function")
+    : [];
+  g._schemaBootRegistry = [...(g._schemaBootRegistry || []), ...list];
+}
+
+export function schemasReady() {
+  return Boolean(g._schemasWarmed);
+}
+
+/**
+ * Warm all registered (and optional extra) ensurers once per process.
+ */
+export async function warmSchemas(extraEnsurers = []) {
+  if (g._schemasWarmed) return;
+  if (g._schemasWarmPromise) return g._schemasWarmPromise;
+
+  g._schemasWarmPromise = (async () => {
+    const ensurers = [
+      ...(g._schemaBootRegistry || []),
+      ...(Array.isArray(extraEnsurers) ? extraEnsurers : []),
+    ];
+    await Promise.allSettled(ensurers.map((fn) => fn()));
+    g._schemasWarmed = true;
+  })().finally(() => {
+    g._schemasWarmPromise = null;
+  });
+
+  return g._schemasWarmPromise;
+}
+
+/**
+ * Hot-path helper: if schemas are not warmed and NODE_ENV is production,
+ * skip DDL and let the caller return 503. In development, run warmSchemas.
+ */
+export async function ensureHotPathSchemas(ensurers = []) {
+  if (schemasReady()) {
+    return { ready: true };
+  }
+
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_REQUEST_SCHEMA !== "true"
+  ) {
+    warmSchemas(ensurers).catch(() => {});
+    return {
+      ready: false,
+      status: 503,
+      message: "Database schema warming — retry shortly",
+    };
+  }
+
+  await warmSchemas(ensurers);
+  return { ready: true };
 }

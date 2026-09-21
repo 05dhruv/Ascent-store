@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import SearchableSelect from '@/components/SearchableSelect';
-import { fetchAllCatalogProducts } from '@/lib/productPagination';
+import { fetchCatalogProductPage } from '@/lib/productPagination';
 
 export default function EditSubCategoryPage() {
   const router     = useRouter();
@@ -38,7 +38,7 @@ export default function EditSubCategoryPage() {
     Promise.all([
       fetch(`/api/catalog/sub-categories/${id}`).then(r => r.json()),
       fetch('/api/catalog/categories?pageSize=200').then(r => r.json()),
-      fetchAllCatalogProducts({ pageSize: 500 }),
+      fetchCatalogProductPage({ page: 1, pageSize: 100 }).then((p) => p.records),
     ]).then(([scJson, catJson, prodJson]) => {
       if (scJson.success) {
         const s = scJson.data;

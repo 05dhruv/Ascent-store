@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
 import MainLayout from "@/components/MainLayout";
 import {
   OPTIONS_SHEET_NAME,
@@ -17,6 +17,12 @@ import {
 } from "@/lib/purchaseLookups";
 import { formatIndianDate } from "@/lib/dateUtils";
 import { addCalendarDays, getIndiaDate } from "@/lib/vendorCreditTerms";
+
+let XLSX = null;
+async function ensureXlsx() {
+  if (!XLSX) XLSX = await loadXlsx();
+  return XLSX;
+}
 
 const tableHeaders = [
   "Purchase Order ID",
@@ -656,6 +662,7 @@ export default function PurchaseOrdersPage() {
   };
 
   const handleDownloadPoTemplate = async () => {
+    await ensureXlsx();
     const rows =
       selectedSuggestionItems.length > 0
         ? selectedSuggestionItems.map((item) => ({
@@ -750,6 +757,7 @@ export default function PurchaseOrdersPage() {
   const handleDownloadAllStoresProducts = async () => {
     setSaving(true);
     try {
+      await ensureXlsx();
       const [allProducts, storeLookup, vendorLookup] = await Promise.all([
         fetchAllStoresAssignedProducts(),
         fetchLookup("/api/stores").then(normalizeStores),

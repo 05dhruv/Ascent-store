@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
 import CatalogDataPage from "@/components/CatalogDataPage";
 import SearchableSelect from "@/components/SearchableSelect";
+import SmartImage from "@/components/SmartImage";
 import { useUser } from "@/hooks/useUser";
 import { fetchAllCatalogProducts } from "@/lib/productPagination";
 import {
@@ -18,6 +19,12 @@ import {
   sortOptions,
   uniqueOptions,
 } from "@/lib/xlsxDropdowns";
+
+let XLSX = null;
+async function ensureXlsx() {
+  if (!XLSX) XLSX = await loadXlsx();
+  return XLSX;
+}
 
 const columns = [
   { key: "sno", label: "S. No.", sortable: true },
@@ -446,6 +453,7 @@ export default function ProductsPage() {
   const downloadMaterialMasterTemplate = async () => {
     setBulkSheetBusy(true);
     try {
+      await ensureXlsx();
       const [freshBrands, freshCategories, freshManufacturers] =
         await Promise.all([
           fetchCatalogOptions("/api/catalog/brands", brands),
@@ -556,12 +564,14 @@ export default function ProductsPage() {
 
   const downloadBulkEditSheet = async () => {
     try {
+      await ensureXlsx();
       const products = await fetchAllCatalogProducts({
-        pageSize: 1000,
+        pageSize: 500,
         params: {
           department_id: departmentId,
           brand_id: brandId,
           category_id: categoryId,
+          export: "true",
         },
         fetchOptions: { cache: "no-store" },
       });
@@ -710,6 +720,7 @@ export default function ProductsPage() {
     setBulkSheetPreview(null);
     setBulkSheetNotice(null);
     try {
+      await ensureXlsx();
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
       if (!workbook.SheetNames || !workbook.SheetNames.length) {
@@ -1567,15 +1578,13 @@ export default function ProductsPage() {
           id: record.id,
           sno: (page - 1) * pageSize + index + 1,
           image: record.image_url ? (
-            <img
+            <SmartImage
               src={record.image_url}
               alt={record.name}
+              width={40}
+              height={40}
               className="w-10 h-10 object-cover rounded-lg border border-gray-200"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src =
-                  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="%23cbd5e1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
-              }}
+              unoptimized
             />
           ) : (
             <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-300">

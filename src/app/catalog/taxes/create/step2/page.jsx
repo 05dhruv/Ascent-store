@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { fetchAllCatalogProducts } from '@/lib/productPagination';
+import { fetchCatalogProductPage } from '@/lib/productPagination';
 
 export default function CreateTaxStep2() {
   const search = useSearchParams();
@@ -50,7 +50,7 @@ export default function CreateTaxStep2() {
     try {
       const [assignedRes, productsRes] = await Promise.all([
         fetch(`/api/catalog/taxes/assign-products?tax_id=${taxId}`),
-        fetchAllCatalogProducts({ pageSize: 500 }),
+        fetchCatalogProductPage({ page: 1, pageSize: 100 }).then((p) => p.records),
       ]);
 
       const assignedJson = await assignedRes.json();
@@ -67,15 +67,16 @@ export default function CreateTaxStep2() {
     setLoading(true);
     setError('');
     try {
-      const records = await fetchAllCatalogProducts({
+      const page = await fetchCatalogProductPage({
         params: {
           search: searchTerm.trim(),
           category_id: filters.category_id,
           brand_id: filters.brand_id,
         },
-        pageSize: 500,
+        page: 1,
+        pageSize: 100,
       });
-      setProducts(records);
+      setProducts(page.records);
     } catch (err) {
       setError(err?.message || String(err));
     } finally {

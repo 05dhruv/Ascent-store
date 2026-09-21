@@ -108,107 +108,134 @@ export async function GET(request, { params }) {
       [requisitionId]
     );
 
-    // 3. Fetch All Active Vendors for matching
+    // 3. Fetch All Active Vendors for matching (capped)
     const allVendorsRes = await query(
       `SELECT id, name, company, email, mobile_number, margin, credit_days, address_1, city, state
        FROM vendors
        WHERE is_active = TRUE
-       ORDER BY name ASC`
+       ORDER BY name ASC
+       LIMIT 200`
     );
     const allVendors = allVendorsRes.rows;
 
-    // 4. Calculate Available Stock & Shortage for each Item
-    const analyzedItems = await Promise.all(
-      itemsRes.rows.map(async (item) => {
-        const reqQty = Number(item.requested_qty || 0);
+    const productIds = itemsRes.rows.map((item) => item.product_id).filter(Boolean);
+    const brandIds = [
+      ...new Set(itemsRes.rows.map((item) => item.brand_id).filter(Boolean)),
+    ];
 
-        // Check active batches in source warehouse
-        let availableQty = 0;
-        if (sourceStoreId) {
-          const stockRes = await query(
-            `SELECT COALESCE(SUM(available_qty), 0) AS available_qty
+    // 4. Batched stock + vendor lookups (avoid N+1)
+    const [stockRes, pastPoVendorsRes, brandVendorsRes] = await Promise.all([
+      sourceStoreId && productIds.length
+        ? query(
+            `SELECT product_id, COALESCE(SUM(available_qty), 0) AS available_qty
              FROM inventory_batches
-             WHERE product_id = $1
+             WHERE product_id = ANY($1::int[])
                AND store_id = $2
                AND status = 'active'
-               AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)`,
-            [item.product_id, sourceStoreId]
-          );
-          availableQty = Number(stockRes.rows[0]?.available_qty || 0);
-        }
-
-        const shortageQty = Math.max(0, reqQty - availableQty);
-        const fulfilledFromStock = Math.min(reqQty, availableQty);
-        const isShortage = shortageQty > 0;
-
-        // Find recommended vendors for this product:
-        // a) From past Purchase Orders for this product
-        const pastPoVendorsRes = await query(
-          `SELECT DISTINCT v.id, v.name, v.company, v.email, v.mobile_number, poi.cost_price AS last_purchase_rate, 'past_supplier' AS match_type
-           FROM purchase_order_items poi
-           JOIN purchase_orders po ON po.id = poi.purchase_order_id
-           JOIN vendors v ON v.id = po.vendor_id
-           WHERE poi.product_id = $1 AND v.is_active = TRUE
-           ORDER BY poi.cost_price ASC
-           LIMIT 3`,
-          [item.product_id]
-        );
-
-        // b) From Brand Partnership
-        let brandVendorsRes = { rows: [] };
-        if (item.brand_id) {
-          brandVendorsRes = await query(
-            `SELECT v.id, v.name, v.company, v.email, v.mobile_number, 0 AS last_purchase_rate, 'authorized_brand_vendor' AS match_type
+               AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
+             GROUP BY product_id`,
+            [productIds, sourceStoreId],
+          )
+        : Promise.resolve({ rows: [] }),
+      productIds.length
+        ? query(
+            `SELECT DISTINCT ON (poi.product_id, v.id)
+               poi.product_id, v.id, v.name, v.company, v.email, v.mobile_number,
+               poi.cost_price AS last_purchase_rate, 'past_supplier' AS match_type
+             FROM purchase_order_items poi
+             JOIN purchase_orders po ON po.id = poi.purchase_order_id
+             JOIN vendors v ON v.id = po.vendor_id
+             WHERE poi.product_id = ANY($1::int[]) AND v.is_active = TRUE
+             ORDER BY poi.product_id, v.id, poi.cost_price ASC`,
+            [productIds],
+          )
+        : Promise.resolve({ rows: [] }),
+      brandIds.length
+        ? query(
+            `SELECT vb.brand_id, v.id, v.name, v.company, v.email, v.mobile_number,
+                    0 AS last_purchase_rate, 'authorized_brand_vendor' AS match_type
              FROM vendors v
              JOIN vendor_brands vb ON vb.vendor_id = v.id
-             WHERE vb.brand_id = $1 AND v.is_active = TRUE
-             LIMIT 3`,
-            [item.brand_id]
-          );
-        }
+             WHERE vb.brand_id = ANY($1::int[]) AND v.is_active = TRUE`,
+            [brandIds],
+          )
+        : Promise.resolve({ rows: [] }),
+    ]);
 
-        // Combine & deduplicate vendors
-        const vendorMap = new Map();
-        for (const v of pastPoVendorsRes.rows) {
-          vendorMap.set(v.id, { ...v, reason: 'Previous supplier for this material' });
-        }
-        for (const v of brandVendorsRes.rows) {
-          if (!vendorMap.has(v.id)) {
-            vendorMap.set(v.id, { ...v, reason: `Authorized vendor for brand ${item.brand_name || ''}` });
-          }
-        }
-
-        // Top recommended vendor for this item
-        const matchedVendors = Array.from(vendorMap.values());
-        const primaryVendor = matchedVendors[0] || (allVendors.length ? { ...allVendors[0], reason: 'Active vendor' } : null);
-
-        return {
-          ...item,
-          requested_qty: reqQty,
-          available_qty: availableQty,
-          shortage_qty: shortageQty,
-          fulfilled_from_stock: fulfilledFromStock,
-          is_shortage: isShortage,
-          recommended_vendors: matchedVendors,
-          primary_vendor: primaryVendor,
-        };
-      })
+    const stockByProduct = new Map(
+      (stockRes.rows || []).map((row) => [String(row.product_id), Number(row.available_qty || 0)]),
     );
+    const pastVendorsByProduct = new Map();
+    for (const row of pastPoVendorsRes.rows || []) {
+      const key = String(row.product_id);
+      if (!pastVendorsByProduct.has(key)) pastVendorsByProduct.set(key, []);
+      const list = pastVendorsByProduct.get(key);
+      if (list.length < 3) list.push(row);
+    }
+    const brandVendorsByBrand = new Map();
+    for (const row of brandVendorsRes.rows || []) {
+      const key = String(row.brand_id);
+      if (!brandVendorsByBrand.has(key)) brandVendorsByBrand.set(key, []);
+      const list = brandVendorsByBrand.get(key);
+      if (list.length < 3) list.push(row);
+    }
+
+    const analyzedItems = itemsRes.rows.map((item) => {
+      const reqQty = Number(item.requested_qty || 0);
+      const availableQty = stockByProduct.get(String(item.product_id)) || 0;
+      const shortageQty = Math.max(0, reqQty - availableQty);
+      const fulfilledFromStock = Math.min(reqQty, availableQty);
+      const isShortage = shortageQty > 0;
+
+      const vendorMap = new Map();
+      for (const v of pastVendorsByProduct.get(String(item.product_id)) || []) {
+        vendorMap.set(v.id, { ...v, reason: 'Previous supplier for this material' });
+      }
+      for (const v of brandVendorsByBrand.get(String(item.brand_id)) || []) {
+        if (!vendorMap.has(v.id)) {
+          vendorMap.set(v.id, {
+            ...v,
+            reason: `Authorized vendor for brand ${item.brand_name || ''}`,
+          });
+        }
+      }
+
+      const matchedVendors = Array.from(vendorMap.values());
+      const primaryVendor =
+        matchedVendors[0] ||
+        (allVendors.length ? { ...allVendors[0], reason: 'Active vendor' } : null);
+
+      return {
+        ...item,
+        requested_qty: reqQty,
+        available_qty: availableQty,
+        shortage_qty: shortageQty,
+        fulfilled_from_stock: fulfilledFromStock,
+        is_shortage: isShortage,
+        recommended_vendors: matchedVendors,
+        primary_vendor: primaryVendor,
+      };
+    });
 
     const totalRequestedQty = analyzedItems.reduce((sum, item) => sum + item.requested_qty, 0);
     const totalAvailableQty = analyzedItems.reduce((sum, item) => sum + item.fulfilled_from_stock, 0);
     const totalShortageQty = analyzedItems.reduce((sum, item) => sum + item.shortage_qty, 0);
     const hasShortage = totalShortageQty > 0;
 
-    // Pick global top suggested vendor for PO creation
     const vendorFrequency = {};
     for (const item of analyzedItems) {
       if (item.is_shortage && item.primary_vendor) {
-        vendorFrequency[item.primary_vendor.id] = (vendorFrequency[item.primary_vendor.id] || 0) + 1;
+        vendorFrequency[item.primary_vendor.id] =
+          (vendorFrequency[item.primary_vendor.id] || 0) + 1;
       }
     }
-    const bestVendorId = Object.keys(vendorFrequency).sort((a, b) => vendorFrequency[b] - vendorFrequency[a])[0];
-    const topRecommendedVendor = allVendors.find((v) => String(v.id) === String(bestVendorId)) || allVendors[0] || null;
+    const bestVendorId = Object.keys(vendorFrequency).sort(
+      (a, b) => vendorFrequency[b] - vendorFrequency[a],
+    )[0];
+    const topRecommendedVendor =
+      allVendors.find((v) => String(v.id) === String(bestVendorId)) ||
+      allVendors[0] ||
+      null;
 
     return NextResponse.json({
       success: true,
@@ -219,7 +246,12 @@ export async function GET(request, { params }) {
           total_requested_qty: totalRequestedQty,
           total_available_qty: totalAvailableQty,
           total_shortage_qty: totalShortageQty,
-          shortage_level: totalAvailableQty === 0 ? 'full_shortage' : hasShortage ? 'partial_shortage' : 'no_shortage',
+          shortage_level:
+            totalAvailableQty === 0
+              ? 'full_shortage'
+              : hasShortage
+                ? 'partial_shortage'
+                : 'no_shortage',
         },
         items: analyzedItems,
         all_vendors: allVendors,

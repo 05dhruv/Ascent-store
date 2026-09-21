@@ -354,6 +354,8 @@ const ROUTE_PERMISSION_RULES = [
       "SITE_VIEW",
       "SITE_CREATE",
       "SITE_EDIT",
+      "VIEW_INVENTORY",
+      "MANAGE_INVENTORY",
     ],
   },
   { prefix: "/delivery", permissions: ["MANAGE_DELIVERIES"] },
