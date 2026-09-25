@@ -5,6 +5,7 @@ import { ensureVendorsSchema } from '@/lib/vendorsSchema';
 import { ensurePurchaseOrderSchema } from '@/lib/purchaseOrderSchema';
 import { appendStoreScope, auditLog, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
 import { resolveVendorPaymentTerms } from '@/lib/vendorCreditTerms';
+import { assertWithinApprovalLimit } from '@/lib/approvalLimits';
 
 function mapRow(row, { hideTransactionCost = false } = {}) {
   return {
@@ -93,6 +94,32 @@ export async function POST(request) {
     }
     const storeCheck = requireStore(auth.user, destinationId);
     if (storeCheck.error) return storeCheck.error;
+
+    const declaredAmount = Number(
+      body.totalCost ??
+        body.total_cost ??
+        body.declaredAmount ??
+        (Array.isArray(body.items)
+          ? body.items.reduce(
+              (sum, item) =>
+                sum +
+                Number(item.qty || item.quantity || 0) *
+                  Number(item.cost_price || item.costPrice || item.rate || 0),
+              0,
+            )
+          : 0),
+    );
+    if (declaredAmount > 0) {
+      try {
+        await assertWithinApprovalLimit(
+          auth.user,
+          'QC_APPROVE',
+          declaredAmount,
+        );
+      } catch (limitError) {
+        return NextResponse.json({ error: limitError.message }, { status: 403 });
+      }
+    }
 
     const client = await getClient();
     try {

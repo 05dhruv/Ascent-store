@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import MainLayout from "@/components/MainLayout";
-
-const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+import ConstructionShell, {
+  ConstructionAlert,
+  ConstructionEmpty,
+  ConstructionField,
+  ConstructionSection,
+  ConstructionTable,
+  constructionBtnPrimary,
+  constructionBtnSecondary,
+  constructionInput,
+} from "@/components/construction/ConstructionShell";
 
 export default function RaBillsPage() {
   const [records, setRecords] = useState([]);
@@ -98,149 +105,138 @@ export default function RaBillsPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="mx-auto max-w-6xl space-y-5 pb-10">
-        <header className="rounded-2xl bg-slate-900 p-5 text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
-            Billing
-          </p>
-          <h1 className="mt-1 text-2xl font-black">RA bills</h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Running account bills with line items and retention.
-          </p>
-        </header>
+    <ConstructionShell
+      title="RA bills"
+      subtitle="Running account bills with line items and retention."
+    >
+      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {message && (
+        <ConstructionAlert type="info">{message}</ConstructionAlert>
+      )}
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        )}
-        {message && (
-          <p className="text-sm font-semibold text-slate-700">{message}</p>
-        )}
-
+      <ConstructionSection
+        title="Create RA bill"
+        description="Enter project, bill number, line item, and retention."
+      >
         <form
           onSubmit={save}
-          className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
         >
-          <input
-            className={input}
-            placeholder="Project ID"
-            required
-            value={form.projectId}
-            onChange={(e) => setForm({ ...form, projectId: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Bill number"
-            required
-            value={form.billNumber}
-            onChange={(e) => setForm({ ...form, billNumber: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Contractor ID"
-            value={form.contractorId}
-            onChange={(e) =>
-              setForm({ ...form, contractorId: e.target.value })
-            }
-          />
-          <input
-            className={input}
-            placeholder="Line description"
-            value={form.description}
-            onChange={(e) =>
-              setForm({ ...form, description: e.target.value })
-            }
-          />
-          <input
-            className={input}
-            placeholder="Qty"
-            value={form.qty}
-            onChange={(e) => setForm({ ...form, qty: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Rate"
-            value={form.rate}
-            onChange={(e) => setForm({ ...form, rate: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Retention"
-            value={form.retentionAmount}
-            onChange={(e) =>
-              setForm({ ...form, retentionAmount: e.target.value })
-            }
-          />
-          <button
-            disabled={busy}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950"
-          >
-            Create RA bill
-          </button>
+          <ConstructionField label="Project ID" required>
+            <input
+              className={constructionInput}
+              required
+              value={form.projectId}
+              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Bill number" required>
+            <input
+              className={constructionInput}
+              required
+              value={form.billNumber}
+              onChange={(e) => setForm({ ...form, billNumber: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Contractor ID">
+            <input
+              className={constructionInput}
+              value={form.contractorId}
+              onChange={(e) =>
+                setForm({ ...form, contractorId: e.target.value })
+              }
+            />
+          </ConstructionField>
+          <ConstructionField label="Line description">
+            <input
+              className={constructionInput}
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+            />
+          </ConstructionField>
+          <ConstructionField label="Qty">
+            <input
+              className={constructionInput}
+              value={form.qty}
+              onChange={(e) => setForm({ ...form, qty: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Rate">
+            <input
+              className={constructionInput}
+              value={form.rate}
+              onChange={(e) => setForm({ ...form, rate: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Retention">
+            <input
+              className={constructionInput}
+              value={form.retentionAmount}
+              onChange={(e) =>
+                setForm({ ...form, retentionAmount: e.target.value })
+              }
+            />
+          </ConstructionField>
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={busy}
+              className={constructionBtnPrimary}
+            >
+              Create RA bill
+            </button>
+          </div>
         </form>
+      </ConstructionSection>
 
-        <div className="overflow-x-auto rounded-xl border bg-white">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Bill</th>
-                <th className="px-3 py-2">Project</th>
-                <th className="px-3 py-2">Gross</th>
-                <th className="px-3 py-2">Net</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((row) => (
-                <tr key={row.id} className="border-t">
-                  <td className="px-3 py-2 font-semibold">{row.bill_number}</td>
-                  <td className="px-3 py-2">{row.project_name}</td>
-                  <td className="px-3 py-2">
-                    ₹{Number(row.gross_amount || 0).toLocaleString("en-IN")}
-                  </td>
-                  <td className="px-3 py-2">
-                    ₹{Number(row.net_amount || 0).toLocaleString("en-IN")}
-                  </td>
-                  <td className="px-3 py-2 uppercase">{row.status}</td>
-                  <td className="px-3 py-2 space-x-2">
-                    {row.status === "draft" && (
-                      <button
-                        disabled={busy}
-                        className="font-semibold text-amber-700"
-                        onClick={() => setStatus(row.id, "submitted")}
-                      >
-                        Submit
-                      </button>
-                    )}
-                    {row.status === "submitted" && (
-                      <button
-                        disabled={busy}
-                        className="font-semibold text-emerald-700"
-                        onClick={() => setStatus(row.id, "approved")}
-                      >
-                        Approve
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {!records.length && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-3 py-8 text-center text-slate-400"
+      <ConstructionSection title="RA bills">
+        <ConstructionTable
+          headers={["Bill", "Project", "Gross", "Net", "Status", "Actions"]}
+        >
+          {records.map((row) => (
+            <tr key={row.id} className="hover:bg-slate-50/80">
+              <td className="px-4 py-3 font-medium text-slate-900">
+                {row.bill_number}
+              </td>
+              <td className="px-4 py-3 text-slate-700">{row.project_name}</td>
+              <td className="px-4 py-3 text-slate-700">
+                ₹{Number(row.gross_amount || 0).toLocaleString("en-IN")}
+              </td>
+              <td className="px-4 py-3 text-slate-700">
+                ₹{Number(row.net_amount || 0).toLocaleString("en-IN")}
+              </td>
+              <td className="px-4 py-3 uppercase text-slate-600">{row.status}</td>
+              <td className="px-4 py-3">
+                {row.status === "draft" && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className={constructionBtnSecondary}
+                    onClick={() => setStatus(row.id, "submitted")}
                   >
-                    No RA bills yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </MainLayout>
+                    Submit
+                  </button>
+                )}
+                {row.status === "submitted" && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className={constructionBtnPrimary}
+                    onClick={() => setStatus(row.id, "approved")}
+                  >
+                    Approve
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+          {!records.length && (
+            <ConstructionEmpty colSpan={6} message="No RA bills yet." />
+          )}
+        </ConstructionTable>
+      </ConstructionSection>
+    </ConstructionShell>
   );
 }

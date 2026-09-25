@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import MainLayout from "@/components/MainLayout";
-
-const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+import ConstructionShell, {
+  ConstructionAlert,
+  ConstructionEmpty,
+  ConstructionField,
+  ConstructionSection,
+  ConstructionTable,
+  constructionBtnPrimary,
+  constructionInput,
+} from "@/components/construction/ConstructionShell";
 
 export default function EvidencePage() {
   const [records, setRecords] = useState([]);
@@ -24,6 +30,8 @@ export default function EvidencePage() {
     permissionKey: "QC_APPROVE",
     maxAmount: "",
   });
+
+  const [file, setFile] = useState(null);
 
   const load = async () => {
     setError("");
@@ -54,11 +62,26 @@ export default function EvidencePage() {
     setBusy(true);
     setMessage("");
     try {
-      const r = await fetch("/api/construction/evidence", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      let r;
+      if (file) {
+        const fd = new FormData();
+        fd.set("entityType", form.entityType);
+        fd.set("entityId", form.entityId);
+        fd.set("file", file);
+        if (form.fileName) fd.set("fileName", form.fileName);
+        if (form.signatureData) fd.set("signatureData", form.signatureData);
+        if (form.fileUrl) fd.set("fileUrl", form.fileUrl);
+        r = await fetch("/api/construction/evidence", {
+          method: "POST",
+          body: fd,
+        });
+      } else {
+        r = await fetch("/api/construction/evidence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+      }
       const j = await r.json();
       if (!r.ok) throw new Error(j.message || j.error);
       setForm({
@@ -68,6 +91,7 @@ export default function EvidencePage() {
         fileName: "",
         signatureData: "",
       });
+      setFile(null);
       setMessage("Evidence saved.");
       await load();
     } catch (err) {
@@ -98,143 +122,140 @@ export default function EvidencePage() {
   };
 
   return (
-    <MainLayout>
-      <div className="mx-auto max-w-6xl space-y-5 pb-10">
-        <header className="rounded-2xl bg-slate-900 p-5 text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
-            Evidence & approvals
-          </p>
-          <h1 className="mt-1 text-2xl font-black">Movement evidence</h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Attach file URL / signature metadata. Store references under{" "}
-            <code className="text-amber-300">/uploads/…</code>. Documented keys:{" "}
-            {documentedKeys.join(", ") || "SITE_RECEIVER, DISPATCHER, QC_APPROVE"}.
-          </p>
-        </header>
+    <ConstructionShell
+      title="Movement evidence"
+      subtitle={`Upload photos/PDFs or paste a URL. Signatures accepted as data URLs and stored under /uploads/…. Limits: ${documentedKeys.join(", ") || "SITE_RECEIVER, DISPATCHER, QC_APPROVE"}.`}
+    >
+      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {message && (
+        <ConstructionAlert type="info">{message}</ConstructionAlert>
+      )}
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        )}
-        {message && (
-          <p className="text-sm font-semibold text-slate-700">{message}</p>
-        )}
-
+      <ConstructionSection
+        title="Save evidence"
+        description="Attach a file or URL to a transfer, GRN, or other entity."
+      >
         <form
           onSubmit={saveEvidence}
-          className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2"
+          className="grid gap-3 sm:grid-cols-2"
         >
-          <input
-            className={input}
-            placeholder="Entity type (transfer, grn, …)"
-            value={form.entityType}
-            onChange={(e) => setForm({ ...form, entityType: e.target.value })}
-            required
-          />
-          <input
-            className={input}
-            placeholder="Entity ID"
-            value={form.entityId}
-            onChange={(e) => setForm({ ...form, entityId: e.target.value })}
-            required
-          />
-          <input
-            className={input}
-            placeholder="File URL or uploads/filename.pdf"
-            value={form.fileUrl}
-            onChange={(e) => setForm({ ...form, fileUrl: e.target.value })}
-            required
-          />
-          <input
-            className={input}
-            placeholder="File name"
-            value={form.fileName}
-            onChange={(e) => setForm({ ...form, fileName: e.target.value })}
-          />
-          <textarea
-            className={`${input} sm:col-span-2`}
-            rows={2}
-            placeholder="Optional signature data"
-            value={form.signatureData}
-            onChange={(e) =>
-              setForm({ ...form, signatureData: e.target.value })
-            }
-          />
+          <ConstructionField label="Entity type" required>
+            <input
+              className={constructionInput}
+              placeholder="transfer, grn, …"
+              value={form.entityType}
+              onChange={(e) => setForm({ ...form, entityType: e.target.value })}
+              required
+            />
+          </ConstructionField>
+          <ConstructionField label="Entity ID" required>
+            <input
+              className={constructionInput}
+              value={form.entityId}
+              onChange={(e) => setForm({ ...form, entityId: e.target.value })}
+              required
+            />
+          </ConstructionField>
+          <ConstructionField label="Upload file">
+            <input
+              className={constructionInput}
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+          </ConstructionField>
+          <ConstructionField label="Or file URL" required={!file}>
+            <input
+              className={constructionInput}
+              placeholder="/uploads/filename.pdf"
+              value={form.fileUrl}
+              onChange={(e) => setForm({ ...form, fileUrl: e.target.value })}
+              required={!file}
+            />
+          </ConstructionField>
+          <ConstructionField label="File name">
+            <input
+              className={constructionInput}
+              value={form.fileName}
+              onChange={(e) => setForm({ ...form, fileName: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Signature data URL" className="sm:col-span-2">
+            <textarea
+              className={constructionInput}
+              rows={2}
+              placeholder="data:image/png;base64,…"
+              value={form.signatureData}
+              onChange={(e) =>
+                setForm({ ...form, signatureData: e.target.value })
+              }
+            />
+          </ConstructionField>
           <button
+            type="submit"
             disabled={busy}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950"
+            className={constructionBtnPrimary}
           >
             Save evidence
           </button>
         </form>
+      </ConstructionSection>
 
-        <div className="overflow-x-auto rounded-xl border bg-white">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Entity</th>
-                <th className="px-3 py-2">File</th>
-                <th className="px-3 py-2">By</th>
-                <th className="px-3 py-2">When</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((row) => (
-                <tr key={row.id} className="border-t">
-                  <td className="px-3 py-2">
-                    {row.entity_type} #{row.entity_id}
-                  </td>
-                  <td className="px-3 py-2">
-                    <a
-                      className="text-amber-700 underline"
-                      href={row.file_url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {row.file_name || row.file_url}
-                    </a>
-                    {row.signature_data ? " · signed" : ""}
-                  </td>
-                  <td className="px-3 py-2">{row.uploaded_by_name || "—"}</td>
-                  <td className="px-3 py-2">
-                    {row.created_at
-                      ? new Date(row.created_at).toLocaleString()
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-              {!records.length && (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-3 py-8 text-center text-slate-400"
-                  >
-                    No evidence yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+      <ConstructionSection title="Evidence records">
+        <ConstructionTable headers={["Entity", "File", "By", "When"]}>
+          {records.map((row) => (
+            <tr key={row.id} className="hover:bg-slate-50/80">
+              <td className="px-4 py-3 text-slate-700">
+                {row.entity_type} #{row.entity_id}
+              </td>
+              <td className="px-4 py-3">
+                <a
+                  className="text-blue-600 underline"
+                  href={row.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {row.file_name || row.file_url}
+                </a>
+                {row.signature_data ? " · signed" : ""}
+              </td>
+              <td className="px-4 py-3 text-slate-600">
+                {row.uploaded_by_name || "—"}
+              </td>
+              <td className="px-4 py-3 text-slate-600">
+                {row.created_at
+                  ? new Date(row.created_at).toLocaleString()
+                  : "—"}
+              </td>
+            </tr>
+          ))}
+          {!records.length && (
+            <ConstructionEmpty colSpan={4} message="No evidence yet." />
+          )}
+        </ConstructionTable>
+      </ConstructionSection>
 
-        <section className="rounded-xl border bg-white p-4 space-y-3">
-          <h2 className="font-black text-slate-900">Approval limits</h2>
-          <form
-            onSubmit={saveLimit}
-            className="grid gap-3 sm:grid-cols-4"
-          >
+      <ConstructionSection
+        title="Approval limits"
+        description="Set max amounts by role and permission key."
+      >
+        <form
+          onSubmit={saveLimit}
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        >
+          <ConstructionField label="Role name" required>
             <input
-              className={input}
-              placeholder="Role name"
+              className={constructionInput}
               value={limitForm.roleName}
               onChange={(e) =>
                 setLimitForm({ ...limitForm, roleName: e.target.value })
               }
               required
             />
+          </ConstructionField>
+          <ConstructionField label="Permission key">
             <select
-              className={input}
+              className={constructionInput}
               value={limitForm.permissionKey}
               onChange={(e) =>
                 setLimitForm({ ...limitForm, permissionKey: e.target.value })
@@ -249,35 +270,39 @@ export default function EvidencePage() {
                 </option>
               ))}
             </select>
+          </ConstructionField>
+          <ConstructionField label="Max amount" required>
             <input
-              className={input}
-              placeholder="Max amount"
+              className={constructionInput}
               value={limitForm.maxAmount}
               onChange={(e) =>
                 setLimitForm({ ...limitForm, maxAmount: e.target.value })
               }
               required
             />
+          </ConstructionField>
+          <div className="flex items-end">
             <button
+              type="submit"
               disabled={busy}
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white"
+              className={constructionBtnPrimary}
             >
               Save limit
             </button>
-          </form>
-          <ul className="text-sm text-slate-600 space-y-1">
-            {limits.map((l) => (
-              <li key={l.id}>
-                {l.role_name} · {l.permission_key} · ₹
-                {Number(l.max_amount).toLocaleString("en-IN")}
-              </li>
-            ))}
-            {!limits.length && (
-              <li className="text-slate-400">No limits configured.</li>
-            )}
-          </ul>
-        </section>
-      </div>
-    </MainLayout>
+          </div>
+        </form>
+        <ul className="mt-4 space-y-1 text-[13px] text-slate-600">
+          {limits.map((l) => (
+            <li key={l.id}>
+              {l.role_name} · {l.permission_key} · ₹
+              {Number(l.max_amount).toLocaleString("en-IN")}
+            </li>
+          ))}
+          {!limits.length && (
+            <li className="text-slate-400">No limits configured.</li>
+          )}
+        </ul>
+      </ConstructionSection>
+    </ConstructionShell>
   );
 }

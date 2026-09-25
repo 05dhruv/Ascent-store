@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import MainLayout from "@/components/MainLayout";
+import ConstructionShell, {
+  ConstructionAlert,
+  ConstructionSection,
+  constructionBtnPrimary,
+  constructionInput,
+} from "@/components/construction/ConstructionShell";
 
 const empty = {
   code: "",
@@ -75,49 +80,45 @@ export default function ProjectControlsPage() {
       setBusy(false);
     }
   };
-  const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+  const input = constructionInput;
   if (loadError)
     return (
-      <MainLayout>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
-          <p className="font-bold">Project Controls could not load</p>
+      <ConstructionShell title="BOQ & Project Controls" subtitle="Could not load.">
+        <ConstructionAlert>
+          <p className="font-semibold">Project Controls could not load</p>
           <p className="mt-1">{loadError}</p>
-          <button
-            className="mt-3 rounded-lg bg-red-700 px-3 py-2 text-white"
-            onClick={load}
-          >
+          <button type="button" className={`${constructionBtnPrimary} mt-3`} onClick={load}>
             Retry
           </button>
-        </div>
-      </MainLayout>
+        </ConstructionAlert>
+      </ConstructionShell>
     );
   if (!data)
     return (
-      <MainLayout>
-        <div className="p-6 text-sm text-slate-500">
-          Loading project controls…
-        </div>
-      </MainLayout>
+      <ConstructionShell title="BOQ & Project Controls" subtitle="Loading…">
+        <p className="text-sm text-slate-500">Loading project controls…</p>
+      </ConstructionShell>
     );
   return (
-    <MainLayout>
-      <div className="mx-auto max-w-7xl space-y-5 pb-10">
-        <header className="rounded-2xl bg-slate-900 p-5 text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
-            Construction controls
-          </p>
-          <h1 className="mt-1 text-2xl font-black">
-            BOQ, work plan and daily progress
-          </h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Plan project quantities and budgets, assign work activities, then
-            record daily labour and equipment progress.{" "}
-            <a href="/construction/contractors" className="text-amber-400 underline">
-              Contractors &amp; BOQ variance
-            </a>
-          </p>
-        </header>
-        <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 sm:flex-row sm:items-center">
+    <ConstructionShell
+      title="BOQ, work plan & daily progress"
+      subtitle="Plan quantities and budgets, assign activities, then record daily progress."
+      actions={[
+        {
+          label: "Contractors",
+          href: "/construction/contractors",
+          primary: false,
+        },
+        {
+          label: "BOQ Variance",
+          href: "/construction/boq-variance",
+          primary: true,
+        },
+      ]}
+    >
+      <div className="space-y-5">
+        <ConstructionSection title="Project">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <select
             className={input}
             value={projectId}
@@ -136,9 +137,10 @@ export default function ProjectControlsPage() {
               {Number(selectedProject.budget || 0).toLocaleString("en-IN")}
             </span>
           )}
-        </div>
+          </div>
+        </ConstructionSection>
         {!projectId ? (
-          <div className="rounded-xl border border-dashed p-10 text-center text-slate-500">
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-slate-500">
             Select a project to manage its controls.
           </div>
         ) : (
@@ -151,17 +153,16 @@ export default function ProjectControlsPage() {
               ].map(([key, label]) => (
                 <button
                   key={key}
+                  type="button"
                   onClick={() => setTab(key)}
-                  className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold ${tab === key ? "bg-amber-500 text-slate-950" : "bg-slate-100 text-slate-600"}`}
+                  className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-[12.5px] font-medium transition ${tab === key ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
                 >
                   {label}
                 </button>
               ))}
             </div>
             {message && (
-              <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                {message}
-              </p>
+              <ConstructionAlert type="info">{message}</ConstructionAlert>
             )}
             {tab === "boq" && (
               <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
@@ -170,9 +171,9 @@ export default function ProjectControlsPage() {
                     e.preventDefault();
                     save("boq", form);
                   }}
-                  className="space-y-3 rounded-xl border bg-white p-4"
+                  className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
-                  <h2 className="font-bold">Add BOQ line</h2>
+                  <h2 className="text-[14px] font-semibold text-slate-900">Add BOQ line</h2>
                   <input
                     required
                     className={input}
@@ -386,7 +387,7 @@ export default function ProjectControlsPage() {
           </>
         )}
       </div>
-    </MainLayout>
+    </ConstructionShell>
   );
 }
 function Table({ headers, rows }) {

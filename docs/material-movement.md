@@ -44,6 +44,15 @@ Schema: `src/lib/constructionOpsSchema.js` (`ensureConstructionOpsSchema`).
 
 Documented approval-limit permission keys (limits table; RBAC still uses inventory/project permissions): `SITE_RECEIVER`, `DISPATCHER`, `QC_APPROVE`. Evidence accepts `file_url` (+ optional `signature_data`) normalized under `/uploads/…`.
 
+### Enhancements (follow-up)
+
+- Evidence: multipart file upload to `public/uploads` (+ signature data-URL save).
+- Movement tracker: transfer QR display + scan-to-receive (JSON payload from QR accepted).
+- Material issue (`stock_out`): work activity required; links via `/api/construction/activity-issue`.
+- Approval limits enforced on transfer dispatch/receive and PO create (`assertWithinApprovalLimit`).
+- Labour attendance CSV export; dedicated BOQ variance dashboard (`/construction/boq-variance`).
+- Stock-in: destination picker loaded via `next/dynamic`.
+
 ## Data and verification
 
 Additive schema initialization uses the existing application's schema-ensurer pattern. New transfer/receipt event records are append-only. New GRN and transfer batch movements marked `workflowVersion: 2` are protected from UPDATE/DELETE. Existing historical records are not reclassified. The original checkout and repository are retained; only `origin` was changed to the requested repository URL.

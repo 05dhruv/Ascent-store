@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import MainLayout from '@/components/MainLayout';
+import ConstructionShell from '@/components/construction/ConstructionShell';
 
 const emptyForm = {
   projectCode: '',
@@ -121,48 +121,32 @@ export default function ProjectsPage() {
   }, [records]);
 
   return (
-    <MainLayout>
-      <div className="space-y-6 pb-12">
-        {/* Header Section */}
-        <div className="flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 p-6 text-white shadow-lg lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300 backdrop-blur-sm border border-amber-500/30">
-                <i className="ti ti-building" /> Construction ERP Suite
-              </span>
-              <span className="text-xs text-slate-400">/</span>
-              <span className="text-xs font-medium text-slate-300">Project Portfolio & Site Stores</span>
-            </div>
-            <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl text-white">
-              Projects & Site Stores
-            </h1>
-            <p className="mt-1 max-w-2xl text-xs text-slate-300 sm:text-sm leading-relaxed">
-              Every project automatically provisions a dedicated site store. Track material dispatches from the central warehouse, on-site receipts, transit balances, and field consumption in real time.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <Link
-              href="/inventory/stocktransfer"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-sm border border-white/20 shadow-sm transition hover:bg-white hover:text-slate-900"
-            >
-              <i className="ti ti-truck text-amber-400 text-sm" /> Stock Transfer
-            </Link>
-            <Link
-              href="/reports/inventory/stock-movement"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md transition hover:bg-amber-400 hover:shadow-lg"
-            >
-              <i className="ti ti-chart-bar text-sm" /> Material Movement Report
-            </Link>
-          </div>
-        </div>
-
+    <ConstructionShell
+      title="Projects & Site Stores"
+      subtitle="Every project provisions a site store. Track warehouse dispatch, site receipt, transit, and field consumption."
+      breadcrumb={[{ label: 'Projects' }]}
+      actions={[
+        {
+          label: 'Stock Transfer',
+          href: '/inventory/stocktransfer',
+          icon: 'ti ti-truck',
+          primary: false,
+        },
+        {
+          label: 'Material Movement Report',
+          href: '/reports/inventory/stock-movement',
+          icon: 'ti ti-chart-bar',
+          primary: true,
+        },
+      ]}
+    >
+      <div className="space-y-6">
         {/* Top Summary Metric Strip */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Projects</p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                 <i className="ti ti-building text-base" />
               </div>
             </div>
@@ -238,7 +222,7 @@ export default function ProjectsPage() {
                       placeholder="e.g. PRJ-001"
                       value={form.projectCode}
                       onChange={(e) => handleProjectCodeChange(e.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                     />
                   </label>
 
@@ -247,7 +231,7 @@ export default function ProjectsPage() {
                     <select
                       value={form.status}
                       onChange={(e) => setForm({ ...form, status: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                     >
                       <option value="planning">Planning</option>
                       <option value="active">Active</option>
@@ -265,7 +249,7 @@ export default function ProjectsPage() {
                     placeholder="e.g. Skyline Residency Phase 2"
                     value={form.name}
                     onChange={(e) => handleProjectNameChange(e.target.value)}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                   />
                 </label>
 
@@ -277,7 +261,7 @@ export default function ProjectsPage() {
                       placeholder="e.g. Apex Infra Corp"
                       value={form.clientName}
                       onChange={(e) => setForm({ ...form, clientName: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                     />
                   </label>
 
@@ -288,7 +272,7 @@ export default function ProjectsPage() {
                       placeholder="e.g. 5000000"
                       value={form.budget}
                       onChange={(e) => setForm({ ...form, budget: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                     />
                   </label>
                 </div>
@@ -300,7 +284,7 @@ export default function ProjectsPage() {
                       type="date"
                       value={form.startDate}
                       onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                     />
                   </label>
 
@@ -310,7 +294,7 @@ export default function ProjectsPage() {
                       type="date"
                       value={form.expectedEndDate}
                       onChange={(e) => setForm({ ...form, expectedEndDate: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                     />
                   </label>
                 </div>
@@ -322,7 +306,7 @@ export default function ProjectsPage() {
                     placeholder="e.g. Sector 62, Noida, Uttar Pradesh"
                     value={form.address}
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                   />
                 </label>
               </div>
@@ -347,7 +331,7 @@ export default function ProjectsPage() {
                     placeholder="e.g. Noida Sector 62 Site Store"
                     value={form.siteName}
                     onChange={(e) => setForm({ ...form, siteName: e.target.value })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                   />
                 </label>
 
@@ -359,7 +343,7 @@ export default function ProjectsPage() {
                       placeholder="e.g. SITE-01"
                       value={form.siteCode}
                       onChange={(e) => setForm({ ...form, siteCode: e.target.value.toUpperCase() })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                     />
                   </label>
 
@@ -368,7 +352,7 @@ export default function ProjectsPage() {
                     <select
                       value={form.siteEngineerId}
                       onChange={(e) => setForm({ ...form, siteEngineerId: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                     >
                       <option value="">Assign later</option>
                       {users.map((user) => (
@@ -387,7 +371,7 @@ export default function ProjectsPage() {
                     placeholder="e.g. Plot 4B, Sector 62 Site, Noida"
                     value={form.siteAddress}
                     onChange={(e) => setForm({ ...form, siteAddress: e.target.value })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                   />
                   <span className="mt-1 block text-[11px] font-normal text-slate-400">
                     The assigned engineer will automatically receive live site store inventory access.
@@ -412,7 +396,7 @@ export default function ProjectsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-amber-600 disabled:opacity-50"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-slate-800 disabled:opacity-50"
               >
                 <i className="ti ti-building-warehouse text-base" />
                 {saving ? 'Creating Project & Store...' : 'Create Project & Site Store'}
@@ -431,7 +415,7 @@ export default function ProjectsPage() {
                   placeholder="Search projects by name, code, client, or site store..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-amber-500 focus:bg-white"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:bg-white"
                 />
               </div>
 
@@ -439,7 +423,7 @@ export default function ProjectsPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-amber-500"
+                  className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500"
                 >
                   <option value="all">All Statuses</option>
                   <option value="planning">Planning</option>
@@ -673,6 +657,6 @@ export default function ProjectsPage() {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </ConstructionShell>
   );
 }

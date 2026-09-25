@@ -3,10 +3,26 @@ import { getClient, query } from '@/lib/db';
 import { requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
 import { ensureMovementWorkflowSchema } from '@/lib/movementWorkflowSchema';
 import { transferAction } from '@/lib/transferWorkflow';
+import {
+  assertWithinApprovalLimit,
+  requireJobPermission,
+} from '@/lib/approvalLimits';
+
+function estimateTransferAmount(items = []) {
+  return (items || []).reduce((sum, item) => {
+    const qty = Number(
+      item.dispatched_qty ?? item.qty ?? item.requested_qty ?? 0,
+    );
+    const rate = Number(
+      item.cost_price ?? item.selling_price ?? item.mrp ?? 0,
+    );
+    return sum + qty * rate;
+  }, 0);
+}
 
 export async function GET(request,{params}) {
   const auth=await requireAuth(request); if(auth.error) return auth.error;
-  const permission=requirePermission(auth.user,'TRANSFER_VIEW','TRANSFER_DISPATCH','TRANSFER_RECEIVE'); if(permission.error)return permission.error;
+  const permission=requirePermission(auth.user,'TRANSFER_VIEW','TRANSFER_DISPATCH','TRANSFER_RECEIVE','DISPATCHER','SITE_RECEIVER'); if(permission.error)return permission.error;
   await ensureMovementWorkflowSchema();
   const {id}=await params;
   const transfer=(await query(`SELECT t.*,s.name source_name,d.name destination_name FROM stock_transfer t
@@ -19,18 +35,43 @@ export async function GET(request,{params}) {
     query('SELECT * FROM inventory_transfer_events WHERE transfer_id=$1 ORDER BY id',[id]),
     query('SELECT * FROM construction_discrepancies WHERE transfer_id=$1 ORDER BY id',[id]),
   ]);
+  const canDispatch = !source.error && !requireJobPermission(auth.user, 'DISPATCHER').error;
+  const canReceive = !destination.error && !requireJobPermission(auth.user, 'SITE_RECEIVER').error;
   return NextResponse.json({transfer,items:items.rows,events:events.rows,discrepancies:discrepancies.rows,
-    canSend:!source.error&&!requirePermission(auth.user,'TRANSFER_DISPATCH').error,
-    canApproveAndDispatch:!source.error&&!requirePermission(auth.user,'TRANSFER_APPROVE').error&&!requirePermission(auth.user,'TRANSFER_DISPATCH').error,
-    canReceive:!destination.error&&!requirePermission(auth.user,'TRANSFER_RECEIVE').error});
+    canSend:canDispatch,
+    canApproveAndDispatch:canDispatch&&!requirePermission(auth.user,'TRANSFER_APPROVE','DISPATCHER','MANAGE_INVENTORY').error,
+    canReceive});
 }
 
 export async function POST(request,{params}) {
   const auth=await requireAuth(request);if(auth.error)return auth.error;
   const body=await request.json();
-  const actionPermission={approve_dispatch:'TRANSFER_APPROVE',dispatch:'TRANSFER_DISPATCH',receive:'TRANSFER_RECEIVE',approve:'TRANSFER_APPROVE',pick:'TRANSFER_DISPATCH',cancel:'TRANSFER_CREATE',approve_excess:'TRANSFER_RECEIVE',resolve:'TRANSFER_RECEIVE'}[body.action] || 'TRANSFER_CREATE';
-  const permission=requirePermission(auth.user,actionPermission);if(permission.error)return permission.error;
-  if(body.action==='approve_dispatch') { const approval=requirePermission(auth.user,'TRANSFER_APPROVE','TRANSFER_DISPATCH'); if(approval.error)return approval.error; }
+  const action = String(body.action || '');
+  const actionPermission={
+    approve_dispatch:'TRANSFER_APPROVE',
+    dispatch:'TRANSFER_DISPATCH',
+    receive:'TRANSFER_RECEIVE',
+    approve:'TRANSFER_APPROVE',
+    pick:'TRANSFER_DISPATCH',
+    cancel:'TRANSFER_CREATE',
+    approve_excess:'TRANSFER_RECEIVE',
+    resolve:'TRANSFER_RECEIVE',
+  }[action] || 'TRANSFER_CREATE';
+
+  if (action === 'dispatch' || action === 'approve_dispatch' || action === 'pick') {
+    const job = requireJobPermission(auth.user, 'DISPATCHER');
+    if (job.error) return job.error;
+  } else if (action === 'receive' || action === 'approve_excess' || action === 'resolve') {
+    const job = requireJobPermission(auth.user, 'SITE_RECEIVER');
+    if (job.error) return job.error;
+  } else {
+    const permission=requirePermission(auth.user,actionPermission);if(permission.error)return permission.error;
+  }
+  if(action==='approve_dispatch') {
+    const approval=requirePermission(auth.user,'TRANSFER_APPROVE','DISPATCHER','MANAGE_INVENTORY');
+    if(approval.error)return approval.error;
+  }
+
   await ensureMovementWorkflowSchema();
   const {id}=await params;
   const client=await getClient();
@@ -38,9 +79,31 @@ export async function POST(request,{params}) {
     await client.query('BEGIN');
     const transfer=(await client.query('SELECT * FROM stock_transfer WHERE id=$1 FOR UPDATE',[id])).rows[0];
     if(!transfer) { await client.query('ROLLBACK');return NextResponse.json({error:'Transfer not found'},{status:404}); }
-    const scope=requireStore(auth.user,body.action==='receive'?transfer.destination_id:transfer.source_id);
+    const scope=requireStore(auth.user,action==='receive'?transfer.destination_id:transfer.source_id);
     if(scope.error){await client.query('ROLLBACK');return scope.error;}
-    const result=await transferAction(client,transfer,body.action,body,auth.user);
+
+    const items=(await client.query(
+      'SELECT * FROM stock_transfer_items WHERE stock_transfer_id=$1',[id]
+    )).rows;
+    const amount = Number(body.declaredAmount) || estimateTransferAmount(
+      action === 'receive' && Array.isArray(body.lines) ? body.lines : items,
+    );
+    const limitKey =
+      action === 'receive' || action === 'approve_excess'
+        ? 'SITE_RECEIVER'
+        : action === 'dispatch' || action === 'approve_dispatch' || action === 'pick'
+          ? 'DISPATCHER'
+          : null;
+    if (limitKey) {
+      try {
+        await assertWithinApprovalLimit(auth.user, limitKey, amount);
+      } catch (limitError) {
+        await client.query('ROLLBACK');
+        return NextResponse.json({ error: limitError.message }, { status: 403 });
+      }
+    }
+
+    const result=await transferAction(client,transfer,action,body,auth.user);
     await client.query('COMMIT');
     return NextResponse.json({success:true,...result});
   }catch(error){await client.query('ROLLBACK');return NextResponse.json({error:error.message},{status:400});}

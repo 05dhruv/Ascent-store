@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import MainLayout from "@/components/MainLayout";
-
-const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+import ConstructionShell, {
+  ConstructionAlert,
+  ConstructionEmpty,
+  ConstructionField,
+  ConstructionSection,
+  ConstructionTable,
+  constructionBtnPrimary,
+  constructionBtnSecondary,
+  constructionInput,
+} from "@/components/construction/ConstructionShell";
 
 export default function ContractorsPage() {
   const [records, setRecords] = useState([]);
@@ -79,142 +85,125 @@ export default function ContractorsPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="mx-auto max-w-6xl space-y-5 pb-10">
-        <header className="rounded-2xl bg-slate-900 p-5 text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
-            Project controls
-          </p>
-          <h1 className="mt-1 text-2xl font-black">Contractors</h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Maintain contractor master. Link to work activities via contractor_id.{" "}
-            <Link href="/construction/controls" className="text-amber-400 underline">
-              BOQ controls
-            </Link>
-          </p>
-        </header>
+    <ConstructionShell
+      title="Contractors"
+      subtitle="Maintain contractor master. Link to work activities via contractor_id."
+      actions={[
+        {
+          label: "BOQ controls",
+          href: "/construction/controls",
+          icon: "ti ti-adjustments",
+          primary: false,
+        },
+      ]}
+    >
+      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {message && (
+        <ConstructionAlert type="info">{message}</ConstructionAlert>
+      )}
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        )}
-        {message && (
-          <p className="text-sm font-semibold text-slate-700">{message}</p>
-        )}
-
+      <ConstructionSection
+        title="Add contractor"
+        description="Register name, contact, and GSTIN."
+      >
         <form
           onSubmit={save}
-          className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-4"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         >
-          <input
-            className={input}
-            placeholder="Name"
-            required
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Phone"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="GSTIN"
-            value={form.gstin}
-            onChange={(e) => setForm({ ...form, gstin: e.target.value })}
-          />
+          <ConstructionField label="Name" required>
+            <input
+              className={constructionInput}
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Phone">
+            <input
+              className={constructionInput}
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Email">
+            <input
+              className={constructionInput}
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="GSTIN">
+            <input
+              className={constructionInput}
+              value={form.gstin}
+              onChange={(e) => setForm({ ...form, gstin: e.target.value })}
+            />
+          </ConstructionField>
           <button
+            type="submit"
             disabled={busy}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950"
+            className={constructionBtnPrimary}
           >
             Add contractor
           </button>
         </form>
+      </ConstructionSection>
 
-        <div className="overflow-x-auto rounded-xl border bg-white">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Name</th>
-                <th className="px-3 py-2">Phone</th>
-                <th className="px-3 py-2">GSTIN</th>
-                <th className="px-3 py-2">Active</th>
-                <th className="px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((row) => (
-                <tr key={row.id} className="border-t">
-                  <td className="px-3 py-2 font-semibold">{row.name}</td>
-                  <td className="px-3 py-2">{row.phone || "—"}</td>
-                  <td className="px-3 py-2">{row.gstin || "—"}</td>
-                  <td className="px-3 py-2">{row.is_active ? "Yes" : "No"}</td>
-                  <td className="px-3 py-2">
-                    {row.is_active && (
-                      <button
-                        disabled={busy}
-                        className="text-red-700 font-semibold"
-                        onClick={() => deactivate(row.id)}
-                      >
-                        Deactivate
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <section className="rounded-xl border bg-white p-4">
-          <h2 className="mb-3 font-black text-slate-900">BOQ variance (snapshot)</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-3 py-2">Project</th>
-                  <th className="px-3 py-2">Item</th>
-                  <th className="px-3 py-2">Planned</th>
-                  <th className="px-3 py-2">Actual</th>
-                  <th className="px-3 py-2">Variance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {variance.map((row) => (
-                  <tr key={row.boq_id} className="border-t">
-                    <td className="px-3 py-2">{row.project_name}</td>
-                    <td className="px-3 py-2">
-                      {row.item_code || row.description?.slice(0, 40)}
-                    </td>
-                    <td className="px-3 py-2">{row.planned_qty}</td>
-                    <td className="px-3 py-2">{row.actual_qty}</td>
-                    <td className="px-3 py-2">{row.variance_qty}</td>
-                  </tr>
-                ))}
-                {!variance.length && (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-3 py-6 text-center text-slate-400"
-                    >
-                      No BOQ rows yet.
-                    </td>
-                  </tr>
+      <ConstructionSection title="Contractors">
+        <ConstructionTable
+          headers={["Name", "Phone", "GSTIN", "Active", ""]}
+        >
+          {records.map((row) => (
+            <tr key={row.id} className="hover:bg-slate-50/80">
+              <td className="px-4 py-3 font-medium text-slate-900">{row.name}</td>
+              <td className="px-4 py-3 text-slate-600">{row.phone || "—"}</td>
+              <td className="px-4 py-3 text-slate-600">{row.gstin || "—"}</td>
+              <td className="px-4 py-3 text-slate-600">
+                {row.is_active ? "Yes" : "No"}
+              </td>
+              <td className="px-4 py-3">
+                {row.is_active && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className={constructionBtnSecondary}
+                    onClick={() => deactivate(row.id)}
+                  >
+                    Deactivate
+                  </button>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </MainLayout>
+              </td>
+            </tr>
+          ))}
+          {!records.length && (
+            <ConstructionEmpty colSpan={5} message="No contractors yet." />
+          )}
+        </ConstructionTable>
+      </ConstructionSection>
+
+      <ConstructionSection
+        title="BOQ variance (snapshot)"
+        description="Latest variance rows from BOQ vs actuals."
+      >
+        <ConstructionTable
+          headers={["Project", "Item", "Planned", "Actual", "Variance"]}
+        >
+          {variance.map((row) => (
+            <tr key={row.boq_id} className="hover:bg-slate-50/80">
+              <td className="px-4 py-3 text-slate-700">{row.project_name}</td>
+              <td className="px-4 py-3 text-slate-700">
+                {row.item_code || row.description?.slice(0, 40)}
+              </td>
+              <td className="px-4 py-3">{row.planned_qty}</td>
+              <td className="px-4 py-3">{row.actual_qty}</td>
+              <td className="px-4 py-3">{row.variance_qty}</td>
+            </tr>
+          ))}
+          {!variance.length && (
+            <ConstructionEmpty colSpan={5} message="No BOQ rows yet." />
+          )}
+        </ConstructionTable>
+      </ConstructionSection>
+    </ConstructionShell>
   );
 }

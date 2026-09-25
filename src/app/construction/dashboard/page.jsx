@@ -2,7 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import MainLayout from '@/components/MainLayout';
+import ConstructionShell, {
+  ConstructionAlert,
+  ConstructionSection,
+  constructionBtnPrimary,
+  constructionInput,
+} from '@/components/construction/ConstructionShell';
 
 const links = [
   ['Material Receipt / GRN', '/inventory/stockin', 'ti-package-import'],
@@ -52,91 +57,154 @@ export default function ConstructionDashboard() {
   ];
 
   return (
-    <MainLayout>
-      <div className="mb-6 rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 p-6 text-white shadow-xl">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div><p className="text-xs font-bold uppercase tracking-[.25em] text-amber-400">Construction Control Centre</p>
-            <h1 className="mt-2 text-3xl font-black">Projects, sites and material movement</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-300">Track every material from vendor receipt to warehouse, transit, site acceptance and final work consumption.</p>
-          </div>
-          <Link href="/construction/projects" className="rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-amber-400">+ New Project</Link>
-        </div>
-      </div>
-
+    <ConstructionShell
+      title="Projects, sites & material movement"
+      subtitle="Track material from vendor receipt to warehouse, transit, site acceptance and work consumption."
+      breadcrumb={[{ label: 'Projects', href: '/construction/projects' }, { label: 'Dashboard' }]}
+      actions={[
+        {
+          label: 'New Project',
+          href: '/construction/projects',
+          icon: 'ti ti-plus',
+          primary: true,
+        },
+      ]}
+    >
       {error && (
-        <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          <span>{error}</span>
-          <button
-            onClick={loadDashboard}
-            className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
-          >
-            Retry
-          </button>
-        </div>
+        <ConstructionAlert>
+          <div className="flex items-center justify-between gap-3">
+            <span>{error}</span>
+            <button type="button" onClick={loadDashboard} className={constructionBtnPrimary}>
+              Retry
+            </button>
+          </div>
+        </ConstructionAlert>
       )}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(([label, value, note, icon]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span><i className={`ti ${icon} text-xl text-amber-600`} /></div>
-          <p className="mt-3 text-3xl font-black text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-400">{note}</p>
-        </div>)}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map(([label, value, note, icon]) => (
+          <div key={label} className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                {label}
+              </span>
+              <i className={`ti ${icon} text-xl text-blue-600`} />
+            </div>
+            <p className="mt-3 text-3xl font-black text-slate-900">
+              {loading ? '…' : value}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">{note}</p>
+          </div>
+        ))}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="mb-4 flex items-center justify-between"><h2 className="font-black text-slate-900">Active project portfolio</h2><Link href="/construction/projects" className="text-sm font-semibold text-amber-700">Manage projects</Link></div>
-          <div className="space-y-2">{(data?.projects || []).map((project) => <div key={project.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-4">
-            <div><p className="font-bold text-slate-900">{project.name}</p><p className="text-xs text-slate-500">{project.project_code} · {project.client_name || 'No client'} · {project.site_count} site(s)</p></div>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold uppercase text-amber-800">{project.status}</span>
-          </div>)}{data && !data.projects?.length && <p className="py-10 text-center text-sm text-slate-400">Create your first project and site to begin.</p>}</div>
-        </section>
-        <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="mb-4 font-black text-slate-900">Quick operations</h2>
-          <div className="grid gap-2">{links.map(([label, href, icon]) => <Link key={label} href={href} className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 hover:border-amber-300 hover:bg-amber-50"><span className="flex items-center gap-3 text-sm font-semibold text-slate-700"><i className={`ti ${icon} text-lg text-amber-600`} />{label}</span><i className="ti ti-chevron-right text-slate-400" /></Link>)}</div>
-        </section>
+        <ConstructionSection
+          title="Active project portfolio"
+          action={
+            <Link href="/construction/projects" className="text-[12.5px] font-medium text-blue-700 hover:underline">
+              Manage projects
+            </Link>
+          }
+        >
+          <div className="space-y-2">
+            {(data?.projects || []).map((project) => (
+              <div
+                key={project.id}
+                className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3"
+              >
+                <div>
+                  <p className="font-semibold text-slate-900">{project.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {project.project_code} · {project.client_name || 'No client'} ·{' '}
+                    {project.site_count} site(s)
+                  </p>
+                </div>
+                <span className="rounded-full bg-slate-200/80 px-3 py-1 text-[11px] font-semibold uppercase text-slate-700">
+                  {project.status}
+                </span>
+              </div>
+            ))}
+            {data && !data.projects?.length && (
+              <p className="py-8 text-center text-sm text-slate-400">
+                Create your first project and site to begin.
+              </p>
+            )}
+          </div>
+        </ConstructionSection>
+
+        <ConstructionSection title="Quick operations">
+          <div className="grid gap-2">
+            {links.map(([label, href, icon]) => (
+              <Link
+                key={label}
+                href={href}
+                className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50/50"
+              >
+                <span className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                  <i className={`ti ${icon} text-lg text-blue-600`} />
+                  {label}
+                </span>
+                <i className="ti ti-chevron-right text-slate-400" />
+              </Link>
+            ))}
+          </div>
+        </ConstructionSection>
       </div>
 
-      <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-3 font-black text-slate-900">Transfer QR</h2>
-        <p className="mb-3 text-sm text-slate-500">Generate a QR data URL for a stock transfer (Phase 2 receipt helper).</p>
+      <ConstructionSection
+        title="Transfer QR"
+        description="Generate a QR for site scan-to-receive on the movement tracker."
+      >
         <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-bold uppercase text-slate-500">Transfer ID</label>
+          <label className="text-sm">
+            Transfer ID
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className={`${constructionInput} mt-1 w-40`}
               value={transferId}
               onChange={(e) => setTransferId(e.target.value)}
-              placeholder="e.g. 42"
+              placeholder="e.g. 12"
             />
-          </div>
+          </label>
           <button
             type="button"
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950"
+            className={constructionBtnPrimary}
             onClick={async () => {
               setQrError('');
               setQr(null);
               try {
-                const res = await fetch(`/api/construction/transfer-qr?transferId=${encodeURIComponent(transferId)}`, { cache: 'no-store' });
-                const json = await res.json();
-                if (!res.ok || !json.success) throw new Error(json.message || 'Unable to generate QR');
-                setQr(json.data);
-              } catch (err) {
-                setQrError(err.message);
+                const r = await fetch(
+                  `/api/construction/transfer-qr?transferId=${encodeURIComponent(transferId)}`,
+                );
+                const j = await r.json();
+                if (!r.ok) throw new Error(j.message || j.error || 'QR failed');
+                setQr(j.data || j);
+              } catch (e) {
+                setQrError(e.message);
               }
             }}
           >
             Generate QR
           </button>
         </div>
-        {qrError && <p className="mt-2 text-sm text-red-600">{qrError}</p>}
+        {qrError && (
+          <p className="mt-3 text-sm text-red-600">{qrError}</p>
+        )}
         {qr?.qrDataUrl && (
-          <div className="mt-4 flex flex-wrap items-center gap-4">
-            <img src={qr.qrDataUrl} alt="Transfer QR" className="h-40 w-40 rounded-lg border" />
-            <div className="text-sm text-slate-600">
-              <p className="font-semibold text-slate-900">Transfer #{qr.transferId}</p>
-              {qr.transferNumber && <p>{qr.transferNumber}</p>}
-            </div>
+          <div className="mt-4 flex items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qr.qrDataUrl}
+              alt="Transfer QR"
+              className="h-36 w-36 rounded-xl border border-slate-200 bg-white p-2"
+            />
+            <p className="text-xs text-slate-500">
+              Transfer #{qr.transferId}
+              {qr.transferNumber ? ` · ${qr.transferNumber}` : ''}
+            </p>
           </div>
         )}
-      </section>
-    </MainLayout>
+      </ConstructionSection>
+    </ConstructionShell>
   );
 }

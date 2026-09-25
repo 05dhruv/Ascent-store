@@ -13,23 +13,42 @@ export const menuItems = [
       titleIcon: "ti-building-community",
       groups: [
         {
-          label: "Project Controls",
+          label: "Controls",
           icon: "ti-building",
           items: [
             { label: "Projects & Sites", href: "/construction/projects" },
             { label: "BOQ & Project Controls", href: "/construction/controls" },
-            { label: "Quarantine", href: "/construction/quarantine" },
-            { label: "Evidence", href: "/construction/evidence" },
-            { label: "Contractors", href: "/construction/contractors" },
-            { label: "Labour", href: "/construction/labour" },
-            { label: "Schedule", href: "/construction/schedule" },
-            { label: "Documents", href: "/construction/documents" },
-            { label: "RFIs", href: "/construction/rfis" },
-            { label: "Equipment", href: "/construction/equipment" },
-            { label: "RA Bills", href: "/construction/ra-bills" },
+            { label: "BOQ Variance", href: "/construction/boq-variance" },
             { label: "Site Stores", href: "/construction/projects?view=sites" },
             { label: "Warehouses", href: "/settings/warehouses" },
             { label: "Project Team", href: "/employee/staff" },
+          ],
+        },
+        {
+          label: "Site operations",
+          icon: "ti-hard-hat",
+          items: [
+            { label: "Labour", href: "/construction/labour" },
+            { label: "Schedule", href: "/construction/schedule" },
+            { label: "Equipment", href: "/construction/equipment" },
+            { label: "Quarantine", href: "/construction/quarantine" },
+          ],
+        },
+        {
+          label: "Documents",
+          icon: "ti-folder",
+          items: [
+            { label: "Documents", href: "/construction/documents" },
+            { label: "RFIs", href: "/construction/rfis" },
+            { label: "Evidence", href: "/construction/evidence" },
+          ],
+        },
+        {
+          label: "Commercial",
+          icon: "ti-receipt",
+          items: [
+            { label: "Contractors", href: "/construction/contractors" },
+            { label: "RA Bills", href: "/construction/ra-bills" },
           ],
         },
       ],

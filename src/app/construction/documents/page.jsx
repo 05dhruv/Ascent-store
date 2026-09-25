@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import MainLayout from "@/components/MainLayout";
-
-const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+import ConstructionShell, {
+  ConstructionAlert,
+  ConstructionEmpty,
+  ConstructionField,
+  ConstructionSection,
+  ConstructionTable,
+  constructionBtnPrimary,
+  constructionInput,
+} from "@/components/construction/ConstructionShell";
 
 export default function DocumentsPage() {
   const [records, setRecords] = useState([]);
@@ -63,115 +69,105 @@ export default function DocumentsPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="mx-auto max-w-6xl space-y-5 pb-10">
-        <header className="rounded-2xl bg-slate-900 p-5 text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
-            Documents
-          </p>
-          <h1 className="mt-1 text-2xl font-black">Project documents</h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Register drawings and docs with upload path references.
-          </p>
-        </header>
+    <ConstructionShell
+      title="Project documents"
+      subtitle="Register drawings and docs with upload path references."
+    >
+      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {message && (
+        <ConstructionAlert type="info">{message}</ConstructionAlert>
+      )}
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        )}
-        {message && (
-          <p className="text-sm font-semibold text-slate-700">{message}</p>
-        )}
-
+      <ConstructionSection
+        title="Add document"
+        description="Link a title, type, revision, and file URL to a project."
+      >
         <form
           onSubmit={save}
-          className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
         >
-          <input
-            className={input}
-            placeholder="Project ID"
-            value={form.projectId}
-            onChange={(e) => setForm({ ...form, projectId: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Title"
-            required
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Doc type"
-            value={form.docType}
-            onChange={(e) => setForm({ ...form, docType: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="File URL / uploads/…"
-            value={form.fileUrl}
-            onChange={(e) => setForm({ ...form, fileUrl: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Revision"
-            value={form.revision}
-            onChange={(e) => setForm({ ...form, revision: e.target.value })}
-          />
-          <button
-            disabled={busy}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950"
-          >
-            Add document
-          </button>
+          <ConstructionField label="Project ID">
+            <input
+              className={constructionInput}
+              value={form.projectId}
+              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Title" required>
+            <input
+              className={constructionInput}
+              required
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Doc type">
+            <input
+              className={constructionInput}
+              value={form.docType}
+              onChange={(e) => setForm({ ...form, docType: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="File URL">
+            <input
+              className={constructionInput}
+              placeholder="/uploads/…"
+              value={form.fileUrl}
+              onChange={(e) => setForm({ ...form, fileUrl: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Revision">
+            <input
+              className={constructionInput}
+              value={form.revision}
+              onChange={(e) => setForm({ ...form, revision: e.target.value })}
+            />
+          </ConstructionField>
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={busy}
+              className={constructionBtnPrimary}
+            >
+              Add document
+            </button>
+          </div>
         </form>
+      </ConstructionSection>
 
-        <div className="overflow-x-auto rounded-xl border bg-white">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Title</th>
-                <th className="px-3 py-2">Type</th>
-                <th className="px-3 py-2">Rev</th>
-                <th className="px-3 py-2">Project</th>
-                <th className="px-3 py-2">File</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((row) => (
-                <tr key={row.id} className="border-t">
-                  <td className="px-3 py-2 font-semibold">{row.title}</td>
-                  <td className="px-3 py-2">{row.doc_type}</td>
-                  <td className="px-3 py-2">{row.revision || "—"}</td>
-                  <td className="px-3 py-2">{row.project_name || row.project_id || "—"}</td>
-                  <td className="px-3 py-2">
-                    {row.file_url ? (
-                      <a
-                        className="text-amber-700 underline"
-                        href={row.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Open
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {!records.length && (
-                <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-slate-400">
-                    No documents yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </MainLayout>
+      <ConstructionSection title="Documents">
+        <ConstructionTable
+          headers={["Title", "Type", "Rev", "Project", "File"]}
+        >
+          {records.map((row) => (
+            <tr key={row.id} className="hover:bg-slate-50/80">
+              <td className="px-4 py-3 font-medium text-slate-900">{row.title}</td>
+              <td className="px-4 py-3 text-slate-600">{row.doc_type}</td>
+              <td className="px-4 py-3 text-slate-600">{row.revision || "—"}</td>
+              <td className="px-4 py-3 text-slate-600">
+                {row.project_name || row.project_id || "—"}
+              </td>
+              <td className="px-4 py-3">
+                {row.file_url ? (
+                  <a
+                    className="text-blue-600 underline"
+                    href={row.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </td>
+            </tr>
+          ))}
+          {!records.length && (
+            <ConstructionEmpty colSpan={5} message="No documents yet." />
+          )}
+        </ConstructionTable>
+      </ConstructionSection>
+    </ConstructionShell>
   );
 }
