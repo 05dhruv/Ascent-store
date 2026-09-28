@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
 import SearchableSelect from "@/components/SearchableSelect";
 import { fetchAllCatalogProducts } from "@/lib/productPagination";
 import {
@@ -93,6 +93,7 @@ export default function AssignBulkStep1() {
         }
       } catch {}
     }
+    const XLSX = await loadXlsx();
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws["!cols"] = TEMPLATE_HEADERS.map((header) => ({
@@ -182,6 +183,7 @@ export default function AssignBulkStep1() {
     if (!file) return;
     setFileName(file.name || "");
     const data = await file.arrayBuffer();
+    const XLSX = await loadXlsx();
     const wb = XLSX.read(data, { cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const parsed = sheetToJsonRows(ws);

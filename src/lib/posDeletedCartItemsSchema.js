@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 
 const CREATE_POS_DELETED_CART_ITEMS_SQL = `
   CREATE TABLE IF NOT EXISTS pos_deleted_cart_items (
@@ -41,9 +42,12 @@ const INDEX_SQL = [
      ON pos_deleted_cart_items (cart_session_id)`,
 ];
 
-export async function ensurePosDeletedCartItemsSchema() {
-  await query(CREATE_POS_DELETED_CART_ITEMS_SQL);
-  for (const sql of INDEX_SQL) {
-    await query(sql);
-  }
-}
+export const ensurePosDeletedCartItemsSchema = makeSchemaEnsurer(
+  "pos_deleted_cart_items",
+  async () => {
+    await query(CREATE_POS_DELETED_CART_ITEMS_SQL);
+    for (const sql of INDEX_SQL) {
+      await query(sql);
+    }
+  },
+);

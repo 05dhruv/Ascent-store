@@ -8,6 +8,7 @@ import {
 import { ensureCatalogExtrasSchema } from "@/lib/catalogExtrasSchema";
 import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { setRecycleBinContext } from "@/lib/recycleBin";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 
 function toDateString(v) {
   if (!v) return null;
@@ -24,7 +25,7 @@ function safeNumber(v, fallback = null) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-async function ensurePromotionsColumns() {
+const ensurePromotionsColumns = makeSchemaEnsurer("promotions_columns", async () => {
   await query(
     `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS store_id BIGINT`,
   );
@@ -71,7 +72,7 @@ async function ensurePromotionsColumns() {
   await query(
     `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS requested_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL`,
   );
-}
+});
 
 export async function PUT(request, { params }) {
   try {

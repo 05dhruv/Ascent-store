@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
 import {
   applyTextFormatToColumns,
   excelText,
@@ -88,6 +88,7 @@ export default function AssignGroupsBulk() {
         }
       } catch {}
     }
+    const XLSX = await loadXlsx();
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(rows);
     applyTextFormatToColumns(
@@ -105,6 +106,7 @@ export default function AssignGroupsBulk() {
     if (!f) return;
     setFileName(f.name || "");
     const data = await f.arrayBuffer();
+    const XLSX = await loadXlsx();
     const wb = XLSX.read(data, { cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const parsed = sheetToJsonRows(ws);

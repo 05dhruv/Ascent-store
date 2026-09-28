@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import CatalogListPage from "@/components/CatalogListPage";
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 function getInitialQueryParam(key, fallback = "") {
   if (typeof window === "undefined") return fallback;
   return new URLSearchParams(window.location.search).get(key) || fallback;
@@ -43,7 +45,9 @@ export default function CatalogDataPage({
     getInitialPositiveNumber("pageSize", 10),
   );
   const [search, setSearch] = useState(() => getInitialQueryParam("search"));
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [queryReady, setQueryReady] = useState(false);
+  const fetchControllerRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -63,8 +67,17 @@ export default function CatalogDataPage({
       Number.isSafeInteger(urlPageSize) && urlPageSize > 0 ? urlPageSize : 10,
     );
     setSearch(params.get("search") || "");
+    setDebouncedSearch(params.get("search") || "");
     setQueryReady(true);
   }, []);
+
+  useEffect(() => {
+    if (search === debouncedSearch) return undefined;
+    const timer = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [search, debouncedSearch]);
+
+  useEffect(() => () => fetchControllerRef.current?.abort(), []);
 
   const showToast = useCallback((msg, type = "success") => {
     setToast({ msg, type });
@@ -72,6 +85,9 @@ export default function CatalogDataPage({
   }, []);
 
   const fetchData = useCallback(async () => {
+    fetchControllerRef.current?.abort();
+    const controller = new AbortController();
+    fetchControllerRef.current = controller;
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -79,8 +95,8 @@ export default function CatalogDataPage({
         pageSize: String(pageSize),
       });
 
-      if (search) {
-        params.set("search", search);
+      if (debouncedSearch) {
+        params.set("search", debouncedSearch);
       }
 
       Object.entries(extraQueryParams || {}).forEach(([key, value]) => {
@@ -93,8 +109,11 @@ export default function CatalogDataPage({
         }
       });
 
-      const res = await fetch(`${endpoint}?${params.toString()}`);
+      const res = await fetch(`${endpoint}?${params.toString()}`, {
+        signal: controller.signal,
+      });
       const json = await res.json();
+      if (controller.signal.aborted) return;
 
       if (json.success) {
         setRecords(json.data.records || []);
@@ -107,11 +126,11 @@ export default function CatalogDataPage({
         );
       }
     } catch {
-      showToast("Network error", "error");
+      if (!controller.signal.aborted) showToast("Network error", "error");
     } finally {
-      setLoading(false);
+      if (fetchControllerRef.current === controller) setLoading(false);
     }
-  }, [endpoint, page, pageSize, search, showToast, title, extraQueryParams]);
+  }, [endpoint, page, pageSize, debouncedSearch, showToast, title, extraQueryParams]);
 
   useEffect(() => {
     if (!queryReady) return;
@@ -125,7 +144,7 @@ export default function CatalogDataPage({
       return;
     }
     setPage(1);
-  }, [search, queryReady]);
+  }, [debouncedSearch, queryReady]);
 
   useEffect(() => {
     if (!queryReady) return;
@@ -141,7 +160,7 @@ export default function CatalogDataPage({
     const params = new URLSearchParams(window.location.search);
     params.set("page", String(page));
     params.set("pageSize", String(pageSize));
-    if (search) params.set("search", search);
+    if (debouncedSearch) params.set("search", debouncedSearch);
     else params.delete("search");
     Object.entries(extraQueryParams || {}).forEach(([key, value]) => {
       if (
@@ -158,7 +177,7 @@ export default function CatalogDataPage({
     if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
       window.history.replaceState(null, "", nextUrl);
     }
-  }, [page, pageSize, search, extraQueryParams, queryReady]);
+  }, [page, pageSize, debouncedSearch, extraQueryParams, queryReady]);
 
   const handleDelete = async () => {
     if (!deleteId) return;

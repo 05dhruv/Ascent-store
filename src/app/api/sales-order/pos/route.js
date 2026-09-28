@@ -1,3 +1,4 @@
+import { withPerfTiming } from "@/lib/perfTiming";
 import { getClient, query } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { verifyToken } from "@/lib/auth-enhanced";
@@ -28,6 +29,18 @@ import {
 import { ensurePosDeletedCartItemsSchema } from "@/lib/posDeletedCartItemsSchema";
 import { generateSequentialSalesBillNumber } from "@/lib/invoiceSequence";
 import { ensureProductDiscountSchema } from "@/lib/productDiscountSchema";
+import { insertRows } from "@/lib/insertRows";
+
+const SALES_BILL_ITEM_COLUMNS = [
+  "sales_bill_id", "product_id", "product_name", "barcode", "sku", "qty",
+  "selling_price", "mrp", "tax_rate", "tax_name", "tax_type", "include_tax",
+  "taxable_amount", "discount_amount", "tax_amount", "line_total", "batch_allocations",
+];
+const STOCK_OUT_ITEM_COLUMNS = [
+  "stock_out_id", "product_id", "product_name", "qty", "cost_price", "tax_value",
+  "batch_id", "batch_no", "expiry_date",
+];
+const SALES_BILL_PAYMENT_COLUMNS = ["sales_bill_id", "method", "amount", "reference_no", "meta"];
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -251,7 +264,7 @@ function getBatchVariantNumberSql(key, fallbackSql = "0") {
   `.trim();
 }
 
-export async function POST(req) {
+async function handlePOST(req) {
   let client;
   try {
     await ensureSalesBillingSchema();
@@ -428,29 +441,6 @@ export async function POST(req) {
                OR (cardinality($4::bigint[]) > 0 AND selected_batch.id = ANY($4::bigint[]))
              )
          ) selected_batches ON TRUE
-         LEFT JOIN (
-           SELECT sii.product_id, SUM(sii.qty) AS qty
-           FROM stock_in_items sii
-           INNER JOIN stock_in si ON si.id = sii.stock_in_id
-           WHERE si.status = 'confirmed' AND si.destination_id = $2
-           GROUP BY sii.product_id
-         ) stock_in_totals ON stock_in_totals.product_id = p.id
-         LEFT JOIN (
-           SELECT sbi.product_id, SUM(sbi.qty) AS qty
-           FROM sales_bill_items sbi
-           INNER JOIN sales_bills sb ON sb.id = sbi.sales_bill_id
-           WHERE sb.status IN ('paid', 'completed') AND sb.store_id = $2
-           GROUP BY sbi.product_id
-         ) sales_totals ON sales_totals.product_id = p.id
-         LEFT JOIN (
-           SELECT soi.product_id, SUM(soi.qty) AS qty
-           FROM stock_out_items soi
-           INNER JOIN stock_out so ON so.id = soi.stock_out_id
-           WHERE so.status = 'confirmed'
-             AND so.destination_id = $2
-             AND COALESCE(so.reference_type, '') <> 'sales_bill'
-           GROUP BY soi.product_id
-         ) stock_out_totals ON stock_out_totals.product_id = p.id
          WHERE p.id = $1 AND COALESCE(p.is_active, TRUE) = TRUE AND (ps.is_active = TRUE OR COALESCE(batch_totals.qty, 0) > 0)
          FOR UPDATE OF p`,
         [productId, Number(storeId), requestedBatchId, requestedBatchIds],
@@ -949,6 +939,8 @@ export async function POST(req) {
 
     const stockOutId = stockOutRes.rows[0]?.id;
     const issueStrategy = getInventoryIssueStrategy();
+    const billItemRows = [];
+    const stockOutItemRows = [];
 
     for (const item of normalizedItems) {
       const qty = toNumber(item.qty);
@@ -987,68 +979,60 @@ export async function POST(req) {
         meta: { billNumber, stockOutId },
       });
 
-      await client.query(
-        `INSERT INTO sales_bill_items (
-          sales_bill_id, product_id, product_name, barcode, sku, qty,
-          selling_price, mrp, tax_rate, tax_name, tax_type, include_tax,
-          taxable_amount, discount_amount, tax_amount, line_total, batch_allocations
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb)`,
-        [
-          billId,
-          item.productId,
-          item.name || item.dbProduct.name || "Product",
-          item.barcode || item.dbProduct.barcode || null,
-          item.sku || item.dbProduct.sku || null,
-          qty,
-          sellingPrice,
-          toNumber(item.mrp),
-          taxRate,
-          item.dbProduct.tax_name || null,
-          item.dbProduct.tax_type || null,
-          !!item.dbProduct.include_tax,
-          taxableAmount,
-          discountAmount,
-          lineTax,
-          lineTotal,
-          JSON.stringify(allocations),
-        ],
-      );
+      billItemRows.push([
+        billId,
+        item.productId,
+        item.name || item.dbProduct.name || "Product",
+        item.barcode || item.dbProduct.barcode || null,
+        item.sku || item.dbProduct.sku || null,
+        qty,
+        sellingPrice,
+        toNumber(item.mrp),
+        taxRate,
+        item.dbProduct.tax_name || null,
+        item.dbProduct.tax_type || null,
+        !!item.dbProduct.include_tax,
+        taxableAmount,
+        discountAmount,
+        lineTax,
+        lineTotal,
+        JSON.stringify(allocations),
+      ]);
 
       for (const allocation of allocations) {
-        await client.query(
-          `INSERT INTO stock_out_items (
-             stock_out_id, product_id, product_name, qty, cost_price, tax_value,
-             batch_id, batch_no, expiry_date, created_at
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
-          [
-            stockOutId,
-            item.productId,
-            item.name || item.dbProduct.name || "Product",
-            allocation.qty,
-            allocation.costPrice || toNumber(item.dbProduct.cost_price),
-            toNumber(item.dbProduct.tax_rate),
-            allocation.batchId,
-            allocation.batchNo,
-            allocation.expiryDate,
-          ],
-        );
+        stockOutItemRows.push([
+          stockOutId,
+          item.productId,
+          item.name || item.dbProduct.name || "Product",
+          allocation.qty,
+          allocation.costPrice || toNumber(item.dbProduct.cost_price),
+          toNumber(item.dbProduct.tax_rate),
+          allocation.batchId,
+          allocation.batchNo,
+          allocation.expiryDate,
+        ]);
       }
     }
 
-    for (const payment of settlementPayments) {
-      await client.query(
-        `INSERT INTO sales_bill_payments (
-          sales_bill_id, method, amount, reference_no, meta, created_at
-        ) VALUES ($1, $2, $3, $4, $5::jsonb, NOW())`,
-        [
-          billId,
-          payment.method || finalPaymentMode,
-          toNumber(payment.amount, grandTotal),
-          payment.referenceNo || "",
-          JSON.stringify(payment.meta || {}),
-        ],
-      );
-    }
+    await insertRows(client, "sales_bill_items", SALES_BILL_ITEM_COLUMNS, billItemRows, {
+      casts: { batch_allocations: "jsonb" },
+    });
+    await insertRows(client, "stock_out_items", STOCK_OUT_ITEM_COLUMNS, stockOutItemRows, {
+      literals: { created_at: "NOW()" },
+    });
+    await insertRows(
+      client,
+      "sales_bill_payments",
+      SALES_BILL_PAYMENT_COLUMNS,
+      settlementPayments.map((payment) => [
+        billId,
+        payment.method || finalPaymentMode,
+        toNumber(payment.amount, grandTotal),
+        payment.referenceNo || "",
+        JSON.stringify(payment.meta || {}),
+      ]),
+      { casts: { meta: "jsonb" }, literals: { created_at: "NOW()" } },
+    );
 
     if (approvedDiscountRequestId) {
       await client.query(
@@ -1181,7 +1165,7 @@ export async function POST(req) {
   }
 }
 
-export async function GET(req) {
+async function handleGET(req) {
   try {
     await ensureSalesBillingSchema();
     await ensureStoreCashSchema();
@@ -1342,7 +1326,7 @@ export async function GET(req) {
         );
       }
       if (!billDateFrom && !billDateTo) {
-        billWhere.push(`created_at::date = CURRENT_DATE`);
+        billWhere.push(`created_at >= CURRENT_DATE AND created_at < CURRENT_DATE + 1`);
       }
       billWhere.push(`created_at <= NOW()`);
 
@@ -1561,29 +1545,6 @@ export async function GET(req) {
           AND ib.expiry_date IS NOT NULL
           AND ib.expiry_date < CURRENT_DATE
       ) expired_batch_totals ON TRUE
-      LEFT JOIN (
-        SELECT sii.product_id, SUM(sii.qty) AS qty
-        FROM stock_in_items sii
-        INNER JOIN stock_in si ON si.id = sii.stock_in_id
-        WHERE si.status = 'confirmed' AND si.destination_id = $1
-        GROUP BY sii.product_id
-      ) stock_in_totals ON stock_in_totals.product_id = p.id
-      LEFT JOIN (
-        SELECT sbi.product_id, SUM(sbi.qty) AS qty
-        FROM sales_bill_items sbi
-        INNER JOIN sales_bills sb ON sb.id = sbi.sales_bill_id
-        WHERE sb.status IN ('paid', 'completed') AND sb.store_id = $1
-        GROUP BY sbi.product_id
-      ) sales_totals ON sales_totals.product_id = p.id
-      LEFT JOIN (
-        SELECT soi.product_id, SUM(soi.qty) AS qty
-        FROM stock_out_items soi
-        INNER JOIN stock_out so ON so.id = soi.stock_out_id
-        WHERE so.status = 'confirmed'
-          AND so.destination_id = $1
-          AND COALESCE(so.reference_type, '') <> 'sales_bill'
-        GROUP BY soi.product_id
-      ) stock_out_totals ON stock_out_totals.product_id = p.id
       WHERE COALESCE(p.is_active, TRUE) = TRUE
         AND (
           ps.product_id IS NOT NULL
@@ -1681,3 +1642,6 @@ export async function PUT(req) {
     return errorResponse(err.message, 500);
   }
 }
+
+export const GET = withPerfTiming("sales-order/pos GET", handleGET);
+export const POST = withPerfTiming("sales-order/pos POST", handlePOST);

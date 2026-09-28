@@ -22,8 +22,15 @@ export async function register() {
     const { ensureCustomersSchema } = await import("./src/lib/customersSchema.js");
     const { ensureSalesBillingSchema } = await import("./src/lib/salesBillingSchema.js");
     const { ensureVendorInvoicesSchema } = await import("./src/lib/vendorInvoicesSchema.js");
+    const { ensureUsersTable } = await import("./src/lib/userAuth.js");
+    const { ensureRecycleBinSchema } = await import("./src/lib/recycleBinSchema.js");
+    const { ensureInvoiceSequenceSchema } = await import("./src/lib/invoiceSequence.js");
+    const { ensurePerformanceIndexes } = await import("./src/lib/performanceIndexes.js");
 
     registerBootSchemas([
+      // Awaited by every authenticated request (extractAuthUser); ~27s cold.
+      ensureUsersTable,
+      ensureRecycleBinSchema,
       ensureStoresSchema,
       ensureInventoryBatchSchema,
       ensureStockRequisitionSchema,
@@ -35,6 +42,8 @@ export async function register() {
       ensureCustomersSchema,
       ensureSalesBillingSchema,
       ensureVendorInvoicesSchema,
+      ensureInvoiceSequenceSchema,
+      ensurePerformanceIndexes,
     ]);
 
     await warmSchemas();

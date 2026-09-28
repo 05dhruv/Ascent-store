@@ -28,6 +28,7 @@ import {
   sortOptions,
   uniqueOptions,
 } from "@/lib/xlsxDropdowns";
+import { loadXlsx } from "@/lib/loadXlsx";
 
 async function fetchStores() {
   const res = await fetch("/api/stores?include_locations=all");
@@ -2414,7 +2415,7 @@ export default function StockInPage() {
       }));
       const rows = productRows;
 
-      const XLSX = await import("xlsx");
+      const XLSX = await loadXlsx();
       const worksheet = XLSX.utils.json_to_sheet(rows, {
         header: STOCK_IN_TEMPLATE_HEADERS,
       });

@@ -1,3 +1,4 @@
+import { withPerfTiming } from "@/lib/perfTiming";
 import { getClient, query } from '@/lib/db';
 import { successResponse, errorResponse, notFoundError } from '@/lib/api-response';
 import { ensureSalesBillingSchema } from '@/lib/salesBillingSchema';
@@ -9,6 +10,19 @@ import { auditLog, requireAuth, requirePermission, requireStore } from '@/lib/ap
 import { validatePhoneNumber } from '@/lib/phoneValidator';
 import { generateSequentialSalesBillNumber } from '@/lib/invoiceSequence';
 import { validatePriceSet } from '@/lib/priceIntegrity';
+import { insertRows } from '@/lib/insertRows';
+
+const SALES_BILL_ITEM_COLUMNS = [
+  'sales_bill_id', 'product_id', 'product_name', 'barcode', 'sku', 'qty',
+  'selling_price', 'mrp', 'tax_rate', 'tax_name', 'tax_type', 'include_tax',
+  'taxable_amount', 'discount_amount', 'tax_amount', 'line_total', 'promotion_id', 'promotion_name',
+  'is_promotion_free', 'batch_allocations',
+];
+const STOCK_OUT_ITEM_COLUMNS = [
+  'stock_out_id', 'product_id', 'product_name', 'qty', 'cost_price', 'tax_value',
+  'batch_id', 'batch_no', 'expiry_date',
+];
+const SALES_BILL_PAYMENT_COLUMNS = ['sales_bill_id', 'method', 'amount', 'reference_no', 'meta'];
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -19,7 +33,7 @@ function canReturnCashChangeForMethod(method) {
   return ['cash', 'upi'].includes(String(method || '').trim().toLowerCase());
 }
 
-export async function POST(req) {
+async function handlePOST(req) {
   let client;
   try {
     await ensureSalesBillingSchema();
@@ -69,6 +83,25 @@ export async function POST(req) {
     let calculatedTax = 0;
     let calculatedExclusiveTax = 0;
 
+    const lockProductIds = [...new Set(
+      items
+        .filter((item) => Number(item.product_id || item.productId) && toNumber(item.qty) > 0)
+        .map((item) => Number(item.product_id || item.productId)),
+    )];
+    const lockedProductsRes = lockProductIds.length
+      ? await client.query(
+        `SELECT p.id, p.name, p.sku, p.barcode, p.mrp, p.selling_price, p.cost_price,
+                p.include_tax, COALESCE(t.rate, 0) AS tax_rate, t.name AS tax_name, t.tax_type
+         FROM products p
+         LEFT JOIN taxes t ON p.tax_id = t.id
+         WHERE p.id = ANY($1::bigint[])
+         ORDER BY p.id
+         FOR UPDATE OF p`,
+        [lockProductIds]
+      )
+      : { rows: [] };
+    const lockedProductsById = new Map(lockedProductsRes.rows.map((row) => [Number(row.id), row]));
+
     for (const item of items) {
       const productId = Number(item.product_id || item.productId);
       const qty = toNumber(item.qty);
@@ -78,16 +111,7 @@ export async function POST(req) {
         .map(Number)
         .filter((id) => Number.isFinite(id) && id > 0);
 
-      const productRes = await client.query(
-        `SELECT p.id, p.name, p.sku, p.barcode, p.mrp, p.selling_price, p.cost_price,
-                p.include_tax, COALESCE(t.rate, 0) AS tax_rate, t.name AS tax_name, t.tax_type
-         FROM products p
-         LEFT JOIN taxes t ON p.tax_id = t.id
-         WHERE p.id = $1
-         FOR UPDATE OF p`,
-        [productId]
-      );
-      const product = productRes.rows[0];
+      const product = lockedProductsById.get(productId);
       if (!product) throw new Error(`Product ${productId} not found`);
 
       const sellingPrice = toNumber(item.selling_price ?? item.sellingPrice, toNumber(product.selling_price));
@@ -245,6 +269,8 @@ export async function POST(req) {
 
     const stockOutId = stockOutRes.rows[0]?.id;
     const issueStrategy = getInventoryIssueStrategy();
+    const billItemRows = [];
+    const stockOutItemRows = [];
 
     for (const row of normalizedItems) {
       const allocations = await allocateBatchStock(client, {
@@ -274,14 +300,7 @@ export async function POST(req) {
         );
       }
 
-      await client.query(`
-        INSERT INTO sales_bill_items (
-          sales_bill_id, product_id, product_name, barcode, sku, qty,
-          selling_price, mrp, tax_rate, tax_name, tax_type, include_tax,
-          taxable_amount, discount_amount, tax_amount, line_total, promotion_id, promotion_name,
-          is_promotion_free, batch_allocations
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20::jsonb)
-      `, [
+      billItemRows.push([
         bill_id,
         row.productId,
         row.item.product_name || row.item.name || row.product.name,
@@ -307,33 +326,39 @@ export async function POST(req) {
       ]);
 
       for (const allocation of allocations) {
-        await client.query(
-          `INSERT INTO stock_out_items (
-             stock_out_id, product_id, product_name, qty, cost_price, tax_value,
-             batch_id, batch_no, expiry_date, created_at
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
-          [
-            stockOutId,
-            row.productId,
-            row.item.product_name || row.item.name || row.product.name,
-            allocation.qty,
-            allocation.costPrice || toNumber(row.item.cost_price, toNumber(row.product.cost_price)),
-            row.taxRate,
-            allocation.batchId,
-            allocation.batchNo,
-            allocation.expiryDate,
-          ]
-        );
+        stockOutItemRows.push([
+          stockOutId,
+          row.productId,
+          row.item.product_name || row.item.name || row.product.name,
+          allocation.qty,
+          allocation.costPrice || toNumber(row.item.cost_price, toNumber(row.product.cost_price)),
+          row.taxRate,
+          allocation.batchId,
+          allocation.batchNo,
+          allocation.expiryDate,
+        ]);
       }
     }
 
-    for (const payment of settlementPayments) {
-      await client.query(
-        `INSERT INTO sales_bill_payments (sales_bill_id, method, amount, reference_no, meta, created_at)
-         VALUES ($1, $2, $3, $4, $5::jsonb, NOW())`,
-        [bill_id, payment.method || finalPaymentMode, payment.amount, payment.referenceNo || '', JSON.stringify(payment.meta || {})]
-      );
-    }
+    await insertRows(client, 'sales_bill_items', SALES_BILL_ITEM_COLUMNS, billItemRows, {
+      casts: { batch_allocations: 'jsonb' },
+    });
+    await insertRows(client, 'stock_out_items', STOCK_OUT_ITEM_COLUMNS, stockOutItemRows, {
+      literals: { created_at: 'NOW()' },
+    });
+    await insertRows(
+      client,
+      'sales_bill_payments',
+      SALES_BILL_PAYMENT_COLUMNS,
+      settlementPayments.map((payment) => [
+        bill_id,
+        payment.method || finalPaymentMode,
+        payment.amount,
+        payment.referenceNo || '',
+        JSON.stringify(payment.meta || {}),
+      ]),
+      { casts: { meta: 'jsonb' }, literals: { created_at: 'NOW()' } },
+    );
 
     const invoiceRes = await client.query(`
       INSERT INTO invoice_sales_orders (
@@ -686,3 +711,5 @@ export async function DELETE(req) {
     if (client) client.release();
   }
 }
+
+export const POST = withPerfTiming("pos/billing POST", handlePOST);

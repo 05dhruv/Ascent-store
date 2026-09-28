@@ -181,23 +181,23 @@ export async function GET(request) {
         ${where}
       `;
 
-      const count = await query(
-        `SELECT
-           COUNT(*)::int AS count,
-           COALESCE(SUM(inventory."availableStock"), 0) AS total_units,
-           COALESCE(SUM(inventory."stockCost"), 0) AS total_stock_cost
-         FROM (${warehouseInventoryQuery}) inventory`,
-        params,
-      );
-
-      params.push(pageSize, offset);
-
-      const result = await query(
-        `SELECT * FROM (${warehouseInventoryQuery}) inventory
-         ORDER BY name ASC
-         LIMIT $${params.length - 1} OFFSET $${params.length}`,
-        params,
-      );
+      const listParams = [...params, pageSize, offset];
+      const [count, result] = await Promise.all([
+        query(
+          `SELECT
+             COUNT(*)::int AS count,
+             COALESCE(SUM(inventory."availableStock"), 0) AS total_units,
+             COALESCE(SUM(inventory."stockCost"), 0) AS total_stock_cost
+           FROM (${warehouseInventoryQuery}) inventory`,
+          params,
+        ),
+        query(
+          `SELECT * FROM (${warehouseInventoryQuery}) inventory
+           ORDER BY name ASC
+           LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+          listParams,
+        ),
+      ]);
 
       return successResponse({
         records: result.rows.map((row) => ({
@@ -426,18 +426,19 @@ export async function GET(request) {
         `
         : batchRowsQuery;
 
-      const count = await query(
-        `SELECT COUNT(*)::int AS count FROM (${inventoryQuery}) inventory`,
-        params,
-      );
-
-      params.push(pageSize, offset);
-      const result = await query(
-        `SELECT * FROM (${inventoryQuery}) inventory
-         ORDER BY name ASC, "batchNo" ASC, mrp ASC, cost_price ASC, "batchId" ASC
-         LIMIT $${params.length - 1} OFFSET $${params.length}`,
-        params,
-      );
+      const listParams = [...params, pageSize, offset];
+      const [count, result] = await Promise.all([
+        query(
+          `SELECT COUNT(*)::int AS count FROM (${inventoryQuery}) inventory`,
+          params,
+        ),
+        query(
+          `SELECT * FROM (${inventoryQuery}) inventory
+           ORDER BY name ASC, "batchNo" ASC, mrp ASC, cost_price ASC, "batchId" ASC
+           LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+          listParams,
+        ),
+      ]);
 
       return successResponse({
         records: result.rows.map((row) => ({
@@ -548,23 +549,23 @@ export async function GET(request) {
       ${where}
     `;
 
-    const count = await query(
-      `SELECT
-         COUNT(*)::int AS count,
-         COALESCE(SUM(inventory."availableStock"), 0) AS total_units,
-         COALESCE(SUM(inventory."stockCost"), 0) AS total_stock_cost
-       FROM (${inventoryQuery}) inventory`,
-      params,
-    );
-
-    params.push(pageSize, offset);
-
-    const result = await query(
-      `SELECT * FROM (${inventoryQuery}) inventory
-       ORDER BY name ASC
-       LIMIT $${params.length - 1} OFFSET $${params.length}`,
-      params,
-    );
+    const listParams = [...params, pageSize, offset];
+    const [count, result] = await Promise.all([
+      query(
+        `SELECT
+           COUNT(*)::int AS count,
+           COALESCE(SUM(inventory."availableStock"), 0) AS total_units,
+           COALESCE(SUM(inventory."stockCost"), 0) AS total_stock_cost
+         FROM (${inventoryQuery}) inventory`,
+        params,
+      ),
+      query(
+        `SELECT * FROM (${inventoryQuery}) inventory
+         ORDER BY name ASC
+         LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+        listParams,
+      ),
+    ]);
 
     return successResponse({
       records: result.rows.map((row) => ({

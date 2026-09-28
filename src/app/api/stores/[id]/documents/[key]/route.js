@@ -2,6 +2,7 @@ import { errorResponse, successResponse } from "@/lib/api-response";
 import { query } from "@/lib/db";
 import { requireAuth, requirePermission, requireStore } from "@/lib/api-protection";
 import { ensureStoresSchema } from "@/lib/storesSchema";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 import {
   ALLOWED_STORE_DOCUMENT_EXTENSIONS,
   ALLOWED_STORE_DOCUMENT_TYPES,
@@ -11,8 +12,8 @@ import {
 
 const MAX_CHUNK_CHARS = 250_000;
 
-async function ensureDocumentUploadChunksSchema() {
-  await query(`
+const ensureDocumentUploadChunksTable = makeSchemaEnsurer("store_document_upload_chunks", () =>
+  query(`
     CREATE TABLE IF NOT EXISTS store_document_upload_chunks (
       store_id INTEGER NOT NULL,
       document_key TEXT NOT NULL,
@@ -26,7 +27,11 @@ async function ensureDocumentUploadChunksSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (store_id, document_key, upload_id, chunk_index)
     )
-  `);
+  `),
+);
+
+async function ensureDocumentUploadChunksSchema() {
+  await ensureDocumentUploadChunksTable();
   await query(
     "DELETE FROM store_document_upload_chunks WHERE created_at < NOW() - INTERVAL '1 day'",
   );

@@ -66,7 +66,9 @@ export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onCl
     };
 
     loadOnlineOrderCount();
-    const interval = setInterval(loadOnlineOrderCount, 30000);
+    const interval = setInterval(() => {
+      if (document.visibilityState !== 'hidden') loadOnlineOrderCount();
+    }, 30000);
     const refreshOnFocus = () => loadOnlineOrderCount();
     window.addEventListener('focus', refreshOnFocus);
     return () => {

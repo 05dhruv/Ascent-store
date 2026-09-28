@@ -4,15 +4,16 @@ import {
   errorResponse,
   validationError,
 } from "@/lib/api-response";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 
-async function ensureBrandExtras() {
+const ensureBrandExtras = makeSchemaEnsurer("brand_extras", async () => {
   await query(
     `ALTER TABLE brands ADD COLUMN IF NOT EXISTS category_id BIGINT REFERENCES categories(id) ON DELETE SET NULL`,
   );
   await query(
     `ALTER TABLE brands ADD COLUMN IF NOT EXISTS margin NUMERIC(7,2) NOT NULL DEFAULT 0`,
   );
-}
+});
 
 export async function GET(request) {
   try {

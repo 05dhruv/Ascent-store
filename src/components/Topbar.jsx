@@ -282,7 +282,9 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
 
   useEffect(() => {
     loadNotifications();
-    const intervalId = setInterval(loadNotifications, 90_000);
+    const intervalId = setInterval(() => {
+      if (document.visibilityState !== "hidden") loadNotifications();
+    }, 90_000);
     const onFocus = () => loadNotifications();
     window.addEventListener("focus", onFocus);
     return () => {

@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-28T07:31:17.256Z",
+  "N_BILLS": 200000,
+  "N_PRODUCTS": 50000,
+  "results": {
+    "noBatch": {
+      "planningMs": 0.51,
+      "executionMs": 0.15
+    },
+    "selectedBatch": {
+      "planningMs": 0.56,
+      "executionMs": 0.21
+    },
+    "sampleRow": {
+      "id": 4242,
+      "available_stock": 100,
+      "selling_price": 100,
+      "mrp": 120
+    }
+  }
+}

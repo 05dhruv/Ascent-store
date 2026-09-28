@@ -1,3 +1,4 @@
+import { withPerfTiming } from "@/lib/perfTiming";
 import { query } from '@/lib/db';
 import { successResponse, errorResponse } from '@/lib/api-response';
 import { ensureCustomersSchema } from '@/lib/customersSchema';
@@ -9,8 +10,9 @@ import { ensureStockInSchema } from '@/lib/stockInSchema';
 import { ensureInventoryBatchSchema } from '@/lib/inventoryBatching';
 import { ensureStockTransferSchema } from '@/lib/stockTransferSchema';
 import { getAssignedStoreIds, requireAuth, requireStore } from '@/lib/api-protection';
+import { runLimited } from '@/lib/runLimited';
 
-export async function GET(req) {
+async function handleGET(req) {
   try {
     const auth = await requireAuth(req);
     if (auth.error) return auth.error;
@@ -43,6 +45,7 @@ export async function GET(req) {
       : '';
     const date_from = searchParams.get('date_from') || new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
     const date_to = searchParams.get('date_to') || new Date().toISOString().split('T')[0];
+    const dateParams = [date_from, date_to];
 
 
     // Base query filter
@@ -60,7 +63,7 @@ export async function GET(req) {
     const batchStoreAnd = hasStoreFilter ? (storeIdList ? `AND ib.store_id = ANY(ARRAY[${storeIdList}]::int[])` : 'AND 1 = 0') : '';
 
     // 1. Total Sales & Revenue
-    const salesRes = await query(`
+    const salesTask = () => query(`
       SELECT 
         COALESCE(SUM(sb.grand_total), 0) as total_sales,
         COALESCE(SUM(sb.tax_total), 0) as total_tax,
@@ -69,22 +72,22 @@ export async function GET(req) {
         COUNT(DISTINCT NULLIF(sb.customer_mobile, '')) as unique_customers,
         COALESCE(AVG(sb.grand_total), 0) as avg_transaction_value
       FROM sales_bills sb
-      WHERE DATE(sb.created_at) >= '${date_from}' 
-        AND DATE(sb.created_at) <= '${date_to}'
+      WHERE sb.created_at >= $1::date 
+        AND sb.created_at < ($2::date + 1)
         AND sb.status != 'cancelled'
         ${storeFilter}
-    `).catch(() => ({ rows: [{ total_sales: 0, total_tax: 0, total_roundoff: 0, total_transactions: 0, unique_customers: 0, avg_transaction_value: 0 }] }));
+    `, dateParams).catch(() => ({ rows: [{ total_sales: 0, total_tax: 0, total_roundoff: 0, total_transactions: 0, unique_customers: 0, avg_transaction_value: 0 }] }));
 
     // 2. Store/POS gross profit. Revenue is aggregated once per bill so a
     // multi-line bill cannot multiply the denominator. Tax and round-off are
     // excluded because neither represents trading revenue.
-    const profitRes = await query(`
+    const profitTask = () => query(`
       WITH eligible_bills AS (
         SELECT sb.id, sb.store_id,
                GREATEST(COALESCE(sb.grand_total, 0) - COALESCE(sb.tax_total, 0) - COALESCE(sb.round_off, 0), 0) AS net_revenue
         FROM sales_bills sb
-        WHERE DATE(sb.created_at) >= '${date_from}'
-          AND DATE(sb.created_at) <= '${date_to}'
+        WHERE sb.created_at >= $1::date
+          AND sb.created_at < ($2::date + 1)
           AND sb.status != 'cancelled'
           ${storeFilter}
       ), item_costs AS (
@@ -131,12 +134,12 @@ export async function GET(req) {
       SELECT COALESCE((SELECT SUM(net_revenue) FROM eligible_bills), 0) AS gross_revenue,
              COALESCE((SELECT SUM(net_revenue) FROM eligible_bills), 0)
                - COALESCE((SELECT SUM(cost_amount) FROM item_costs), 0) AS gross_profit
-    `).catch(() => ({ rows: [{ gross_revenue: 0, gross_profit: 0 }] }));
+    `, dateParams).catch(() => ({ rows: [{ gross_revenue: 0, gross_profit: 0 }] }));
 
     // Warehouse/HO distribution margin. New transfers carry an immutable
     // sourceCostPrice snapshot per batch allocation. Older transfers fall
     // back to the referenced source batch and finally the product cost.
-    const warehouseProfitRes = await query(`
+    const warehouseProfitTask = () => query(`
       WITH transfer_lines AS (
         SELECT st.id, sti.product_id, sti.qty AS line_qty,
                COALESCE(sti.cost_price, 0) AS transfer_price,
@@ -146,8 +149,8 @@ export async function GET(req) {
         JOIN stock_transfer_items sti ON sti.stock_transfer_id = st.id
         LEFT JOIN LATERAL jsonb_array_elements(COALESCE(sti.meta->'batchAllocations', '[]'::jsonb)) allocation(entry) ON TRUE
         WHERE st.status = 'confirmed'
-          AND st.confirmed_at >= '${date_from}'::date
-          AND st.confirmed_at < ('${date_to}'::date + INTERVAL '1 day')
+          AND st.confirmed_at >= $1::date
+          AND st.confirmed_at < ($2::date + INTERVAL '1 day')
           AND (
             LOWER(COALESCE(source_store.meta->>'locationType', '')) = 'warehouse'
             OR LOWER(COALESCE(source_store.name, '')) LIKE '%warehouse%'
@@ -179,18 +182,18 @@ export async function GET(req) {
              COALESCE(SUM(qty * source_cost), 0) AS warehouse_cogs,
              COALESCE(SUM(qty * (transfer_price - source_cost)), 0) AS warehouse_profit
       FROM valued_lines
-    `).catch(() => ({ rows: [{ transfer_revenue: 0, warehouse_cogs: 0, warehouse_profit: 0 }] }));
+    `, dateParams).catch(() => ({ rows: [{ transfer_revenue: 0, warehouse_cogs: 0, warehouse_profit: 0 }] }));
 
     // 3. Store-wise Performance
-    const storePerformanceRes = await query(`
+    const storePerformanceTask = () => query(`
       WITH bill_metrics AS (
         SELECT sb.store_id, COUNT(*) AS transactions,
                SUM(sb.grand_total) AS sales,
                SUM(sb.tax_total) AS tax_collected,
                SUM(GREATEST(COALESCE(sb.grand_total, 0) - COALESCE(sb.tax_total, 0) - COALESCE(sb.round_off, 0), 0)) AS net_revenue
         FROM sales_bills sb
-        WHERE DATE(sb.created_at) >= '${date_from}'
-          AND DATE(sb.created_at) <= '${date_to}'
+        WHERE sb.created_at >= $1::date
+          AND sb.created_at < ($2::date + 1)
           AND sb.status != 'cancelled'
           ${storeFilter}
         GROUP BY sb.store_id
@@ -227,8 +230,8 @@ export async function GET(req) {
           FROM inventory_batches ib
           WHERE ib.product_id = sbi.product_id AND ib.store_id = sb.store_id AND ib.available_qty > 0
         ) store_cost ON TRUE
-        WHERE DATE(sb.created_at) >= '${date_from}'
-          AND DATE(sb.created_at) <= '${date_to}'
+        WHERE sb.created_at >= $1::date
+          AND sb.created_at < ($2::date + 1)
           AND sb.status != 'cancelled'
           ${storeFilter}
         GROUP BY sb.store_id
@@ -243,17 +246,17 @@ export async function GET(req) {
       LEFT JOIN cost_metrics cm ON cm.store_id = s.id
       ${storeWhere}
       ORDER BY sales DESC
-    `).catch(() => ({ rows: [] }));
+    `, dateParams).catch(() => ({ rows: [] }));
 
     // 4. Daily/Monthly Sales Trend
-    const trendsRes = await query(`
+    const trendsTask = () => query(`
       WITH bill_metrics AS (
         SELECT DATE(sb.created_at) AS sale_date, COUNT(*) AS transactions,
                SUM(sb.grand_total) AS sales, SUM(sb.tax_total) AS tax,
                SUM(GREATEST(COALESCE(sb.grand_total, 0) - COALESCE(sb.tax_total, 0) - COALESCE(sb.round_off, 0), 0)) AS net_revenue
         FROM sales_bills sb
-        WHERE DATE(sb.created_at) >= '${date_from}'
-          AND DATE(sb.created_at) <= '${date_to}'
+        WHERE sb.created_at >= $1::date
+          AND sb.created_at < ($2::date + 1)
           AND sb.status != 'cancelled'
           ${storeFilter}
         GROUP BY DATE(sb.created_at)
@@ -290,8 +293,8 @@ export async function GET(req) {
           FROM inventory_batches ib
           WHERE ib.product_id = sbi.product_id AND ib.store_id = sb.store_id AND ib.available_qty > 0
         ) store_cost ON TRUE
-        WHERE DATE(sb.created_at) >= '${date_from}'
-          AND DATE(sb.created_at) <= '${date_to}'
+        WHERE sb.created_at >= $1::date
+          AND sb.created_at < ($2::date + 1)
           AND sb.status != 'cancelled'
           ${storeFilter}
         GROUP BY DATE(sb.created_at)
@@ -301,11 +304,11 @@ export async function GET(req) {
       FROM bill_metrics bm
       LEFT JOIN cost_metrics cm ON cm.sale_date = bm.sale_date
       ORDER BY bm.sale_date ASC
-    `).catch(() => ({ rows: [] }));
+    `, dateParams).catch(() => ({ rows: [] }));
 
     // 5. Inventory Valuation
     // Batches are the stock source of truth used by product and inventory pages.
-    const inventoryRes = await query(`
+    const inventoryTask = () => query(`
       SELECT
         COUNT(DISTINCT p.id)::int AS total_products,
         COALESCE(SUM(COALESCE(batch_agg.qty, 0)), 0) AS total_stock_units,
@@ -328,7 +331,7 @@ export async function GET(req) {
     `).catch(() => ({ rows: [{ total_products: 0, total_stock_units: 0, inventory_value_cost: 0, inventory_value_retail: 0 }] }));
 
     // 6. Fast-moving vs Slow-moving Items
-    const movingItemsRes = await query(`
+    const movingItemsTask = () => query(`
       SELECT 
         p.id,
         p.name,
@@ -345,17 +348,17 @@ export async function GET(req) {
       INNER JOIN product_saleability ps ON ps.product_id = p.id AND ps.is_active = TRUE
       LEFT JOIN sales_bill_items sbi ON p.id = sbi.product_id
       LEFT JOIN sales_bills sb ON sbi.sales_bill_id = sb.id
-        AND DATE(sb.created_at) >= '${date_from}'
-        AND DATE(sb.created_at) <= '${date_to}'
+        AND sb.created_at >= $1::date
+        AND sb.created_at < ($2::date + 1)
         AND sb.store_id = ps.store_id
       ${psStoreWhere}
       GROUP BY p.id, p.name, p.sku
       ORDER BY quantity_sold DESC
       LIMIT 50
-    `).catch(() => ({ rows: [] }));
+    `, dateParams).catch(() => ({ rows: [] }));
 
     // 7. Live Stock Alerts
-    const stockAlertsRes = await query(`
+    const stockAlertsTask = () => query(`
       WITH active_products AS (
         SELECT
           product_id,
@@ -380,7 +383,7 @@ export async function GET(req) {
           COALESCE(SUM(sbi.qty), 0) AS last_30days_sales
         FROM sales_bill_items sbi
         INNER JOIN sales_bills sb ON sbi.sales_bill_id = sb.id
-        WHERE DATE(sb.created_at) >= DATE(CURRENT_DATE - INTERVAL '30 days')
+        WHERE sb.created_at >= CURRENT_DATE - 30
           AND sb.status != 'cancelled'
           ${storeFilter}
         GROUP BY sbi.product_id
@@ -407,7 +410,7 @@ export async function GET(req) {
     `).catch(() => ({ rows: [] }));
 
     // 8. Stockout forecast across all active products
-    const stockForecastRes = await query(`
+    const stockForecastTask = () => query(`
       WITH active_products AS (
         SELECT
           product_id,
@@ -432,7 +435,7 @@ export async function GET(req) {
           COALESCE(SUM(sbi.qty), 0) AS last_30days_sales
         FROM sales_bill_items sbi
         INNER JOIN sales_bills sb ON sbi.sales_bill_id = sb.id
-        WHERE DATE(sb.created_at) >= DATE(CURRENT_DATE - INTERVAL '30 days')
+        WHERE sb.created_at >= CURRENT_DATE - 30
           AND sb.status != 'cancelled'
           ${storeFilter}
         GROUP BY sbi.product_id
@@ -458,7 +461,7 @@ export async function GET(req) {
     `).catch(() => ({ rows: [] }));
 
     // 8. Top Customers
-    const topCustomersRes = await query(`
+    const topCustomersTask = () => query(`
       WITH billed_customers AS (
         SELECT
           COALESCE(NULLIF(TRIM(sb.customer_mobile), ''), 'walkin-' || COALESCE(NULLIF(TRIM(sb.customer_name), ''), sb.id::text)) AS customer_key,
@@ -468,8 +471,8 @@ export async function GET(req) {
           COALESCE(SUM(sb.grand_total), 0) AS total_spent,
           COALESCE(MAX(sb.created_at), NULL)::text AS last_purchase_date
         FROM sales_bills sb
-        WHERE DATE(sb.created_at) >= '${date_from}'
-          AND DATE(sb.created_at) <= '${date_to}'
+        WHERE sb.created_at >= $1::date
+          AND sb.created_at < ($2::date + 1)
           AND COALESCE(sb.status, 'paid') NOT IN ('cancelled', 'void')
           AND (
             NULLIF(TRIM(COALESCE(sb.customer_name, '')), '') IS NOT NULL
@@ -494,10 +497,10 @@ export async function GET(req) {
       LEFT JOIN customers c ON c.mobile_number = bc.bill_mobile
       ORDER BY bc.total_spent DESC
       LIMIT 20
-    `).catch(() => ({ rows: [] }));
+    `, dateParams).catch(() => ({ rows: [] }));
 
     // 9. Staff Productivity
-    const staffProductivityRes = await query(`
+    const staffProductivityTask = () => query(`
       SELECT 
         e.id,
         CONCAT_WS(' ', e.first_name, e.last_name) as name,
@@ -511,17 +514,17 @@ export async function GET(req) {
         CASE WHEN MAX(sb.created_at) >= NOW() - INTERVAL '15 minutes' THEN TRUE ELSE FALSE END as is_active_now
       FROM employees e
       LEFT JOIN sales_bills sb ON e.user_id = sb.user_id
-        AND DATE(sb.created_at) >= '${date_from}'
-        AND DATE(sb.created_at) <= '${date_to}'
+        AND sb.created_at >= $1::date
+        AND sb.created_at < ($2::date + 1)
         AND sb.status != 'cancelled'
       ${salesBillStoreWhere}
       GROUP BY e.id, e.first_name, e.last_name
       ORDER BY sales_value DESC, last_bill_at DESC NULLS LAST
       LIMIT 1000
-    `).catch(() => ({ rows: [] }));
+    `, dateParams).catch(() => ({ rows: [] }));
 
     // 10. Payment Mode Analysis
-    const paymentModesRes = await query(`
+    const paymentModesTask = () => query(`
       WITH bill_payments AS (
         SELECT
           sb.id,
@@ -529,8 +532,8 @@ export async function GET(req) {
           COALESCE(sbp.amount, NULLIF(sb.paid_amount, 0), sb.grand_total, 0) AS amount
         FROM sales_bills sb
         LEFT JOIN sales_bill_payments sbp ON sbp.sales_bill_id = sb.id
-        WHERE DATE(sb.created_at) >= '${date_from}'
-          AND DATE(sb.created_at) <= '${date_to}'
+        WHERE sb.created_at >= $1::date
+          AND sb.created_at < ($2::date + 1)
           AND sb.status != 'cancelled'
           ${storeFilter}
       )
@@ -541,25 +544,25 @@ export async function GET(req) {
       FROM bill_payments
       GROUP BY INITCAP(payment_mode)
       ORDER BY amount DESC
-    `).catch(() => ({ rows: [] }));
+    `, dateParams).catch(() => ({ rows: [] }));
 
     // 11. Vendor / Purchase Health
-    const vendorSummaryRes = await query(`
+    const vendorSummaryTask = () => query(`
       WITH purchases AS (
         SELECT
           po.vendor_id,
           COALESCE(po.total_cost, 0) + COALESCE(po.total_tax, 0) AS amount
         FROM purchase_orders po
-        WHERE DATE(COALESCE(po.confirmed_at, po.created_at)) >= '${date_from}'
-          AND DATE(COALESCE(po.confirmed_at, po.created_at)) <= '${date_to}'
+        WHERE DATE(COALESCE(po.confirmed_at, po.created_at)) >= $1::date
+          AND DATE(COALESCE(po.confirmed_at, po.created_at)) <= $2::date
           ${purchaseOrderStoreAnd}
         UNION ALL
         SELECT
           si.vendor_id,
           COALESCE(si.total_cost, 0) + COALESCE(si.total_tax, 0) AS amount
         FROM stock_in si
-        WHERE DATE(COALESCE(si.confirmed_at, si.created_at)) >= '${date_from}'
-          AND DATE(COALESCE(si.confirmed_at, si.created_at)) <= '${date_to}'
+        WHERE DATE(COALESCE(si.confirmed_at, si.created_at)) >= $1::date
+          AND DATE(COALESCE(si.confirmed_at, si.created_at)) <= $2::date
           AND COALESCE(si.reference_type, '') <> 'purchase_order'
           ${stockInStoreAnd}
       ),
@@ -580,17 +583,17 @@ export async function GET(req) {
         (SELECT COALESCE(SUM(GREATEST(total_amount - amount_paid, 0)), 0) FROM payable) AS total_payable,
         (SELECT COALESCE(SUM(amount), 0) FROM purchases) AS purchase_value,
         (SELECT COUNT(DISTINCT vendor_id)::int FROM purchases WHERE vendor_id IS NOT NULL) AS purchasing_vendors
-    `).catch(() => ({ rows: [{ total_vendors: 0, active_vendors: 0, pending_vendor_invoices: 0, total_payable: 0, purchase_value: 0, purchasing_vendors: 0 }] }));
+    `, dateParams).catch(() => ({ rows: [{ total_vendors: 0, active_vendors: 0, pending_vendor_invoices: 0, total_payable: 0, purchase_value: 0, purchasing_vendors: 0 }] }));
 
-    const topVendorsRes = await query(`
+    const topVendorsTask = () => query(`
       WITH purchases AS (
         SELECT
           po.vendor_id,
           COALESCE(po.total_cost, 0) + COALESCE(po.total_tax, 0) AS amount,
           COALESCE(po.total_items, 0) AS items
         FROM purchase_orders po
-        WHERE DATE(COALESCE(po.confirmed_at, po.created_at)) >= '${date_from}'
-          AND DATE(COALESCE(po.confirmed_at, po.created_at)) <= '${date_to}'
+        WHERE DATE(COALESCE(po.confirmed_at, po.created_at)) >= $1::date
+          AND DATE(COALESCE(po.confirmed_at, po.created_at)) <= $2::date
           ${purchaseOrderStoreAnd}
         UNION ALL
         SELECT
@@ -598,8 +601,8 @@ export async function GET(req) {
           COALESCE(si.total_cost, 0) + COALESCE(si.total_tax, 0) AS amount,
           COALESCE(si.total_items, 0) AS items
         FROM stock_in si
-        WHERE DATE(COALESCE(si.confirmed_at, si.created_at)) >= '${date_from}'
-          AND DATE(COALESCE(si.confirmed_at, si.created_at)) <= '${date_to}'
+        WHERE DATE(COALESCE(si.confirmed_at, si.created_at)) >= $1::date
+          AND DATE(COALESCE(si.confirmed_at, si.created_at)) <= $2::date
           AND COALESCE(si.reference_type, '') <> 'purchase_order'
           ${stockInStoreAnd}
       )
@@ -614,7 +617,39 @@ export async function GET(req) {
       GROUP BY v.id, v.name
       ORDER BY amount DESC
       LIMIT 8
-    `).catch(() => ({ rows: [] }));
+    `, dateParams).catch(() => ({ rows: [] }));
+
+    const [
+      salesRes,
+      profitRes,
+      warehouseProfitRes,
+      storePerformanceRes,
+      trendsRes,
+      inventoryRes,
+      movingItemsRes,
+      stockAlertsRes,
+      stockForecastRes,
+      topCustomersRes,
+      staffProductivityRes,
+      paymentModesRes,
+      vendorSummaryRes,
+      topVendorsRes,
+    ] = await runLimited([
+      salesTask,
+      profitTask,
+      warehouseProfitTask,
+      storePerformanceTask,
+      trendsTask,
+      inventoryTask,
+      movingItemsTask,
+      stockAlertsTask,
+      stockForecastTask,
+      topCustomersTask,
+      staffProductivityTask,
+      paymentModesTask,
+      vendorSummaryTask,
+      topVendorsTask,
+    ], 5);
 
     const salesData = salesRes.rows[0] || {};
     const profitData = profitRes.rows[0] || {};
@@ -666,3 +701,5 @@ export async function GET(req) {
     return errorResponse(err.message);
   }
 }
+
+export const GET = withPerfTiming("dashboard/analytics", handleGET);

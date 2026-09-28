@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import * as XLSX from 'xlsx';
+import { loadXlsx } from '@/lib/loadXlsx';
 import MainLayout from '@/components/MainLayout';
 
 const initialForm = {
@@ -110,7 +110,8 @@ export default function CustomerGroupsPage() {
 
   const filteredGroups = groups;
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = await loadXlsx();
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.aoa_to_sheet([
       ['group_name', 'group_code', 'description', 'is_default'],

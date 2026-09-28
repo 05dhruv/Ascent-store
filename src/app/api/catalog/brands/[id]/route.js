@@ -2,11 +2,12 @@ import { getClient, query } from '@/lib/db';
 import { successResponse, errorResponse, notFoundError, validationError } from '@/lib/api-response';
 import { requireAuth, requirePermission } from '@/lib/api-protection';
 import { setRecycleBinContext } from '@/lib/recycleBin';
+import { makeSchemaEnsurer } from '@/lib/schemaGuard';
 
-async function ensureBrandExtras() {
+const ensureBrandExtras = makeSchemaEnsurer('brand_extras', async () => {
   await query(`ALTER TABLE brands ADD COLUMN IF NOT EXISTS category_id BIGINT REFERENCES categories(id) ON DELETE SET NULL`);
   await query(`ALTER TABLE brands ADD COLUMN IF NOT EXISTS margin NUMERIC(7,2) NOT NULL DEFAULT 0`);
-}
+});
 
 function getIdFromRequest(request) {
   const url = new URL(request.url);

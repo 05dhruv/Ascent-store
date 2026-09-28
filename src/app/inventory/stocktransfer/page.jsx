@@ -19,6 +19,7 @@ import {
   sortOptions,
   uniqueOptions,
 } from "@/lib/xlsxDropdowns";
+import { loadXlsx } from "@/lib/loadXlsx";
 
 async function fetchStores() {
   const res = await fetch("/api/stores?pageSize=1000&include_locations=all", {
@@ -729,7 +730,7 @@ export default function StockTransferPage() {
   const handleDownloadBulkTemplate = async () => {
     setBulkBusy(true);
     try {
-      const XLSX = await import("xlsx");
+      const XLSX = await loadXlsx();
       const locations = stores.length ? stores : await loadLocations();
       const locationOptions = sortOptions(
         uniqueOptions(locations.map(getLocationOption)),

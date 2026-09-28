@@ -1,6 +1,13 @@
+import { withPerfTiming } from "@/lib/perfTiming";
 import { query } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { requireAuth } from "@/lib/api-protection";
+import { GET as getPosReturns } from "@/app/api/pos/returns/route";
+import { GET as getLowStock } from "@/app/api/notifications/low-stock/route";
+import { GET as getProcurement } from "@/app/api/notifications/procurement/route";
+import { GET as getPasswordChangeRequests } from "@/app/api/auth/password-change-requests/route";
+import { GET as getPurchaseOrderEditRequests } from "@/app/api/purchase-orders/edit-requests/route";
+import { GET as getPromotions } from "@/app/api/catalog/promotions/route";
 
 const PREVIEW_LIMIT = 10;
 
@@ -12,19 +19,22 @@ function hasAnyPermission(user, permissions) {
   return permissions.some((p) => list.includes(p));
 }
 
-async function safeJson(url, cookieHeader) {
+// Calls the sub-route handler in-process (no HTTP hop back to this server).
+// Each handler still performs its own auth and permission checks.
+async function safeJson(handler, url, cookieHeader) {
   try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-    });
+    const response = await handler(
+      new Request(url, {
+        headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+      }),
+    );
     return await response.json().catch(() => ({}));
   } catch {
     return {};
   }
 }
 
-export async function GET(request) {
+async function handleGET(request) {
   try {
     const auth = await requireAuth(request);
     if (auth.error) return auth.error;
@@ -65,24 +75,26 @@ export async function GET(request) {
       promotionsJson,
       requisitionsResult,
     ] = await Promise.all([
-      safeJson(returnsUrl, cookie),
-      safeJson(`${origin}/api/notifications/low-stock`, cookie),
+      safeJson(getPosReturns, returnsUrl, cookie),
+      safeJson(getLowStock, `${origin}/api/notifications/low-stock`, cookie),
       canReviewProcurement
-        ? safeJson(`${origin}/api/notifications/procurement`, cookie)
+        ? safeJson(getProcurement, `${origin}/api/notifications/procurement`, cookie)
         : Promise.resolve({}),
       canReviewPasswordRequests
         ? safeJson(
+            getPasswordChangeRequests,
             `${origin}/api/auth/password-change-requests?status=pending`,
             cookie,
           )
         : Promise.resolve({}),
       canReviewPurchaseOrderEditRequests
         ? safeJson(
+            getPurchaseOrderEditRequests,
             `${origin}/api/purchase-orders/edit-requests?status=pending`,
             cookie,
           )
         : Promise.resolve({}),
-      safeJson(`${origin}/api/catalog/promotions?pageSize=50`, cookie),
+      safeJson(getPromotions, `${origin}/api/catalog/promotions?pageSize=50`, cookie),
       canReviewRequisitions
         ? query(
             `SELECT sr.id, sr.transaction_id, sr.destination_id, sr.source_id,
@@ -179,3 +191,5 @@ export async function GET(request) {
     return errorResponse(err.message || "Failed to load notifications");
   }
 }
+
+export const GET = withPerfTiming("notifications/summary", handleGET);

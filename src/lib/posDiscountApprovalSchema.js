@@ -1,7 +1,10 @@
 import crypto from "node:crypto";
 import { query } from "@/lib/db";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 
-export async function ensurePosDiscountApprovalSchema() {
+export const ensurePosDiscountApprovalSchema = makeSchemaEnsurer(
+  "pos_discount_requests",
+  async () => {
   await query(`
     CREATE TABLE IF NOT EXISTS pos_discount_requests (
       id BIGSERIAL PRIMARY KEY,
@@ -39,7 +42,8 @@ export async function ensurePosDiscountApprovalSchema() {
     CREATE INDEX IF NOT EXISTS pos_discount_requests_requester_idx
       ON pos_discount_requests(requested_by_user_id, store_id, created_at DESC);
   `);
-}
+  },
+);
 
 function round(value, digits) {
   const factor = 10 ** digits;

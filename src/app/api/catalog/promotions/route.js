@@ -6,6 +6,7 @@ import {
 } from "@/lib/api-response";
 import { ensureCatalogExtrasSchema } from "@/lib/catalogExtrasSchema";
 import { requireAuth, requirePermission } from "@/lib/api-protection";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 
 function toDateString(v) {
   if (!v) return null;
@@ -37,7 +38,7 @@ function getIndiaDateString() {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-async function ensurePromotionsColumns() {
+const ensurePromotionsColumns = makeSchemaEnsurer("promotions_columns", async () => {
   // Idempotent column additions in case global schema migration didn't run yet
   await query(
     `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS store_id BIGINT`,
@@ -85,7 +86,7 @@ async function ensurePromotionsColumns() {
   await query(
     `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS requested_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL`,
   );
-}
+});
 
 export async function GET(request) {
   try {

@@ -3,19 +3,32 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { loadXlsx } from "@/lib/loadXlsx";
-import {
-  OPTIONS_SHEET_NAME,
-  applyTextFormatToColumns,
-  buildOptionsSheet,
-  excelText,
-  hideOptionsSheet,
-  saveWorkbookWithValidations,
-  sheetToJsonRows,
-} from "@/lib/xlsxDropdowns";
 
 let XLSX = null;
+let OPTIONS_SHEET_NAME;
+let applyTextFormatToColumns;
+let buildOptionsSheet;
+let excelText;
+let hideOptionsSheet;
+let saveWorkbookWithValidations;
+let sheetToJsonRows;
 async function ensureXlsx() {
-  if (!XLSX) XLSX = await loadXlsx();
+  if (!XLSX) {
+    const [xlsx, helpers] = await Promise.all([
+      loadXlsx(),
+      import("@/lib/xlsxDropdowns"),
+    ]);
+    ({
+      OPTIONS_SHEET_NAME,
+      applyTextFormatToColumns,
+      buildOptionsSheet,
+      excelText,
+      hideOptionsSheet,
+      saveWorkbookWithValidations,
+      sheetToJsonRows,
+    } = helpers);
+    XLSX = xlsx;
+  }
   return XLSX;
 }
 

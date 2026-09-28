@@ -1,3 +1,4 @@
+import { withPerfTiming } from "@/lib/perfTiming";
 import { query } from '@/lib/db';
 import { successResponse, errorResponse } from '@/lib/api-response';
 import { ensureStockInSchema } from '@/lib/stockInSchema';
@@ -5,6 +6,7 @@ import { ensureStockOutSchema } from '@/lib/stockOutSchema';
 import { ensureSalesBillingSchema } from '@/lib/salesBillingSchema';
 import { ensureInventoryBatchSchema } from '@/lib/inventoryBatching';
 import { getAssignedStoreIds, requireAuth, requirePermission } from '@/lib/api-protection';
+import { productImageUrlSql } from '@/lib/productImageUrl';
 
 async function safeQuery(sql, params = []) {
   try {
@@ -51,7 +53,7 @@ const STOCK_JOINS = `
   LEFT JOIN ${SOLD_SUB}      sold_agg ON sold_agg.product_id = p.id
 `;
 
-export async function GET(request) {
+async function handleGET(request) {
   try {
     // Ensure tables exist before querying them
     await Promise.allSettled([
@@ -139,22 +141,35 @@ export async function GET(request) {
     `;
 
     const [
-      totalProductsRes,
+      productStatsRes,
       totalCategoriesRes,
       totalBrandsRes,
-      noImageRes,
       outOfStockRes,
-      hsnMissingRes,
-      missingPriceRes,
-      duplicateSkuRes,
-      belowCostRes,
       filteredProductsCountRes,
       productsRes,
     ] = await Promise.all([
-      safeQuery(`SELECT COUNT(*)::int AS count FROM products p ${productScopeWhere}`),
+      safeQuery(`
+        SELECT
+          COUNT(*)::int AS total_products,
+          COUNT(*) FILTER (WHERE p.image_url IS NULL OR p.image_url = '')::int AS no_image,
+          COUNT(*) FILTER (WHERE p.hsn_code IS NULL OR TRIM(p.hsn_code) = '')::int AS hsn_missing,
+          COUNT(*) FILTER (WHERE COALESCE(p.mrp, 0) <= 0)::int AS missing_price,
+          COUNT(*) FILTER (WHERE d.sku IS NOT NULL)::int AS duplicate_skus,
+          COUNT(*) FILTER (
+            WHERE COALESCE(p.cost_price, 0) > 0
+              AND COALESCE(p.mrp, 0) > 0
+              AND p.mrp < p.cost_price
+          )::int AS below_cost
+        FROM products p
+        LEFT JOIN (
+          SELECT sku FROM products
+          WHERE sku IS NOT NULL AND TRIM(sku) <> ''
+          GROUP BY sku HAVING COUNT(*) > 1
+        ) d ON d.sku = p.sku
+        ${productScopeWhere}
+      `),
       safeQuery(`SELECT COUNT(*)::int AS count FROM categories`),
       safeQuery(`SELECT COUNT(*)::int AS count FROM brands`),
-      safeQuery(`SELECT COUNT(*)::int AS count FROM products p ${productScopeWhere ? `${productScopeWhere} AND` : 'WHERE'} (p.image_url IS NULL OR p.image_url = '')`),
 
       // Out of stock = actual available stock is 0
       safeQuery(`
@@ -162,28 +177,6 @@ export async function GET(request) {
         FROM products p
         ${stockJoins}
         ${productScopeWhere ? `${productScopeWhere} AND` : 'WHERE'} ${ACTUAL_STOCK_EXPR} = 0
-      `),
-
-      safeQuery(`
-        SELECT COUNT(*)::int AS count FROM products p
-        ${productScopeWhere ? `${productScopeWhere} AND` : 'WHERE'} (p.hsn_code IS NULL OR TRIM(p.hsn_code) = '')
-      `),
-      safeQuery(`SELECT COUNT(*)::int AS count FROM products p ${productScopeWhere ? `${productScopeWhere} AND` : 'WHERE'} COALESCE(p.mrp, 0) <= 0`),
-      safeQuery(`
-        SELECT COUNT(*)::int AS count
-        FROM products p
-        JOIN (
-          SELECT sku FROM products
-          WHERE sku IS NOT NULL AND TRIM(sku) <> ''
-          GROUP BY sku HAVING COUNT(*) > 1
-        ) d ON d.sku = p.sku
-        ${productScopeWhere}
-      `),
-      safeQuery(`
-        SELECT COUNT(*)::int AS count FROM products p
-        ${productScopeWhere ? `${productScopeWhere} AND` : 'WHERE'} COALESCE(p.cost_price, 0) > 0
-          AND COALESCE(p.mrp, 0) > 0
-          AND p.mrp < p.cost_price
       `),
 
       safeQuery(`
@@ -202,7 +195,7 @@ export async function GET(request) {
       // Products list with actual stock
       safeQuery(`
         SELECT
-          p.id, p.name, p.sku, p.barcode, p.image_url,
+          p.id, p.name, p.sku, p.barcode, ${productImageUrlSql('p')} AS image_url,
           p.mrp        AS mrp,
           p.selling_price AS selling_price,
           p.cost_price AS cost,
@@ -242,15 +235,16 @@ export async function GET(request) {
       `, productListParams),
     ]);
 
-    const total_products   = totalProductsRes.rows[0]?.count   || 0;
+    const productStats     = productStatsRes.rows[0] || {};
+    const total_products   = productStats.total_products       || 0;
     const total_categories = totalCategoriesRes.rows[0]?.count || 0;
     const total_brands     = totalBrandsRes.rows[0]?.count     || 0;
-    const no_image         = noImageRes.rows[0]?.count         || 0;
+    const no_image         = productStats.no_image             || 0;
     const out_of_stock     = outOfStockRes.rows[0]?.count      || 0;
-    const hsn_missing      = hsnMissingRes.rows[0]?.count      || 0;
-    const missing_price    = missingPriceRes.rows[0]?.count    || 0;
-    const duplicate_skus   = duplicateSkuRes.rows[0]?.count    || 0;
-    const below_cost       = belowCostRes.rows[0]?.count       || 0;
+    const hsn_missing      = productStats.hsn_missing          || 0;
+    const missing_price    = productStats.missing_price        || 0;
+    const duplicate_skus   = productStats.duplicate_skus       || 0;
+    const below_cost       = productStats.below_cost           || 0;
     const filtered_total   = filteredProductsCountRes.rows[0]?.count || 0;
 
     const needs_attention = [
@@ -294,3 +288,5 @@ export async function GET(request) {
     return errorResponse(err.message);
   }
 }
+
+export const GET = withPerfTiming("catalog/dashboard", handleGET);

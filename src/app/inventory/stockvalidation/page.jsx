@@ -18,6 +18,7 @@ import {
   sortOptions,
   uniqueOptions,
 } from "@/lib/xlsxDropdowns";
+import { loadXlsx } from "@/lib/loadXlsx";
 
 async function fetchStores() {
   const res = await fetch("/api/stores");
@@ -480,7 +481,7 @@ export default function StockValidationPage() {
     setBulkBusy(true);
     try {
       const storeList = await ensureStoresLoaded();
-      const XLSX = await import("xlsx");
+      const XLSX = await loadXlsx();
       const rows = [
         BULK_HEADERS,
         ...Array.from({ length: 25 }, () =>
