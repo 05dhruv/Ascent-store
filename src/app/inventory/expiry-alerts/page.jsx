@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import InventoryShell from '@/components/inventory/InventoryShell';
 import { formatIndianDate } from '@/lib/dateUtils';
+import { downloadFromUrl, usePagedList } from '@/hooks/usePagedList';
 
 const tableHeaders = [
   'Priority',
@@ -61,39 +62,10 @@ function formatCurrencySafe(value) {
   })}`;
 }
 
-function downloadCsv(rows) {
-  const csv = [
-    tableHeaders.join(','),
-    ...rows.map((row) =>
-      tableHeaders
-        .map((header) => `"${String(row[header] ?? '').replace(/"/g, '""')}"`)
-        .join(',')
-    ),
-  ].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `near-expiry-products-${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 async function fetchStores() {
   const res = await fetch('/api/stores');
   const json = await res.json().catch(() => ({}));
   return json?.data?.stores || json?.data?.records || [];
-}
-
-async function fetchExpiryAlerts({ days, storeId, status, search }) {
-  const params = new URLSearchParams({ days: String(days), status });
-  if (storeId) params.set('store_id', storeId);
-  if (search) params.set('search', search);
-  const res = await fetch(`/api/inventory/expiry-alerts?${params.toString()}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error('Failed to fetch expiry alerts');
-  return res.json();
 }
 
 export default function ExpiryAlertsPage() {
@@ -101,36 +73,24 @@ export default function ExpiryAlertsPage() {
   const [storeId, setStoreId] = useState('');
   const [status, setStatus] = useState('all');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [stores, setStores] = useState([]);
-  const [records, setRecords] = useState([]);
-  const [summary, setSummary] = useState({});
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStores().then(setStores).catch(() => setStores([]));
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetchExpiryAlerts({ days, storeId, status, search })
-      .then((json) => {
-        if (cancelled) return;
-        setRecords(json?.data?.records || []);
-        setSummary(json?.data?.summary || {});
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setRecords([]);
-        setSummary({});
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [days, storeId, status, search]);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const list = usePagedList('/api/inventory/expiry-alerts', {
+    params: { days, store_id: storeId, status, search: debouncedSearch },
+  });
+  const records = list.records;
+  const summary = list.extra.summary || {};
+  const loading = list.loading;
 
   const stats = useMemo(
     () => [
@@ -282,7 +242,8 @@ export default function ExpiryAlertsPage() {
       tableHeaders={tableHeaders}
       tableData={loading ? [] : tableData}
       emptyMessage={loading ? 'Loading expiry risk...' : 'No near-expiry stock found'}
-      onDownload={() => downloadCsv(tableData)}
+      onDownload={() => downloadFromUrl(list.exportUrl())}
+      pagination={list.pagination}
     />
   );
 }

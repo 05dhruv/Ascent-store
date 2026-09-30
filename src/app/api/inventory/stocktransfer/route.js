@@ -9,6 +9,12 @@ import {
   requirePermission,
   requireStore,
 } from "@/lib/api-protection";
+import {
+  getPagination,
+  limitOffsetSql,
+  pagedPayload,
+  spreadsheetResponse,
+} from "@/lib/pagination";
 
 function toNumericId(value) {
   const raw = String(value ?? "").trim();
@@ -107,7 +113,54 @@ export async function GET(request) {
         destinations: uniqueLocations("destination_id", "destination_name"),
       });
     }
-    const limitSql = sourceId || destinationId ? "" : "LIMIT 200";
+    const baseWhere = [...whereClauses];
+    const baseParams = [...params];
+    const pagination = getPagination(url.searchParams, { legacyLimit: 200 });
+    const listPagination =
+      !pagination.paged && !pagination.isExport && (sourceId || destinationId)
+        ? { ...pagination, limit: null }
+        : pagination;
+
+    const invoiceDateSql = `COALESCE(
+          st.invoice_date,
+          CASE
+            WHEN COALESCE(st.meta->>'invoice_date', '') ~ '^\\d{4}-\\d{2}-\\d{2}$'
+              THEN (st.meta->>'invoice_date')::date
+            ELSE NULL
+          END
+        )`;
+    const dateFrom = url.searchParams.get("dateFrom");
+    const dateTo = url.searchParams.get("dateTo");
+    const brand = String(url.searchParams.get("brand") || "").trim();
+    const search = String(url.searchParams.get("search") || "").trim();
+    const brandExists = (placeholder) => `EXISTS (
+        SELECT 1 FROM stock_transfer_items bsti
+        JOIN products bp ON bp.id = bsti.product_id
+        JOIN brands bb ON bb.id = bp.brand_id
+        WHERE bsti.stock_transfer_id = st.id AND bb.name ILIKE ${placeholder}
+      )`;
+    if (dateFrom && /^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) {
+      params.push(dateFrom);
+      whereClauses.push(`(${invoiceDateSql} IS NULL OR ${invoiceDateSql} >= $${params.length}::date)`);
+    }
+    if (dateTo && /^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+      params.push(dateTo);
+      whereClauses.push(`(${invoiceDateSql} IS NULL OR ${invoiceDateSql} <= $${params.length}::date)`);
+    }
+    if (brand) {
+      params.push(`%${brand}%`);
+      whereClauses.push(brandExists(`$${params.length}`));
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      const p = `$${params.length}`;
+      whereClauses.push(`(
+        st.transaction_id ILIKE ${p}
+        OR COALESCE(st.invoice_number, st.meta->>'invoice_number') ILIKE ${p}
+        OR source.name ILIKE ${p} OR destination.name ILIKE ${p}
+        OR st.status ILIKE ${p} OR ${brandExists(p)}
+      )`);
+    }
 
     const res = await query(
       `SELECT
@@ -138,7 +191,8 @@ export async function GET(request) {
         COUNT(sti.id) AS transfer_item_count,
         COUNT(DISTINCT sti.product_id)::int AS item_count,
         COALESCE(SUM(sti.qty), 0) AS item_qty_sum,
-        COALESCE(SUM(sti.qty * sti.cost_price), 0) AS items_cost_sum
+        COALESCE(SUM(sti.qty * sti.cost_price), 0) AS items_cost_sum,
+        COUNT(*) OVER() AS __total
       FROM stock_transfer st
       LEFT JOIN stores source ON source.id = st.source_id
       LEFT JOIN stores destination ON destination.id = st.destination_id
@@ -148,12 +202,11 @@ export async function GET(request) {
       WHERE ${whereClauses.join(" AND ")}
       GROUP BY st.id, source.name, destination.name
       ORDER BY st.id DESC
-      ${limitSql}`,
+      ${limitOffsetSql(listPagination, params)}`,
       params,
     );
 
-    return NextResponse.json(
-      res.rows.map((row) => ({
+    const records = res.rows.map((row) => ({
         id: row.id,
         transactionId:
           row.transaction_id || `TRN-${String(row.id).padStart(4, "0")}`,
@@ -178,8 +231,51 @@ export async function GET(request) {
         createdAt: row.created_at,
         status: row.status || "confirmed",
         marginHoldReleaseError: row.margin_hold_release_error || "",
-      })),
-    );
+      }));
+
+    if (pagination.isExport) {
+      return spreadsheetResponse(records, {
+        filename: "stock-transfers",
+        format: pagination.format,
+        columns: [
+          { key: "transactionId", label: "Transfer / Gate Pass No" },
+          { key: "status", label: "Status" },
+          { key: "invoiceNumber", label: "Delivery Challan No" },
+          { key: "brandNames", label: "Make / Brand" },
+          { key: "sourceName", label: "Issuing Source" },
+          { key: "destinationName", label: "Receiving Destination" },
+          { key: "invoiceDate", label: "Transfer Date" },
+          { key: "itemCount", label: "Material Items" },
+          { key: "totalItems", label: "Total Quantity" },
+          { key: "cost", label: "Estimated Value" },
+          { key: "totalTax", label: "Tax" },
+          { key: "revertedAt", label: "Reverted At" },
+          { key: "createdAt", label: "Created" },
+        ],
+      });
+    }
+
+    if (pagination.paged) {
+      const brandsRes = await query(
+        `SELECT DISTINCT b.name
+         FROM stock_transfer st
+         JOIN stock_transfer_items sti ON sti.stock_transfer_id = st.id
+         JOIN products p ON p.id = sti.product_id
+         JOIN brands b ON b.id = p.brand_id
+         WHERE ${baseWhere.join(" AND ")}
+         ORDER BY b.name
+         LIMIT 500`,
+        baseParams,
+      );
+      const payload = pagedPayload(
+        res.rows.map((row, index) => ({ ...records[index], __total: row.__total })),
+        pagination,
+        { brandOptions: brandsRes.rows.map((row) => row.name).filter(Boolean) },
+      );
+      return NextResponse.json({ success: true, data: payload });
+    }
+
+    return NextResponse.json(records);
   } catch (err) {
     console.error("[stocktransfer GET]", err.message);
     return NextResponse.json([], { status: 200 });

@@ -1,4 +1,5 @@
 "use client";
+import { confirmDialog } from "@/lib/notify";
 import CatalogDataPage from "@/components/CatalogDataPage";
 import { useCallback } from "react";
 
@@ -27,7 +28,7 @@ const columns = [
 
 export default function PromotionApprovalPage() {
   const approve = useCallback(async (row) => {
-    if (!confirm("Approve this promotion?")) return;
+    if (!(await confirmDialog("Approve this promotion?", { title: "Approve promotion", confirmLabel: "Approve" }))) return;
     try {
       const res = await fetch(`/api/catalog/promotions/${row.id}`, {
         method: "PUT",
@@ -47,7 +48,7 @@ export default function PromotionApprovalPage() {
   }, []);
 
   const remove = useCallback(async (row) => {
-    if (!confirm("Reject/delete this promotion?")) return;
+    if (!(await confirmDialog("Reject and delete this promotion?", { title: "Reject promotion", confirmLabel: "Reject", danger: true }))) return;
     try {
       const res = await fetch(`/api/catalog/promotions/${row.id}`, {
         method: "DELETE",

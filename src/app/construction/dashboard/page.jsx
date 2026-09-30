@@ -1,4 +1,5 @@
 'use client';
+import Icon from "@/components/Icon";
 
 import Button from "@/components/ui/Button";
 
@@ -89,7 +90,7 @@ export default function ConstructionDashboard() {
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 {label}
               </span>
-              <i className={`ti ${icon} text-xl text-blue-600`} />
+              <Icon name={`ti ${icon} text-xl text-blue-600`} />
             </div>
             <p className="mt-3 text-3xl font-black text-slate-900">
               {loading ? '…' : value}
@@ -143,10 +144,10 @@ export default function ConstructionDashboard() {
                 className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50/50"
               >
                 <span className="flex items-center gap-3 text-sm font-medium text-slate-700">
-                  <i className={`ti ${icon} text-lg text-blue-600`} />
+                  <Icon name={`ti ${icon} text-lg text-blue-600`} />
                   {label}
                 </span>
-                <i className="ti ti-chevron-right text-slate-400" />
+                <Icon name="ti ti-chevron-right text-slate-400" />
               </Link>
             ))}
           </div>

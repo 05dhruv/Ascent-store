@@ -4,7 +4,7 @@ import AuthScreen from "@/components/AuthScreen";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
 import { getDefaultRouteForUser } from "@/lib/accessControl";
-import { fetchAuthEndpoint } from "@/lib/auth-endpoints";
+import { fetchAuthEndpoint } from "@/lib/auth-endpoints";
 import Icon from "@/components/Icon";
 
 const highlights = [
@@ -85,8 +85,6 @@ function LoginPageContent() {
     setError("");
     setLoading(true);
 
-    console.log("[LOGIN PAGE] Submitting login form");
-
     try {
       // Validate form fields
       if (!form.email || !form.password) {
@@ -94,8 +92,6 @@ function LoginPageContent() {
         setLoading(false);
         return;
       }
-
-      console.log("[LOGIN PAGE] Sending login request to /api/auth/login");
 
       // Make login request to API
       // Don't follow redirects - we'll handle them ourselves
@@ -109,12 +105,8 @@ function LoginPageContent() {
         }),
       });
 
-      console.log("[LOGIN PAGE] Login response status:", res.status);
-      console.log("[LOGIN PAGE] Login response type:", res.type);
-
       // Handle redirect response (302)
       if (res.status === 302 || res.type === "opaqueredirect") {
-        console.log("[LOGIN PAGE] Redirect response received");
         const redirectFromApi = normalizeRedirectLocation(
           res.headers.get("location"),
         );
@@ -125,14 +117,8 @@ function LoginPageContent() {
       // Handle normal response (200)
       if (res.status === 200) {
         const json = await res.json();
-        console.log("[LOGIN PAGE] Login response:", {
-          success: json.success,
-          message: json.message,
-          hasUser: !!json.data?.user,
-        });
 
         if (json.success) {
-          console.log("[LOGIN PAGE] Login successful");
           window.location.href = json.data?.user
             ? getDefaultRouteForUser(json.data.user)
             : await resolveRedirect();
@@ -147,7 +133,6 @@ function LoginPageContent() {
 
       // Handle error response (400, 401, 500, etc)
       const json = await res.json();
-      console.error("[LOGIN PAGE] Login failed:", json.message);
       setError(json.message || "Unable to login. Please try again.");
       setLoading(false);
     } catch (err) {
@@ -165,8 +150,6 @@ function LoginPageContent() {
     let mounted = true;
     (async () => {
       try {
-        console.log("[LOGIN PAGE] Checking if user is already authenticated");
-
         // Check authentication status
         const res = await fetchAuthEndpoint("/api/auth/me");
 
@@ -177,18 +160,11 @@ function LoginPageContent() {
         if (res.ok && json?.data?.user) {
           const redirectTo =
             searchParams?.get("next") || getDefaultRouteForUser(json.data.user);
-          console.log(
-            "[LOGIN PAGE] User already authenticated, redirecting to:",
-            redirectTo,
-          );
           // User is already logged in, redirect to home/dashboard
           window.location.href = redirectTo;
           return;
         }
-
-        console.log("[LOGIN PAGE] User not authenticated");
-      } catch (e) {
-        console.error("[LOGIN PAGE] Auth check error:", e.message);
+      } catch {
         // Silently fail - user just needs to login
       } finally {
         if (mounted) {

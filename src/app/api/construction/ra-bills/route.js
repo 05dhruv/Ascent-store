@@ -3,6 +3,7 @@ import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
 import { ensureConstructionSchema } from "@/lib/constructionSchema";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
 
 async function guard(request, write = false) {
   const auth = await requireAuth(request);
@@ -37,20 +38,44 @@ export async function GET(request) {
   try {
     await ensureConstructionSchema();
     await ensureConstructionOpsSchema();
-    const projectId =
-      Number(new URL(request.url).searchParams.get("projectId")) || null;
+    const sp = new URL(request.url).searchParams;
+    const projectId = Number(sp.get("projectId")) || null;
+    const pagination = getPagination(sp);
+    const params = [projectId];
     const result = await query(
-      `SELECT b.*, p.name AS project_name, c.name AS contractor_name, u.name AS created_by_name
+      `SELECT b.*, p.name AS project_name, c.name AS contractor_name, u.name AS created_by_name,
+              COUNT(*) OVER() AS __total
        FROM construction_ra_bills b
        JOIN construction_projects p ON p.id = b.project_id
        LEFT JOIN construction_contractors c ON c.id = b.contractor_id
        LEFT JOIN users u ON u.id = b.created_by
        WHERE ($1::bigint IS NULL OR b.project_id = $1)
        ORDER BY b.created_at DESC
-       LIMIT 200`,
-      [projectId],
+       ${limitOffsetSql(pagination, params)}`,
+      params,
     );
-    return successResponse({ records: result.rows });
+    if (pagination.isExport) {
+      return spreadsheetResponse(result.rows, {
+        filename: "ra_bills",
+        format: pagination.format,
+        columns: [
+          { key: "bill_number", label: "Bill" },
+          { key: "project_name", label: "Project" },
+          { key: "contractor_name", label: "Contractor" },
+          { key: "bill_date", label: "Bill date" },
+          { key: "period_from", label: "Period from" },
+          { key: "period_to", label: "Period to" },
+          { key: "gross_amount", label: "Gross" },
+          { key: "retention_amount", label: "Retention" },
+          { key: "net_amount", label: "Net" },
+          { key: "status", label: "Status" },
+          { key: "notes", label: "Notes" },
+          { key: "created_by_name", label: "Created by" },
+          { key: "created_at", label: "Created" },
+        ],
+      });
+    }
+    return successResponse(pagedPayload(result.rows, pagination));
   } catch (error) {
     console.error("[construction ra-bills GET]", error);
     return errorResponse("RA bills could not be loaded");

@@ -4,9 +4,34 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import MainLayout from "@/components/MainLayout";
+import Pagination from "@/components/ui/Pagination";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 
-const PAGE_SIZES = [10, 25, 50, 100, 250, 500, 1000, 2000, 5000, 10000];
 const EMPTY_ARRAY = [];
+const EMPTY_VALUES = new Set(["all", "All", "Select", "Select..."]);
+
+function buildReportQuery(values, extra = {}) {
+  const params = new URLSearchParams();
+  Object.entries(values || {}).forEach(([key, value]) => {
+    if (!value || EMPTY_VALUES.has(value)) return;
+    params.set(key, value);
+  });
+  Object.entries(extra).forEach(([key, value]) => params.set(key, value));
+  return params.toString();
+}
+
+function parseReportNumber(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function rowMatchesSearch(row, needle) {
+  return Object.values(row).some((v) =>
+    String(v).toLowerCase().includes(needle),
+  );
+}
+
 const MONTHS = {
   jan: "01",
   january: "01",
@@ -291,9 +316,6 @@ export default function ReportsListPage({
 
   const [regionOptions, setRegionOptions] = useState([]);
   const [storeOptions, setStoreOptions] = useState([]);
-  const [remoteRows, setRemoteRows] = useState(EMPTY_ARRAY);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [billModal, setBillModal] = useState({
     open: false,
     loading: false,
@@ -437,15 +459,19 @@ export default function ReportsListPage({
   }, [resolvedFiltersWithStores, todayStr]);
 
   const [filterValues, setFilterValues] = useState(defaultFilterValues);
+  const [appliedValues, setAppliedValues] = useState(defaultFilterValues);
   const [search, setSearch] = useState("");
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [checkedRows, setCheckedRows] = useState([]);
   const [allChecked, setAllChecked] = useState(false);
 
   const set = (key, val) =>
     setFilterValues((prev) => ({ ...prev, [key]: val }));
-  const filterValuesSignature = JSON.stringify(filterValues);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const inferredReportKey = useMemo(() => {
     if (reportKey) return reportKey;
@@ -457,52 +483,33 @@ export default function ReportsListPage({
   const effectiveApiPath =
     apiPath || (inferredReportKey ? `/api/reports/${inferredReportKey}` : "");
 
-  const buildQuery = (values, extra = {}) => {
-    const params = new URLSearchParams();
-    Object.entries(values || {}).forEach(([key, value]) => {
-      if (
-        !value ||
-        value === "all" ||
-        value === "All" ||
-        value === "Select" ||
-        value === "Select..."
-      )
-        return;
-      params.set(key, value);
-    });
-    Object.entries(extra).forEach(([key, value]) => params.set(key, value));
-    return params.toString();
-  };
+  const hasRemote = Boolean(effectiveApiPath);
+  const summaryParam = summaryCards.map((card) => card.key).join(",");
+  const listParams = useMemo(() => {
+    const extra = {};
+    if (debouncedSearch) extra.search = debouncedSearch;
+    if (summaryParam) extra.summary = summaryParam;
+    return Object.fromEntries(
+      new URLSearchParams(buildReportQuery(appliedValues, extra)).entries(),
+    );
+  }, [appliedValues, debouncedSearch, summaryParam]);
 
-  const fetchReportRows = async (values = filterValues) => {
-    if (!effectiveApiPath) return;
-    setLoading(true);
-    setError("");
-
-    try {
-      const queryString = buildQuery(values);
-      const res = await fetch(
-        `${effectiveApiPath}${queryString ? `?${queryString}` : ""}`,
-        {
-          cache: "no-store",
-          credentials: "include",
-        },
-      );
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok || !json?.success) {
-        throw new Error(json?.message || "Unable to load report");
-      }
-
-      setRemoteRows(Array.isArray(json?.data?.rows) ? json.data.rows : []);
-    } catch (err) {
-      console.error("[ReportListPage] report fetch failed", err);
-      setError(err.message || "Unable to load report");
-      setRemoteRows([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    records: remoteRows,
+    total: remoteTotal,
+    loading,
+    error,
+    extra: remoteExtra,
+    page,
+    pageSize,
+    setPage,
+    setPageSize,
+    refresh,
+  } = usePagedList(effectiveApiPath, {
+    params: listParams,
+    pageSize: 25,
+    enabled: hasRemote,
+  });
 
   const fetchDetailReports = async (values = filterValues) => {
     if (!detailReports.length) return;
@@ -516,7 +523,7 @@ export default function ReportsListPage({
             detail.apiPath ||
             (detail.reportKey ? `/api/reports/${detail.reportKey}` : "");
           if (!detailApiPath) return [detail.key, EMPTY_ARRAY];
-          const queryString = buildQuery({
+          const queryString = buildReportQuery({
             ...values,
             ...(detail.extraFilters || {}),
           });
@@ -548,27 +555,31 @@ export default function ReportsListPage({
   };
 
   useEffect(() => {
-    fetchReportRows(defaultFilterValues);
     fetchDetailReports(defaultFilterValues);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveApiPath]);
 
   const handleApply = () => {
     onApply?.(filterValues);
-    fetchReportRows(filterValues);
+    if (JSON.stringify(filterValues) === JSON.stringify(appliedValues)) {
+      refresh();
+    } else {
+      setAppliedValues(filterValues);
+    }
     fetchDetailReports(filterValues);
   };
 
-  const handleDownload = () => {
+  const handleDownload = (format = "xlsx") => {
     if (!effectiveApiPath) return;
-    const exportColumns = columns.filter(
-      (column) => column.type !== "view-bills",
-    );
-    const queryString = buildQuery(filterValues, {
-      export: "xlsx",
+    const exportColumns = columns
+      .filter((column) => column.type !== "view-bills")
+      .map(({ key, label }) => ({ key, label }));
+    const queryString = buildReportQuery(filterValues, {
+      format,
       columns: JSON.stringify(exportColumns),
+      ...(search.trim() ? { search: search.trim() } : {}),
     });
-    window.location.href = `${effectiveApiPath}?${queryString}`;
+    downloadFromUrl(`${effectiveApiPath}?${queryString}`);
   };
 
   const handleDetailDownload = () => {
@@ -577,17 +588,17 @@ export default function ReportsListPage({
       activeDetail.apiPath ||
       (activeDetail.reportKey ? `/api/reports/${activeDetail.reportKey}` : "");
     if (!detailApiPath) return;
-    const queryString = buildQuery(
+    const queryString = buildReportQuery(
       {
         ...filterValues,
         ...(activeDetail.extraFilters || {}),
       },
       {
-        export: "xlsx",
+        format: "xlsx",
         columns: JSON.stringify(activeDetail.columns || []),
       },
     );
-    window.location.href = `${detailApiPath}?${queryString}`;
+    downloadFromUrl(`${detailApiPath}?${queryString}`);
   };
 
   const openBillModal = async (row) => {
@@ -649,45 +660,32 @@ export default function ReportsListPage({
       setCheckedRows([]);
       setAllChecked(false);
     } else {
-      setCheckedRows(effectiveRows.map((r) => r.id));
+      setCheckedRows(pagedRows.map((r) => r.id));
       setAllChecked(true);
     }
   };
 
-  // Reset page to 1 when search or filter values change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, filterValuesSignature]);
+  // Static `rows` (no report API) are still searched and paged in the browser.
+  const localFiltered = useMemo(() => {
+    if (hasRemote) return EMPTY_ARRAY;
+    const needle = debouncedSearch.toLowerCase();
+    return needle ? rows.filter((row) => rowMatchesSearch(row, needle)) : rows;
+  }, [hasRemote, rows, debouncedSearch]);
 
-  const effectiveRows =
-    remoteRows.length || effectiveApiPath ? remoteRows : rows;
-  const filtered = effectiveRows.filter((row) =>
-    Object.values(row).some((v) =>
-      String(v).toLowerCase().includes(search.toLowerCase()),
-    ),
-  );
-
-  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
-  const safeCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
-
-  const pagedRows = filtered.slice(
-    (safeCurrentPage - 1) * pageSize,
-    safeCurrentPage * pageSize,
-  );
-  const showingFrom =
-    filtered.length > 0 ? (safeCurrentPage - 1) * pageSize + 1 : 0;
-  const showingTo = Math.min(safeCurrentPage * pageSize, filtered.length);
+  const total = hasRemote ? remoteTotal : localFiltered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pagedRows = hasRemote
+    ? remoteRows
+    : localFiltered.slice((page - 1) * pageSize, page * pageSize);
+  const remoteSummary = remoteExtra?.summary;
   const summaryValues = useMemo(() => {
-    const parseReportNumber = (value) => {
-      if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-      const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
-      return Number.isFinite(parsed) ? parsed : 0;
-    };
     return summaryCards.map((card) => {
-      const value = effectiveRows.reduce(
-        (sum, row) => sum + parseReportNumber(row[card.key]),
-        0,
-      );
+      const value = hasRemote
+        ? Number(remoteSummary?.[card.key]) || 0
+        : localFiltered.reduce(
+            (sum, row) => sum + parseReportNumber(row[card.key]),
+            0,
+          );
       const formatted =
         card.type === "number"
           ? value.toLocaleString("en-IN")
@@ -697,7 +695,7 @@ export default function ReportsListPage({
             });
       return { ...card, value, formatted };
     });
-  }, [effectiveRows, summaryCards]);
+  }, [hasRemote, remoteSummary, localFiltered, summaryCards]);
   const activeDetail =
     detailReports.find((detail) => detail.key === activeDetailKey) ||
     detailReports[0];
@@ -810,9 +808,9 @@ export default function ReportsListPage({
             {/* Filter Actions */}
             <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
               <button
-                onClick={handleDownload}
+                onClick={() => handleDownload("xlsx")}
                 className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50"
-                title="Download"
+                title="Download Excel (all rows)"
               >
                 <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none">
                   <path
@@ -863,7 +861,10 @@ export default function ReportsListPage({
         )}
 
         {/* Search */}
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex flex-wrap items-center justify-end gap-3">
+          <span className="text-xs text-slate-500">
+            {total.toLocaleString("en-IN")} {totalLabel}
+          </span>
           <div className="relative w-full sm:w-auto">
             <svg
               className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -933,7 +934,7 @@ export default function ReportsListPage({
                       Loading report...
                     </td>
                   </tr>
-                ) : filtered.length === 0 ? (
+                ) : pagedRows.length === 0 ? (
                   <tr>
                     <td
                       colSpan={columns.length + 1}
@@ -988,58 +989,15 @@ export default function ReportsListPage({
               </tbody>
             </table>
           </div>
-        </div>
-
-        {/* Pagination */}
-        <div className="mt-4 flex flex-wrap items-center gap-4">
-          <div className="relative">
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="appearance-none rounded-xl border border-slate-200 bg-white px-3 py-1.5 pr-7 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
-            >
-              {PAGE_SIZES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-              ▼
-            </span>
-          </div>
-          <span className="text-xs text-slate-500">
-            Showing {showingFrom} to {showingTo} of {filtered.length}{" "}
-            {totalLabel}
-          </span>
-          {totalPages > 1 && (
-            <div className="flex items-center gap-1.5 ml-auto">
-              <button
-                type="button"
-                disabled={safeCurrentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-slate-500 px-1">
-                Page {safeCurrentPage} of {totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={safeCurrentPage === totalPages}
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            loading={loading}
+          />
         </div>
 
         {detailReports.length > 0 && (

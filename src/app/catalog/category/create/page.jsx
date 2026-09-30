@@ -1,4 +1,6 @@
 'use client';
+import { confirmDialog } from "@/lib/notify";
+import Icon from "@/components/Icon";
 
 import { RequiredMark } from "@/components/ui/FormField";
 
@@ -369,7 +371,7 @@ export default function CreateCategoryPage() {
                     onClick={() => setShowAddTypeModal(true)}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
                   >
-                    <i className="ti ti-plus text-[12px]" /> + Add Type
+                    <Icon name="ti ti-plus text-[12px]" /> + Add Type
                   </button>
                   <span className="text-gray-300">|</span>
                   <button
@@ -377,7 +379,7 @@ export default function CreateCategoryPage() {
                     onClick={() => setShowManageTypesModal(true)}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:underline"
                   >
-                    <i className="ti ti-settings text-[12px]" /> Manage
+                    <Icon name="ti ti-settings text-[12px]" /> Manage
                   </button>
                 </div>
               </div>
@@ -473,7 +475,7 @@ export default function CreateCategoryPage() {
                 onClick={() => setShowAddTypeModal(false)}
                 className="text-gray-400 hover:text-gray-600 rounded-lg p-1"
               >
-                <i className="ti ti-x text-[16px]" />
+                <Icon name="ti ti-x text-[16px]" />
               </button>
             </div>
 
@@ -556,7 +558,7 @@ export default function CreateCategoryPage() {
                 onClick={() => setShowManageTypesModal(false)}
                 className="text-gray-400 hover:text-gray-600 rounded-lg p-1"
               >
-                <i className="ti ti-x text-[16px]" />
+                <Icon name="ti ti-x text-[16px]" />
               </button>
             </div>
 
@@ -586,15 +588,15 @@ export default function CreateCategoryPage() {
                     <button
                       type="button"
                       disabled={deletingTypeId === t.id}
-                      onClick={() => {
-                        if (confirm(`Are you sure you want to delete category type "${t.name}"?`)) {
+                      onClick={async () => {
+                        if (await confirmDialog(`Delete category type "${t.name}"?`, { title: "Delete category type", confirmLabel: "Delete", danger: true })) {
                           handleDeleteCategoryType(t.id);
                         }
                       }}
                       className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                       title="Delete category type"
                     >
-                      <i className="ti ti-trash text-[15px]" />
+                      <Icon name="ti ti-trash text-[15px]" />
                     </button>
                   </div>
                 ))

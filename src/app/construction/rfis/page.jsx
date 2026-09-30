@@ -3,6 +3,7 @@
 import Button from "@/components/ui/Button";
 
 import { useEffect, useState } from "react";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionEmpty,
@@ -13,7 +14,9 @@ import ConstructionShell, {
 } from "@/components/construction/ConstructionShell";
 
 export default function RfisPage() {
-  const [records, setRecords] = useState([]);
+  const list = usePagedList("/api/construction/rfis");
+  const records = list.records;
+  const [openRfis, setOpenRfis] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,20 +29,21 @@ export default function RfisPage() {
   const [answerId, setAnswerId] = useState("");
   const [answer, setAnswer] = useState("");
 
-  const load = async () => {
-    setError("");
+  const loadOpen = async () => {
     try {
-      const r = await fetch("/api/construction/rfis", { cache: "no-store" });
+      const r = await fetch("/api/construction/rfis?status=open", { cache: "no-store" });
       const j = await r.json();
       if (!r.ok) throw new Error(j.message || j.error);
-      setRecords(j.data?.records || []);
+      setOpenRfis(j.data?.records || []);
     } catch (e) {
       setError(e.message);
     }
   };
 
+  const load = () => Promise.all([list.refresh(), loadOpen()]);
+
   useEffect(() => {
-    load();
+    loadOpen();
   }, []);
 
   const create = async (e) => {
@@ -87,11 +91,11 @@ export default function RfisPage() {
   };
 
   return (
-    <ConstructionShell
+    <ConstructionShell loading={list.loading}
       title="Requests for information"
       subtitle="Raise site questions and record answers."
     >
-      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {(error || list.error) && <ConstructionAlert>{error || list.error}</ConstructionAlert>}
       {message && (
         <ConstructionAlert type="info">{message}</ConstructionAlert>
       )}
@@ -157,9 +161,7 @@ export default function RfisPage() {
               onChange={(e) => setAnswerId(e.target.value)}
             >
               <option value="">Select open RFI</option>
-              {records
-                .filter((r) => r.status === "open")
-                .map((r) => (
+              {openRfis.map((r) => (
                   <option key={r.id} value={r.id}>
                     #{r.id} {r.subject}
                   </option>
@@ -185,9 +187,22 @@ export default function RfisPage() {
         </form>
       </ConstructionSection>
 
-      <ConstructionSection title="All RFIs">
+      <ConstructionSection
+        title="All RFIs"
+        action={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="ti-download"
+            onClick={() => downloadFromUrl(list.exportUrl())}
+          >
+            Download
+          </Button>
+        }
+      >
         <ConstructionTable
           headers={["RFI", "Subject", "Status", "Question", "Answer"]}
+          pagination={list.pagination}
         >
           {records.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50/80">

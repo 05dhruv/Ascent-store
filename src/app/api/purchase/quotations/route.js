@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getClient, query } from '@/lib/db';
 import { ensureProcurementSchema } from '@/lib/procurementSchema';
 import { appendStoreScope, auditLog, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
+import { successResponse } from '@/lib/api-response';
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from '@/lib/pagination';
 
 function toNum(value, fallback = 0) {
   const parsed = Number(value);
@@ -78,12 +80,14 @@ export async function GET(request) {
       )`);
     }
 
+    const pagination = getPagination(searchParams, { legacyLimit: 500 });
     const res = await query(
       `SELECT vq.*,
               v.name AS vendor_name,
               s.name AS store_name,
               COALESCE(COUNT(vqi.id), 0)::int AS total_items,
-              COALESCE(SUM(vqi.qty * vqi.quoted_price + vqi.tax_value), 0) AS total_amount
+              COALESCE(SUM(vqi.qty * vqi.quoted_price + vqi.tax_value), 0) AS total_amount,
+              COUNT(*) OVER() AS __total
        FROM vendor_quotations vq
        LEFT JOIN vendors v ON v.id = vq.vendor_id
        LEFT JOIN stores s ON s.id = vq.store_id
@@ -91,11 +95,39 @@ export async function GET(request) {
        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
        GROUP BY vq.id, v.name, s.name
        ORDER BY vq.created_at DESC
-       LIMIT 500`,
+       ${limitOffsetSql(pagination, params)}`,
       params
     );
 
-    return NextResponse.json(res.rows.map(mapRow));
+    const records = res.rows.map((row) => ({ ...mapRow(row), __total: row.__total }));
+    if (pagination.isExport) {
+      return spreadsheetResponse(records, {
+        filename: 'vendor_quotations',
+        format: pagination.format,
+        sheetName: 'Vendor Quotations',
+        columns: [
+          { key: 'transactionId', label: 'Quote' },
+          { key: 'quotationNo', label: 'Quotation No' },
+          { key: 'quotationDate', label: 'Quotation Date' },
+          { key: 'validUntil', label: 'Valid Until' },
+          { key: 'vendorName', label: 'Vendor' },
+          { key: 'storeName', label: 'Store' },
+          { key: 'totalItems', label: 'Items' },
+          { key: 'totalAmount', label: 'Amount' },
+          { key: 'deliveryDays', label: 'Lead (days)' },
+          { key: 'freightAmount', label: 'Freight' },
+          { key: 'score', label: 'Score', value: (r) => Math.round(r.score) },
+          { key: 'paymentTerms', label: 'Payment Terms' },
+          { key: 'status', label: 'Status' },
+          { key: 'remarks', label: 'Remarks' },
+          { key: 'createdAt', label: 'Created At' },
+        ],
+      });
+    }
+    if (pagination.paged) {
+      return successResponse(pagedPayload(records, pagination));
+    }
+    return NextResponse.json(records.map(({ __total, ...row }) => row));
   } catch (err) {
     console.error('[purchase quotations GET]', err.message);
     return NextResponse.json([], { status: 200 });

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import InventoryShell from "@/components/inventory/InventoryShell";
+import { downloadFromUrl } from "@/hooks/usePagedList";
 import SearchableSelect from "@/components/SearchableSelect";
 import {
   formatIndianDate,
@@ -49,7 +50,7 @@ function isWarehouseLocation(store) {
   return getLocationType(store) === "warehouse";
 }
 
-async function fetchStockInList(filters = {}, signal) {
+function stockInListParams(filters = {}) {
   const params = new URLSearchParams();
   if (filters.search) params.set("search", filters.search);
   if (filters.dateFrom) params.set("date_from", filters.dateFrom);
@@ -57,6 +58,15 @@ async function fetchStockInList(filters = {}, signal) {
   if (filters.source) params.set("source", filters.source);
   if (filters.destination) params.set("destination", filters.destination);
   if (filters.brand) params.set("brand", filters.brand);
+  return params;
+}
+
+async function fetchStockInList(filters = {}, signal, paging = null) {
+  const params = stockInListParams(filters);
+  if (paging) {
+    params.set("page", String(paging.page));
+    params.set("pageSize", String(paging.pageSize));
+  }
   const qs = params.toString();
   const res = await fetch(`/api/inventory/stockin${qs ? `?${qs}` : ""}`, {
     signal,
@@ -142,25 +152,6 @@ function mapRecordsToTable(records) {
     "PO / Ref Type": row.referenceType || "—",
     "PO / Work Order No": row.referenceId || "—",
   }));
-}
-
-function downloadCsv(rows) {
-  const headers = tableHeaders;
-  const csv = [
-    headers.join(","),
-    ...rows.map((row) =>
-      headers
-        .map((header) => `"${String(row[header] ?? "").replace(/"/g, '""')}"`)
-        .join(","),
-    ),
-  ].join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `stock-in-${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
 }
 
 const MAX_INVOICE_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -1000,6 +991,12 @@ export default function StockInPage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [tableData, setTableData] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
+  const [listPage, setListPage] = useState(1);
+  const [listPageSize, setListPageSize] = useState(25);
+  const [listTotal, setListTotal] = useState(0);
+  const [listTotalPages, setListTotalPages] = useState(1);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
+  const [chooserRows, setChooserRows] = useState([]);
   const [showTemplateFilters, setShowTemplateFilters] = useState(false);
   const [stockInBrandOptions, setStockInBrandOptions] = useState([]);
   const [templateCategories, setTemplateCategories] = useState([]);
@@ -1052,8 +1049,8 @@ export default function StockInPage() {
       .includes(vendorQuery.trim().toLowerCase()),
   );
   const editableStockInRows = useMemo(
-    () => tableData.filter((row) => row?._id),
-    [tableData],
+    () => chooserRows.filter((row) => row?._id),
+    [chooserRows],
   );
   const filteredEditableStockInRows = useMemo(() => {
     const query = editExcelChooserSearch.trim().toLowerCase();
@@ -1096,12 +1093,25 @@ export default function StockInPage() {
   }, []);
 
   useEffect(() => {
+    setListPage(1);
+  }, [filters, listPageSize]);
+
+  useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(
       () => {
         setLoadingList(true);
-        fetchStockInList(filters, controller.signal)
-          .then((data) => setTableData(mapRecordsToTable(data)))
+        fetchStockInList(filters, controller.signal, {
+          page: listPage,
+          pageSize: listPageSize,
+        })
+          .then((json) => {
+            const data = json?.data || {};
+            const rows = Array.isArray(data.records) ? data.records : [];
+            setTableData(mapRecordsToTable(rows));
+            setListTotal(Number(data.total) || rows.length);
+            setListTotalPages(Math.max(1, Number(data.totalPages) || 1));
+          })
           .catch((error) => {
             if (error.name !== "AbortError") setTableData([]);
           })
@@ -1116,7 +1126,21 @@ export default function StockInPage() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [filters]);
+  }, [filters, listPage, listPageSize, listRefreshKey]);
+
+  const refreshList = () => setListRefreshKey((key) => key + 1);
+  const listPagination = useMemo(
+    () => ({
+      page: listPage,
+      pageSize: listPageSize,
+      total: listTotal,
+      totalPages: listTotalPages,
+      onPageChange: setListPage,
+      onPageSizeChange: setListPageSize,
+      loading: loadingList,
+    }),
+    [listPage, listPageSize, listTotal, listTotalPages, loadingList],
+  );
 
   useEffect(() => {
     fetchStores()
@@ -1266,11 +1290,7 @@ export default function StockInPage() {
       return;
     }
 
-    setLoadingList(true);
-    fetchStockInList(filters)
-      .then((data) => setTableData(mapRecordsToTable(data)))
-      .catch(() => setTableData([]))
-      .finally(() => setLoadingList(false));
+    refreshList();
 
     window.sessionStorage.removeItem(PENDING_STOCK_IN_BULK_KEY);
     router.push(
@@ -2041,11 +2061,7 @@ export default function StockInPage() {
 
       // 5. Success! Close modal and refresh or navigate
       setBulkUploadReview(null);
-      setLoadingList(true);
-      fetchStockInList(filters)
-        .then((data) => setTableData(mapRecordsToTable(data)))
-        .catch(() => setTableData([]))
-        .finally(() => setLoadingList(false));
+      refreshList();
 
       router.push(
         `/inventory/stockin/line-items?id=${encodeURIComponent(draft.id)}`,
@@ -2118,11 +2134,7 @@ export default function StockInPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete stock in");
       setDeleteDialog({ open: false, row: null, loading: false, error: "" });
-      setLoadingList(true);
-      fetchStockInList(filters)
-        .then((records) => setTableData(mapRecordsToTable(records)))
-        .catch(() => setTableData([]))
-        .finally(() => setLoadingList(false));
+      refreshList();
     } catch (err) {
       setDeleteDialog((current) => ({
         ...current,
@@ -2150,10 +2162,14 @@ export default function StockInPage() {
   };
 
   const downloadConsolidatedExcel = async () => {
-    if (!tableData.length) return alert("No stock-in records to download.");
     try {
+      const listRows = mapRecordsToTable(await fetchStockInList(filters));
+      if (!listRows.length) {
+        alert("No stock-in records to download.");
+        return;
+      }
       const details = await Promise.all(
-        tableData
+        listRows
           .filter((row) => row?._id)
           .map(async (row) => {
             const res = await fetch(
@@ -2173,8 +2189,15 @@ export default function StockInPage() {
     }
   };
 
-  const openEditableStockInChooser = () => {
-    if (!tableData.length) return alert("No stock-in records available.");
+  const openEditableStockInChooser = async () => {
+    let rows = [];
+    try {
+      rows = mapRecordsToTable(await fetchStockInList(filters));
+    } catch (err) {
+      console.error(err);
+    }
+    if (!rows.length) return alert("No stock-in records available.");
+    setChooserRows(rows);
     setEditExcelOpen(false);
     setEditExcelChooserSearch("");
     setSelectedStockInEditIds({});
@@ -2319,16 +2342,13 @@ export default function StockInPage() {
         }
       }
 
-      setLoadingList(true);
-      const data = await fetchStockInList(filters);
-      setTableData(mapRecordsToTable(data));
+      refreshList();
       alert("Stock-in Excel changes uploaded successfully.");
     } catch (err) {
       console.error(err);
       alert(err.message || "Failed to upload edited stock-in Excel");
     } finally {
       setEditExcelBusy(false);
-      setLoadingList(false);
     }
   };
 
@@ -2840,7 +2860,12 @@ export default function StockInPage() {
             </button>
           </>
         }
-        onDownload={() => downloadCsv(tableData)}
+        onDownload={() => {
+          const params = stockInListParams(filters);
+          params.set("format", "xlsx");
+          downloadFromUrl(`/api/inventory/stockin?${params.toString()}`);
+        }}
+        pagination={listPagination}
         tableHeaders={tableHeaders}
         tableData={loadingList ? [] : tableData}
         emptyMessage={loadingList ? "Loading records…" : "No Records Found"}

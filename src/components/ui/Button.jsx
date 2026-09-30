@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Icon from "@/components/Icon";
 
 const VARIANTS = {
   primary: "ui-button",
@@ -38,12 +39,12 @@ export default function Button({
   const content = (
     <>
       {loading ? (
-        <i className="ti ti-loader-2 animate-spin" aria-hidden="true" />
+        <Icon name="ti-loader-2" className="animate-spin" />
       ) : icon ? (
-        <i className={icon} aria-hidden="true" />
+        <Icon name={icon} />
       ) : null}
       {children}
-      {iconRight ? <i className={iconRight} aria-hidden="true" /> : null}
+      {iconRight ? <Icon name={iconRight} /> : null}
     </>
   );
 

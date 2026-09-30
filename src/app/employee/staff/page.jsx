@@ -1,4 +1,5 @@
 'use client';
+import Icon from "@/components/Icon";
 
 import { RequiredMark } from "@/components/ui/FormField";
 
@@ -311,7 +312,7 @@ function MultiSelect({ label, options, value, onChange, placeholder = 'Select', 
         className="w-full appearance-none border border-gray-200 rounded-lg px-3 py-2 pr-8 text-[13px] text-gray-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all bg-white flex items-center justify-between gap-3"
       >
         <span className="truncate text-left">{labels}</span>
-        <i className={`ti ti-chevron-down text-[12px] text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <Icon name={`ti ti-chevron-down text-[12px] text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="relative z-30">
@@ -379,7 +380,7 @@ function SelectField({ label, value, onChange, options, required = false }) {
           ))}
         </select>
         <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400">
-          <i className="ti ti-chevron-down text-[12px]" />
+          <Icon name="ti ti-chevron-down text-[12px]" />
         </span>
       </div>
     </div>
@@ -715,7 +716,7 @@ export default function EmployeeStaffPage() {
             {/* Breadcrumbs */}
             <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-5">
               <Link href="/employee" className="text-blue-600 hover:underline font-medium">Employee</Link>
-              <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+              <Icon name="ti ti-chevron-right text-[11px] text-gray-400" />
               <button
                 type="button"
                 onClick={() => { setShowCreate(false); resetForm(); }}
@@ -723,7 +724,7 @@ export default function EmployeeStaffPage() {
               >
                 Employees
               </button>
-              <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+              <Icon name="ti ti-chevron-right text-[11px] text-gray-400" />
               <span className="text-slate-700 font-semibold">{editingId ? 'Edit Employee' : 'Create Employee'}</span>
             </nav>
 
@@ -750,7 +751,7 @@ export default function EmployeeStaffPage() {
                   disabled={saving}
                   className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-blue-800 transition shadow-sm disabled:opacity-50"
                 >
-                  <i className="ti ti-check text-sm" />
+                  <Icon name="ti ti-check text-sm" />
                   {saving ? 'Saving...' : editingId ? 'Update Employee' : 'Save Employee'}
                 </button>
               </div>
@@ -759,7 +760,7 @@ export default function EmployeeStaffPage() {
             {/* Form Body Card */}
             <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-8">
               <h4 className="text-sm font-bold text-blue-700 mb-6 flex items-center gap-2">
-                <i className="ti ti-user-circle text-lg" />
+                <Icon name="ti ti-user-circle text-lg" />
                 Staff Information
               </h4>
 
@@ -1053,7 +1054,7 @@ export default function EmployeeStaffPage() {
           <>
             <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-5">
               <Link href="/employee" className="text-blue-600 hover:underline font-medium">Employee</Link>
-              <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+              <Icon name="ti ti-chevron-right text-[11px] text-gray-400" />
               <span className="text-blue-600 font-semibold">Employees</span>
             </nav>
 
@@ -1072,7 +1073,7 @@ export default function EmployeeStaffPage() {
                     className="flex w-full sm:w-auto justify-center items-center gap-1.5 px-4 py-2 border border-blue-600 text-blue-600 bg-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-50 transition-colors shadow-sm"
                   >
                     Bulk Operations
-                    <i className={`ti ti-chevron-down text-[12px] transition-transform ${bulkOpen ? 'rotate-180' : ''}`} />
+                    <Icon name={`ti ti-chevron-down text-[12px] transition-transform ${bulkOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {bulkOpen && (
                     <div className="absolute left-0 sm:left-auto sm:right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
@@ -1093,7 +1094,7 @@ export default function EmployeeStaffPage() {
                   onClick={() => { setEditingId(null); setShowCreate(true); resetForm(); }}
                   className="flex flex-1 sm:flex-none justify-center items-center gap-1.5 px-4 py-2 bg-blue-700 text-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-800 transition-colors shadow-sm"
                 >
-                  <i className="ti ti-plus text-[14px]" />
+                  <Icon name="ti ti-plus text-[14px]" />
                   Create Employee
                 </button>
               </div>
@@ -1162,7 +1163,7 @@ export default function EmployeeStaffPage() {
 
             <div className="flex justify-end mb-4">
               <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 w-full sm:w-[280px] shadow-sm">
-                <i className="ti ti-search text-gray-400 text-[15px]" />
+                <Icon name="ti ti-search text-gray-400 text-[15px]" />
                 <input
                   type="text"
                   placeholder="Search"
@@ -1175,7 +1176,7 @@ export default function EmployeeStaffPage() {
                 />
                 {search && (
                   <button onClick={() => setSearch('')}>
-                    <i className="ti ti-x text-gray-400 text-[13px]" />
+                    <Icon name="ti ti-x text-gray-400 text-[13px]" />
                   </button>
                 )}
               </div>
@@ -1206,14 +1207,14 @@ export default function EmployeeStaffPage() {
                     {loading ? (
                       <tr>
                         <td colSpan={columns.length + 1} className="text-center py-16 text-gray-400">
-                          <i className="ti ti-loader animate-spin text-[24px] block mb-2" />
+                          <Icon name="ti ti-loader animate-spin text-[24px] block mb-2" />
                           Loading employees...
                         </td>
                       </tr>
                     ) : paginated.length === 0 ? (
                       <tr>
                         <td colSpan={columns.length + 1} className="text-center py-16 text-gray-400">
-                          <i className="ti ti-users-minus text-[32px] block mb-2 text-gray-300" />
+                          <Icon name="ti ti-users-minus text-[32px] block mb-2 text-gray-300" />
                           No employees found
                         </td>
                       </tr>
@@ -1267,14 +1268,14 @@ export default function EmployeeStaffPage() {
                                   className="p-1 rounded hover:bg-blue-50 text-blue-600 transition"
                                   title="Edit Employee"
                                 >
-                                  <i className="ti ti-edit text-[15px]" />
+                                  <Icon name="ti ti-edit text-[15px]" />
                                 </button>
                                 <button
                                   onClick={() => setDeleteConfirm(employee.id)}
                                   className="p-1 rounded hover:bg-red-50 text-red-600 transition"
                                   title="Delete Employee"
                                 >
-                                  <i className="ti ti-trash text-[15px]" />
+                                  <Icon name="ti ti-trash text-[15px]" />
                                 </button>
                               </div>
                             </td>
@@ -1312,7 +1313,7 @@ export default function EmployeeStaffPage() {
                       onClick={() => setPage((current) => Math.max(1, current - 1))}
                       className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
-                      <i className="ti ti-chevron-left text-gray-600 text-[14px]" />
+                      <Icon name="ti ti-chevron-left text-gray-600 text-[14px]" />
                     </button>
                     <span className="font-semibold text-gray-700 px-1">{page} / {totalPages}</span>
                     <button
@@ -1320,7 +1321,7 @@ export default function EmployeeStaffPage() {
                       onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                       className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
-                      <i className="ti ti-chevron-right text-gray-600 text-[14px]" />
+                      <Icon name="ti ti-chevron-right text-gray-600 text-[14px]" />
                     </button>
                   </div>
                 </div>
@@ -1337,7 +1338,7 @@ export default function EmployeeStaffPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 mb-4 text-red-600">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100/80">
-                <i className="ti ti-alert-triangle text-[22px]" />
+                <Icon name="ti ti-alert-triangle text-[22px]" />
               </div>
               <div>
                 <h2 className="text-[17px] font-bold text-gray-900">Delete Employee?</h2>

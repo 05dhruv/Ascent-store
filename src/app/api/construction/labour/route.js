@@ -3,6 +3,7 @@ import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
 import { ensureConstructionSchema } from "@/lib/constructionSchema";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
 
 async function guard(request, write = false) {
   const auth = await requireAuth(request);
@@ -23,6 +24,34 @@ export async function GET(request) {
   try {
     await ensureConstructionSchema();
     await ensureConstructionOpsSchema();
+    const pagination = getPagination(new URL(request.url).searchParams);
+    const params = [];
+    const attendanceSql = `SELECT a.*, cr.name AS crew_name, s.name AS site_name,
+              COUNT(*) OVER() AS __total
+       FROM construction_attendance a
+       JOIN construction_crews cr ON cr.id = a.crew_id
+       LEFT JOIN construction_sites s ON s.id = a.site_id
+       ORDER BY a.work_date DESC, a.id DESC
+       ${limitOffsetSql(pagination, params)}`;
+
+    if (pagination.isExport) {
+      const attendance = await query(attendanceSql, params);
+      return spreadsheetResponse(attendance.rows, {
+        filename: "labour_attendance",
+        format: pagination.format,
+        columns: [
+          { key: "work_date", label: "Date" },
+          { key: "crew_id", label: "Crew ID" },
+          { key: "crew_name", label: "Crew" },
+          { key: "site_id", label: "Site ID" },
+          { key: "site_name", label: "Site" },
+          { key: "headcount", label: "Headcount" },
+          { key: "hours", label: "Hours" },
+          { key: "notes", label: "Notes" },
+        ],
+      });
+    }
+
     const [crews, attendance] = await Promise.all([
       query(
         `SELECT c.*, p.name AS project_name, s.name AS site_name, ct.name AS contractor_name
@@ -32,18 +61,13 @@ export async function GET(request) {
          LEFT JOIN construction_contractors ct ON ct.id = c.contractor_id
          ORDER BY c.name`,
       ),
-      query(
-        `SELECT a.*, cr.name AS crew_name, s.name AS site_name
-         FROM construction_attendance a
-         JOIN construction_crews cr ON cr.id = a.crew_id
-         LEFT JOIN construction_sites s ON s.id = a.site_id
-         ORDER BY a.work_date DESC, a.id DESC
-         LIMIT 200`,
-      ),
+      query(attendanceSql, params),
     ]);
+    const payload = pagedPayload(attendance.rows, pagination);
     return successResponse({
+      ...payload,
       crews: crews.rows,
-      attendance: attendance.rows,
+      attendance: payload.records,
     });
   } catch (error) {
     console.error("[construction labour GET]", error);
@@ -57,7 +81,7 @@ export async function POST(request) {
   try {
     await ensureConstructionOpsSchema();
     const body = await request.json().catch(() => ({}));
-    const type = String(body.type || "crew");
+    const type = String(body.type || body.action || "crew");
 
     if (type === "crew") {
       const name = String(body.name || "").trim();

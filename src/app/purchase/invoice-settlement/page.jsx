@@ -1,10 +1,11 @@
 "use client";
+import { confirmDialog } from "@/lib/notify";
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import MainLayout from "@/components/MainLayout";
 import { fetchLookup, normalizeVendors } from "@/lib/purchaseLookups";
-import { formatIndianDate } from "@/lib/dateUtils";
+import { formatIndianDate } from "@/lib/dateUtils";
 import Icon from "@/components/Icon";
 
 const tableHeaders = [
@@ -648,7 +649,7 @@ export default function InvoiceSettlementPage() {
           <button
             type="button"
             onClick={async () => {
-              if (!window.confirm("Disconnect Google Calendar? Existing events will remain in Google Calendar.")) return;
+              if (!(await confirmDialog("Disconnect Google Calendar? Existing events will remain in Google Calendar.", { title: "Disconnect calendar", confirmLabel: "Disconnect" }))) return;
               const res = await fetch("/api/integrations/google-calendar", { method: "DELETE" });
               if (res.ok) setCalendarStatus({ loading: false, connected: false, email: null });
             }}

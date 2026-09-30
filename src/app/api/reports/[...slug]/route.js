@@ -1,17 +1,18 @@
-import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission } from '@/lib/api-protection';
 import { errorResponse, notFoundError, successResponse } from '@/lib/api-response';
+import { getPagination, spreadsheetResponse } from '@/lib/pagination';
 import {
-  createReportWorkbookBuffer,
   getReportDefinition,
+  getReportPage,
   getReportRows,
   normalizeReportKey,
 } from '@/lib/reportsService';
 
+const CONTROL_PARAMS = ['export', 'columns', 'page', 'pageSize', 'format', 'search', 'summary'];
+
 function filtersFromSearchParams(searchParams) {
   const filters = Object.fromEntries(searchParams.entries());
-  delete filters.export;
-  delete filters.columns;
+  CONTROL_PARAMS.forEach((key) => delete filters[key]);
   return filters;
 }
 
@@ -27,6 +28,13 @@ function columnsFromSearchParams(searchParams) {
   } catch {
     return null;
   }
+}
+
+function summaryKeysFromSearchParams(searchParams) {
+  return String(searchParams.get('summary') || '')
+    .split(',')
+    .map((key) => key.trim())
+    .filter(Boolean);
 }
 
 export async function GET(request, context) {
@@ -57,26 +65,56 @@ export async function GET(request, context) {
     const definition = columns ? { ...baseDefinition, columns } : baseDefinition;
     if (!definition) return notFoundError('Report not found');
 
-    const rows = await getReportRows(reportKey, filtersFromSearchParams(searchParams), auth.user);
+    const filters = filtersFromSearchParams(searchParams);
+    const pagination = getPagination(searchParams, { defaultPageSize: 25, maxPageSize: 200 });
+    // `export=xlsx` is the older download param (reports dashboard); treat it as a full export too.
+    const exportFormat = pagination.isExport
+      ? pagination.format
+      : searchParams.get('export') === 'xlsx'
+        ? 'xlsx'
+        : null;
 
-    if (searchParams.get('export') === 'xlsx') {
-      const buffer = createReportWorkbookBuffer(definition, rows);
-      const filename = `${reportKey.replace(/[^\w-]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      return new NextResponse(buffer, {
-        headers: {
-          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="${filename}"`,
-          'Cache-Control': 'no-store',
-        },
+    if (exportFormat) {
+      const { rows } = await getReportPage(reportKey, filters, auth.user, {
+        mode: 'export',
+        search: searchParams.get('search') || '',
+      });
+      return spreadsheetResponse(rows, {
+        columns: definition.columns,
+        filename: reportKey.replace(/[^\w-]+/g, '-'),
+        format: exportFormat,
+        sheetName: definition.worksheet || definition.title || 'Report',
       });
     }
 
+    const report = {
+      key: reportKey,
+      title: definition.title,
+      columns: definition.columns,
+    };
+
+    if (pagination.paged) {
+      const { rows, total, summary } = await getReportPage(reportKey, filters, auth.user, {
+        mode: 'page',
+        limit: pagination.limit,
+        offset: pagination.offset,
+        search: searchParams.get('search') || '',
+        summaryKeys: summaryKeysFromSearchParams(searchParams),
+      });
+      return successResponse({
+        report,
+        records: rows,
+        total,
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pagination.pageSize)),
+        summary,
+      });
+    }
+
+    const rows = await getReportRows(reportKey, filters, auth.user);
     return successResponse({
-      report: {
-        key: reportKey,
-        title: definition.title,
-        columns: definition.columns,
-      },
+      report,
       rows,
       total: rows.length,
     });

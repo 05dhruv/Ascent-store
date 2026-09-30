@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query, getClient } from '@/lib/db';
 import { ensureStockOutSchema } from '@/lib/stockOutSchema';
 import { appendStoreScope, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from '@/lib/pagination';
 
 export async function GET(request) {
   try {
@@ -12,10 +13,41 @@ export async function GET(request) {
     const permissionCheck = requirePermission(auth.user, 'STOCK_VIEW', 'MATERIAL_ISSUE_CREATE', 'MATERIAL_RETURN_CREATE');
     if (permissionCheck.error) return permissionCheck.error;
 
+    const sp = new URL(request.url).searchParams;
+    const pagination = getPagination(sp, { legacyLimit: 200 });
     const params = [];
     const whereClauses = [`s.status = 'confirmed'`];
     const scope = appendStoreScope(whereClauses, params, 'COALESCE(s.source_id, s.destination_id)', auth.user);
     if (scope.error) return scope.error;
+    const baseWhere = [...whereClauses];
+    const baseParams = [...params];
+
+    const refTypeSql = `COALESCE(NULLIF(s.reference_type, ''), CASE WHEN s.method = 'po_return' THEN 'PO Return' ELSE 'Stock Out' END)`;
+    const dateFrom = sp.get('dateFrom');
+    const dateTo = sp.get('dateTo');
+    const refType = sp.get('source') || sp.get('referenceType');
+    const search = String(sp.get('search') || '').trim();
+    if (dateFrom && /^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) {
+      params.push(dateFrom);
+      whereClauses.push(`(s.invoice_date IS NULL OR s.invoice_date >= $${params.length}::date)`);
+    }
+    if (dateTo && /^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+      params.push(dateTo);
+      whereClauses.push(`(s.invoice_date IS NULL OR s.invoice_date <= $${params.length}::date)`);
+    }
+    if (refType) {
+      params.push(refType);
+      whereClauses.push(`${refTypeSql} = $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      const p = `$${params.length}`;
+      whereClauses.push(`(
+        s.transaction_id ILIKE ${p} OR s.invoice_number ILIKE ${p} OR s.vendor_name ILIKE ${p}
+        OR s.reference_id::text ILIKE ${p} OR s.purchase_order_id::text ILIKE ${p}
+        OR destination_store.name ILIKE ${p} OR source_store.name ILIKE ${p} OR ${refTypeSql} ILIKE ${p}
+      )`);
+    }
 
     const res = await query(
       `SELECT
@@ -37,7 +69,8 @@ export async function GET(request) {
         source_store.name AS source_name,
         destination_store.name AS destination_name,
         COALESCE(SUM(soi.qty), 0) AS item_qty_sum,
-        COALESCE(SUM(soi.qty * soi.cost_price), 0) AS items_cost_sum
+        COALESCE(SUM(soi.qty * soi.cost_price), 0) AS items_cost_sum,
+        COUNT(*) OVER() AS __total
       FROM stock_out s
       LEFT JOIN stores source_store ON source_store.id = COALESCE(s.source_id, s.destination_id)
       LEFT JOIN stores destination_store ON destination_store.id = s.destination_id
@@ -45,7 +78,7 @@ export async function GET(request) {
       WHERE ${whereClauses.join(' AND ')}
       GROUP BY s.id, source_store.name, destination_store.name
       ORDER BY s.confirmed_at DESC NULLS LAST, s.created_at DESC
-      LIMIT 200`,
+      ${limitOffsetSql(pagination, params)}`,
       params
     );
 
@@ -78,6 +111,43 @@ export async function GET(request) {
         createdAt: row.created_at,
       };
     });
+
+    if (pagination.isExport) {
+      return spreadsheetResponse(records, {
+        filename: 'stock-out',
+        format: pagination.format,
+        columns: [
+          { key: 'transactionId', label: 'Transaction ID' },
+          { key: 'invoiceNumber', label: 'Invoice Number' },
+          { key: 'source', label: 'Source' },
+          { key: 'destination', label: 'Destination' },
+          { key: 'invoiceDate', label: 'Invoice Date' },
+          { key: 'totalItems', label: 'Total Items' },
+          { key: 'cost', label: 'Cost' },
+          { key: 'totalTax', label: 'Tax' },
+          { key: 'referenceType', label: 'Reference Type' },
+          { key: 'referenceId', label: 'Reference ID' },
+          { key: 'vendorName', label: 'Vendor' },
+          { key: 'createdAt', label: 'Created' },
+        ],
+      });
+    }
+
+    if (pagination.paged) {
+      const refTypes = await query(
+        `SELECT DISTINCT ${refTypeSql} AS ref_type
+         FROM stock_out s
+         WHERE ${baseWhere.join(' AND ')}
+         ORDER BY 1`,
+        baseParams
+      );
+      const payload = pagedPayload(
+        res.rows.map((row, index) => ({ ...records[index], __total: row.__total })),
+        pagination,
+        { referenceTypes: refTypes.rows.map((row) => row.ref_type).filter(Boolean) }
+      );
+      return NextResponse.json({ success: true, data: payload });
+    }
 
     return NextResponse.json(records);
   } catch (err) {

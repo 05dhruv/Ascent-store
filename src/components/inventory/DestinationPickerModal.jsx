@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useState } from "react";
 
@@ -91,7 +92,7 @@ export default function DestinationPickerModal({ stores, onConfirm, onCancel }) 
                         </span>
                       )}
                       {isSelected && (
-                        <i className="ti ti-check text-blue-600" />
+                        <Icon name="ti ti-check text-blue-600" />
                       )}
                     </div>
                   </button>

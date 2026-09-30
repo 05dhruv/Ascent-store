@@ -2,7 +2,8 @@
 
 import Button from "@/components/ui/Button";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionEmpty,
@@ -13,8 +14,9 @@ import ConstructionShell, {
 } from "@/components/construction/ConstructionShell";
 
 export default function QuarantinePage() {
-  const [records, setRecords] = useState([]);
-  const [error, setError] = useState("");
+  const list = usePagedList("/api/construction/quarantine");
+  const records = list.records;
+  const error = list.error;
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
@@ -25,21 +27,7 @@ export default function QuarantinePage() {
     reason: "",
   });
 
-  const load = async () => {
-    setError("");
-    try {
-      const r = await fetch("/api/construction/quarantine", { cache: "no-store" });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.message || j.error || "Unable to load");
-      setRecords(j.data?.records || []);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+  const load = () => list.refresh();
 
   const requestRelease = async (e) => {
     e.preventDefault();
@@ -88,7 +76,7 @@ export default function QuarantinePage() {
   };
 
   return (
-    <ConstructionShell
+    <ConstructionShell loading={list.loading}
       title="Quarantine releases"
       subtitle="Request and approve release of quarantined stock to usable inventory."
     >
@@ -157,7 +145,19 @@ export default function QuarantinePage() {
         </form>
       </ConstructionSection>
 
-      <ConstructionSection title="Release requests">
+      <ConstructionSection
+        title="Release requests"
+        action={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="ti-download"
+            onClick={() => downloadFromUrl(list.exportUrl())}
+          >
+            Download
+          </Button>
+        }
+      >
         <ConstructionTable
           headers={[
             "ID",
@@ -168,6 +168,7 @@ export default function QuarantinePage() {
             "Requested",
             "Actions",
           ]}
+          pagination={list.pagination}
         >
           {records.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50/80">

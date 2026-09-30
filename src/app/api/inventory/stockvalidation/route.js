@@ -8,6 +8,12 @@ import {
   requirePermission,
   requireStore,
 } from "@/lib/api-protection";
+import {
+  getPagination,
+  limitOffsetSql,
+  pagedPayload,
+  spreadsheetResponse,
+} from "@/lib/pagination";
 
 export async function GET(request) {
   try {
@@ -36,6 +42,34 @@ export async function GET(request) {
       params.push(Number(auth.user.id));
       whereClauses.push(`sv.created_by = $${params.length}`);
     }
+    const baseWhere = [...whereClauses];
+    const baseParams = [...params];
+
+    const sp = new URL(request.url).searchParams;
+    const pagination = getPagination(sp, { legacyLimit: 200 });
+    const dateFrom = sp.get("dateFrom");
+    const dateTo = sp.get("dateTo");
+    const sourceName = sp.get("source");
+    const search = String(sp.get("search") || "").trim();
+    if (dateFrom && /^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) {
+      params.push(dateFrom);
+      whereClauses.push(`(sv.invoice_date IS NULL OR sv.invoice_date >= $${params.length}::date)`);
+    }
+    if (dateTo && /^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+      params.push(dateTo);
+      whereClauses.push(`(sv.invoice_date IS NULL OR sv.invoice_date <= $${params.length}::date)`);
+    }
+    if (sourceName) {
+      params.push(sourceName);
+      whereClauses.push(`COALESCE(stores.name, 'None') = $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      const p = `$${params.length}`;
+      whereClauses.push(
+        `(sv.transaction_id ILIKE ${p} OR sv.rack_no ILIKE ${p} OR sv.invoice_number ILIKE ${p} OR stores.name ILIKE ${p} OR sv.status ILIKE ${p})`,
+      );
+    }
 
     const res = await query(
       `SELECT
@@ -53,7 +87,8 @@ export async function GET(request) {
         sv.confirmed_at,
         stores.name AS source_name,
         COALESCE(SUM(svi.qty), 0) AS item_qty_sum,
-        COALESCE(SUM(svi.qty * svi.cost_price), 0) AS items_cost_sum
+        COALESCE(SUM(svi.qty * svi.cost_price), 0) AS items_cost_sum,
+        COUNT(*) OVER() AS __total
       FROM stock_validation sv
       LEFT JOIN stores ON stores.id = sv.destination_id
       LEFT JOIN stock_validation_items svi ON svi.stock_validation_id = sv.id
@@ -63,12 +98,11 @@ export async function GET(request) {
         CASE WHEN sv.status = 'draft' THEN 0 ELSE 1 END,
         sv.confirmed_at DESC NULLS LAST,
         sv.created_at DESC
-      LIMIT 200`,
+      ${limitOffsetSql(pagination, params)}`,
       params,
     );
 
-    return NextResponse.json(
-      res.rows.map((row) => ({
+    const records = res.rows.map((row) => ({
         id: row.id,
         transactionId:
           row.transaction_id || `AUD-${String(row.id).padStart(4, "0")}`,
@@ -84,8 +118,45 @@ export async function GET(request) {
         ),
         totalTax: Number(row.total_tax || 0),
         createdAt: row.created_at,
-      })),
-    );
+      }));
+
+    if (pagination.isExport) {
+      return spreadsheetResponse(records, {
+        filename: "stock-audit",
+        format: pagination.format,
+        columns: [
+          { key: "transactionId", label: "Audit Ref" },
+          { key: "status", label: "Status" },
+          { key: "rackNo", label: "Yard / Bay / Bin" },
+          { key: "sourceName", label: "Site / Warehouse Store" },
+          { key: "invoiceNumber", label: "Reference Number" },
+          { key: "invoiceDate", label: "Date" },
+          { key: "totalItems", label: "Material Items" },
+          { key: "cost", label: "Estimated Value" },
+          { key: "totalTax", label: "Tax" },
+          { key: "createdAt", label: "Created" },
+        ],
+      });
+    }
+
+    if (pagination.paged) {
+      const sources = await query(
+        `SELECT DISTINCT COALESCE(stores.name, 'None') AS source_name
+         FROM stock_validation sv
+         LEFT JOIN stores ON stores.id = sv.destination_id
+         WHERE ${baseWhere.join(" AND ")}
+         ORDER BY 1`,
+        baseParams,
+      );
+      const payload = pagedPayload(
+        res.rows.map((row, index) => ({ ...records[index], __total: row.__total })),
+        pagination,
+        { sourceOptions: sources.rows.map((row) => row.source_name) },
+      );
+      return NextResponse.json({ success: true, data: payload });
+    }
+
+    return NextResponse.json(records);
   } catch (err) {
     console.error("[stockvalidation GET]", err.message);
     return NextResponse.json([], { status: 200 });

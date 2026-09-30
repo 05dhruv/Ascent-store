@@ -20,8 +20,6 @@ export const menuItems = [
             { label: "BOQ & Project Controls", href: "/construction/controls" },
             { label: "BOQ Variance", href: "/construction/boq-variance" },
             { label: "Site Stores", href: "/construction/projects?view=sites" },
-            { label: "Warehouses", href: "/settings/warehouses" },
-            { label: "Project Team", href: "/employee/staff" },
           ],
         },
         {
@@ -98,7 +96,7 @@ export const menuItems = [
             { label: "Quotation Comparison", href: "/purchase/quotations" },
             { label: "Material Receipt (GRN)", href: "/purchase/grn" },
             {
-              label: "Margin / Price Approvals",
+              label: "Rate Approvals",
               href: "/purchase/margin-approvals",
             },
             { label: "Supplier Returns", href: "/purchase/returns" },
@@ -155,7 +153,7 @@ export const menuItems = [
               href: "/reports/inventory/stock-ledger-summary",
             },
             {
-              label: "Material Movement",
+              label: "Movement Report",
               href: "/reports/inventory/stock-movement",
             },
             {
@@ -174,7 +172,7 @@ export const menuItems = [
           ],
         },
         {
-          label: "Procurement",
+          label: "Purchase Reports",
           icon: "ti-file-description",
           items: [
             {
@@ -186,7 +184,7 @@ export const menuItems = [
               href: "/reports/purchase/purchase-return-report",
             },
             {
-              label: "Vendor Performance",
+              label: "Supplier Performance",
               href: "/reports/purchase/vendor-performance-report",
             },
           ],
@@ -229,8 +227,8 @@ export const menuItems = [
           label: "Locations",
           icon: "ti-map-pin",
           items: [
-            { label: "Site Stores", href: "/settings/stores" },
-            { label: "Warehouses", href: "/settings/warehouses" },
+            { label: "Site Store Setup", href: "/settings/stores" },
+            { label: "Warehouse Setup", href: "/settings/warehouses" },
             { label: "Regions / Zones", href: "/settings/regions" },
           ],
         },

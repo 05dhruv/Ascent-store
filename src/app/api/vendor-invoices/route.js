@@ -11,6 +11,13 @@ import {
   requireStore,
 } from "@/lib/api-protection";
 import { resolveVendorPaymentTerms } from "@/lib/vendorCreditTerms";
+import { successResponse } from "@/lib/api-response";
+import {
+  getPagination,
+  limitOffsetSql,
+  pagedPayload,
+  spreadsheetResponse,
+} from "@/lib/pagination";
 
 function mapRow(row) {
   const totalAmount = Number(row.total_amount || 0);
@@ -114,8 +121,10 @@ export async function GET(request) {
         OR COALESCE(v.name, '') ILIKE $${params.length}
         OR COALESCE(invoice_transfers.transferred_stores, '') ILIKE $${params.length}
         OR COALESCE(vi.remarks, '') ILIKE $${params.length}
+        OR COALESCE(vi.status, '') ILIKE $${params.length}
       )`);
     }
+    const pagination = getPagination(searchParams, { legacyLimit: 500 });
 
     const res = await query(
       `WITH transferred_invoice_stores AS (
@@ -170,7 +179,8 @@ export async function GET(request) {
               invoice_transfers.transferred_stores,
               COALESCE(settlement_stats.settlement_count, 0) AS settlement_count,
               settlement_stats.last_payment_date,
-              COALESCE(settlement_stats.payments, '[]'::jsonb) AS payments
+              COALESCE(settlement_stats.payments, '[]'::jsonb) AS payments,
+              COUNT(*) OVER() AS __total
        FROM vendor_invoices vi
        LEFT JOIN vendors v ON v.id = vi.vendor_id
        LEFT JOIN purchase_orders po ON po.id = vi.purchase_order_id
@@ -209,11 +219,37 @@ export async function GET(request) {
        ) settlement_stats ON TRUE
        ${conditions.length ? `WHERE ${conditions.join(" AND ")}` : ""}
        ORDER BY vi.created_at DESC
-       LIMIT 500`,
+       ${limitOffsetSql(pagination, params)}`,
       params,
     );
 
-    return NextResponse.json(res.rows.map(mapRow));
+    const records = res.rows.map((row) => ({ ...mapRow(row), __total: row.__total }));
+    if (pagination.isExport) {
+      return spreadsheetResponse(records, {
+        filename: "vendor_invoices",
+        format: pagination.format,
+        sheetName: "Vendor Invoices",
+        columns: [
+          { key: "transactionId", label: "Invoice ID" },
+          { key: "invoiceNumber", label: "Invoice Number" },
+          { key: "vendorName", label: "Vendor Name" },
+          { key: "poId", label: "PO ID" },
+          { key: "grnId", label: "GRN ID" },
+          { key: "totalAmount", label: "Total Amount" },
+          { key: "amountPaid", label: "Amount Paid" },
+          { key: "amountLeft", label: "Amount Left" },
+          { key: "invoiceDate", label: "Invoice Date", value: (r) => r.invoiceDate || r.createdAt },
+          { key: "dueDate", label: "Due Date" },
+          { key: "createdBy", label: "Created by" },
+          { key: "remarks", label: "Remarks" },
+          { key: "status", label: "Status" },
+        ],
+      });
+    }
+    if (pagination.paged) {
+      return successResponse(pagedPayload(records, pagination));
+    }
+    return NextResponse.json(records.map(({ __total, ...row }) => row));
   } catch (err) {
     console.error("[vendor-invoices GET]", err.message);
     return NextResponse.json([]);

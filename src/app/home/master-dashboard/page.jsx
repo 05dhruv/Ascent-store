@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -154,14 +155,11 @@ export default function ConstructionMasterDashboard() {
     <MainLayout>
       <div className="space-y-6">
         <header className="dashboard-hero relative overflow-hidden">
-          <i
-            className="ti ti-building-skyscraper pointer-events-none absolute -bottom-8 right-[18%] hidden text-[190px] text-white/[0.06] xl:block"
-            aria-hidden="true"
-          />
+          <Icon name="ti ti-building-skyscraper pointer-events-none absolute -bottom-8 right-[18%] hidden text-[190px] text-white/[0.06] xl:block" aria-hidden="true" />
           <div className="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-4">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-orange-500/20 text-2xl text-orange-300">
-                <i className="ti ti-building-factory-2" aria-hidden="true" />
+                <Icon name="ti ti-building-factory-2" aria-hidden="true" />
               </span>
               <div>
                 <p className="text-[13px] font-medium text-slate-300">
@@ -285,7 +283,7 @@ export default function ConstructionMasterDashboard() {
           <section className="ui-card">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center font-black text-slate-900">
-                <i className="ti ti-building mr-2 text-blue-600" aria-hidden="true" />
+                <Icon name="ti ti-building mr-2 text-blue-600" aria-hidden="true" />
                 Project Portfolio
               </h2>
               <Link href="/construction/projects" className="text-xs font-bold text-orange-600 hover:text-orange-700">
@@ -308,7 +306,7 @@ export default function ConstructionMasterDashboard() {
                       <td className="py-3">
                         <Link href="/construction/projects" className="flex items-center gap-3">
                           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500">
-                            <i className="ti ti-building-skyscraper text-[18px]" aria-hidden="true" />
+                            <Icon name="ti ti-building-skyscraper text-[18px]" aria-hidden="true" />
                           </span>
                           <span className="min-w-0">
                             <b className="block truncate text-slate-900">{p.name}</b>
@@ -340,7 +338,7 @@ export default function ConstructionMasterDashboard() {
           <section className="ui-card">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="flex items-center font-black text-slate-900">
-                <i className="ti ti-chart-donut mr-2 text-amber-600" aria-hidden="true" />
+                <Icon name="ti ti-chart-donut mr-2 text-amber-600" aria-hidden="true" />
                 Material Movement Mix
               </h2>
               <span className="text-[11px] font-medium text-slate-400">Selected period</span>
@@ -377,7 +375,7 @@ export default function ConstructionMasterDashboard() {
           <section className="ui-card">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="flex items-center font-black text-slate-900">
-                <i className="ti ti-alert-triangle mr-2 text-amber-600" aria-hidden="true" />
+                <Icon name="ti ti-alert-triangle mr-2 text-amber-600" aria-hidden="true" />
                 Operational Alerts
                 {alerts.length > 0 && (
                   <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">
@@ -393,18 +391,18 @@ export default function ConstructionMasterDashboard() {
               {alerts.map((alert) => (
                 <Link key={alert.text} href={alert.href} className="dashboard-alert rounded-lg px-1">
                   <span className="flex min-w-0 items-center gap-3">
-                    <i className={`ti ${alert.icon} shrink-0 rounded-lg p-2 text-lg ${alert.tone}`} aria-hidden="true" />
+                    <Icon name={`ti ${alert.icon} shrink-0 rounded-lg p-2 text-lg ${alert.tone}`} aria-hidden="true" />
                     <span className="truncate text-slate-700">{alert.text}</span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2 text-[11px] text-slate-400">
                     {timeAgo(alert.at)}
-                    <i className="ti ti-chevron-right" aria-hidden="true" />
+                    <Icon name="ti ti-chevron-right" aria-hidden="true" />
                   </span>
                 </Link>
               ))}
               {!alerts.length && (
                 <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
-                  <i className="ti ti-circle-check text-lg" aria-hidden="true" />
+                  <Icon name="ti ti-circle-check text-lg" aria-hidden="true" />
                   No pending movement exceptions.
                 </div>
               )}
@@ -413,7 +411,7 @@ export default function ConstructionMasterDashboard() {
 
           <section className="ui-card">
             <h2 className="mb-4 flex items-center font-black text-slate-900">
-              <i className="ti ti-adjustments mr-2 text-blue-600" aria-hidden="true" />
+              <Icon name="ti ti-adjustments mr-2 text-blue-600" aria-hidden="true" />
               Control Summary
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -424,7 +422,7 @@ export default function ConstructionMasterDashboard() {
                   className="flex flex-col items-center rounded-xl border border-slate-100 px-2 py-4 text-center transition hover:border-slate-200 hover:bg-slate-50"
                 >
                   <span className={`mb-2 grid h-10 w-10 place-items-center rounded-xl ${tone}`}>
-                    <i className={`ti ${icon} text-[19px]`} aria-hidden="true" />
+                    <Icon name={`ti ${icon} text-[19px]`} aria-hidden="true" />
                   </span>
                   <p className="text-2xl font-black text-slate-900">{value}</p>
                   <p className="mt-1 text-[12px] font-medium text-slate-500">{label}</p>

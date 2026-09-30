@@ -3,6 +3,7 @@
 import Button from "@/components/ui/Button";
 
 import { useEffect, useState } from "react";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionEmpty,
@@ -13,7 +14,8 @@ import ConstructionShell, {
 } from "@/components/construction/ConstructionShell";
 
 export default function ContractorsPage() {
-  const [records, setRecords] = useState([]);
+  const list = usePagedList("/api/construction/contractors");
+  const records = list.records;
   const [variance, setVariance] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -25,25 +27,21 @@ export default function ContractorsPage() {
     gstin: "",
   });
 
-  const load = async () => {
+  const loadVariance = async () => {
     setError("");
     try {
-      const [c, v] = await Promise.all([
-        fetch("/api/construction/contractors", { cache: "no-store" }),
-        fetch("/api/construction/boq-variance", { cache: "no-store" }),
-      ]);
-      const cj = await c.json();
+      const v = await fetch("/api/construction/boq-variance", { cache: "no-store" });
       const vj = await v.json();
-      if (!c.ok) throw new Error(cj.message || cj.error);
-      setRecords(cj.data?.records || []);
       if (v.ok) setVariance((vj.data?.records || []).slice(0, 20));
     } catch (e) {
       setError(e.message);
     }
   };
 
+  const load = () => list.refresh();
+
   useEffect(() => {
-    load();
+    loadVariance();
   }, []);
 
   const save = async (e) => {
@@ -85,7 +83,7 @@ export default function ContractorsPage() {
   };
 
   return (
-    <ConstructionShell
+    <ConstructionShell loading={list.loading}
       title="Contractors"
       subtitle="Maintain contractor master. Link to work activities via contractor_id."
       actions={[
@@ -97,7 +95,7 @@ export default function ContractorsPage() {
         },
       ]}
     >
-      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {(error || list.error) && <ConstructionAlert>{error || list.error}</ConstructionAlert>}
       {message && (
         <ConstructionAlert type="info">{message}</ConstructionAlert>
       )}
@@ -148,9 +146,22 @@ export default function ContractorsPage() {
         </form>
       </ConstructionSection>
 
-      <ConstructionSection title="Contractors">
+      <ConstructionSection
+        title="Contractors"
+        action={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="ti-download"
+            onClick={() => downloadFromUrl(list.exportUrl())}
+          >
+            Download
+          </Button>
+        }
+      >
         <ConstructionTable
           headers={["Name", "Phone", "GSTIN", "Active", ""]}
+          pagination={list.pagination}
         >
           {records.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50/80">

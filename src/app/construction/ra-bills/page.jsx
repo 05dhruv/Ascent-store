@@ -2,7 +2,8 @@
 
 import Button from "@/components/ui/Button";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionEmpty,
@@ -13,8 +14,9 @@ import ConstructionShell, {
 } from "@/components/construction/ConstructionShell";
 
 export default function RaBillsPage() {
-  const [records, setRecords] = useState([]);
-  const [error, setError] = useState("");
+  const list = usePagedList("/api/construction/ra-bills");
+  const records = list.records;
+  const error = list.error;
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
@@ -27,21 +29,7 @@ export default function RaBillsPage() {
     retentionAmount: "0",
   });
 
-  const load = async () => {
-    setError("");
-    try {
-      const r = await fetch("/api/construction/ra-bills", { cache: "no-store" });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.message || j.error);
-      setRecords(j.data?.records || []);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+  const load = () => list.refresh();
 
   const save = async (e) => {
     e.preventDefault();
@@ -105,7 +93,7 @@ export default function RaBillsPage() {
   };
 
   return (
-    <ConstructionShell
+    <ConstructionShell loading={list.loading}
       title="RA bills"
       subtitle="Running account bills with line items and retention."
     >
@@ -190,9 +178,22 @@ export default function RaBillsPage() {
         </form>
       </ConstructionSection>
 
-      <ConstructionSection title="RA bills">
+      <ConstructionSection
+        title="RA bills"
+        action={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="ti-download"
+            onClick={() => downloadFromUrl(list.exportUrl())}
+          >
+            Download
+          </Button>
+        }
+      >
         <ConstructionTable
           headers={["Bill", "Project", "Gross", "Net", "Status", "Actions"]}
+          pagination={list.pagination}
         >
           {records.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50/80">

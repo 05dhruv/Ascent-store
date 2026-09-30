@@ -3,6 +3,7 @@ import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
 import { ensureConstructionSchema } from "@/lib/constructionSchema";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
 
 async function guard(request, write = false) {
   const auth = await requireAuth(request);
@@ -23,23 +24,42 @@ export async function GET(request) {
   try {
     await ensureConstructionSchema();
     await ensureConstructionOpsSchema();
-    const projectId =
-      Number(new URL(request.url).searchParams.get("projectId")) || null;
+    const sp = new URL(request.url).searchParams;
+    const projectId = Number(sp.get("projectId")) || null;
+    const pagination = getPagination(sp, { legacyLimit: 500 });
+    const params = [projectId];
     const result = await query(
       `SELECT sch.*,
               a.name AS activity_name,
               a.project_id,
               a.status AS activity_status,
               dep.name AS depends_on_name,
-              p.name AS project_name
+              p.name AS project_name,
+              COUNT(*) OVER() AS __total
        FROM construction_activity_schedule sch
        JOIN construction_work_activities a ON a.id = sch.activity_id
        JOIN construction_projects p ON p.id = a.project_id
        LEFT JOIN construction_work_activities dep ON dep.id = sch.depends_on_activity_id
        WHERE ($1::bigint IS NULL OR a.project_id = $1)
-       ORDER BY sch.planned_start NULLS LAST, a.name`,
-      [projectId],
+       ORDER BY sch.planned_start NULLS LAST, a.name, sch.id
+       ${limitOffsetSql(pagination, params)}`,
+      params,
     );
+    if (pagination.isExport) {
+      return spreadsheetResponse(result.rows, {
+        filename: "activity_schedule",
+        format: pagination.format,
+        columns: [
+          { key: "project_name", label: "Project" },
+          { key: "activity_name", label: "Activity" },
+          { key: "activity_status", label: "Activity status" },
+          { key: "planned_start", label: "Planned start" },
+          { key: "planned_end", label: "Planned end" },
+          { key: "depends_on_name", label: "Depends on" },
+          { key: "baseline_progress", label: "Baseline %" },
+        ],
+      });
+    }
     const activities = await query(
       `SELECT a.id, a.name, a.project_id, p.name AS project_name
        FROM construction_work_activities a
@@ -48,10 +68,9 @@ export async function GET(request) {
        ORDER BY a.name`,
       [projectId],
     );
-    return successResponse({
-      records: result.rows,
-      activities: activities.rows,
-    });
+    return successResponse(
+      pagedPayload(result.rows, pagination, { activities: activities.rows }),
+    );
   } catch (error) {
     console.error("[construction schedule GET]", error);
     return errorResponse("Schedule could not be loaded");

@@ -20,7 +20,8 @@ import {
   sortOptions,
   uniqueOptions,
 } from "@/lib/xlsxDropdowns";
-import { loadXlsx } from "@/lib/loadXlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import Icon from "@/components/Icon";
 
 async function fetchStores() {
@@ -30,8 +31,13 @@ async function fetchStores() {
   return json.data?.records || json.data?.stores || json.stores || [];
 }
 
-async function fetchValidations() {
-  const res = await fetch("/api/inventory/stockvalidation");
+async function fetchValidations(filters = {}) {
+  const qs = new URLSearchParams(
+    Object.entries(filters).filter(([, value]) => value),
+  );
+  const res = await fetch(`/api/inventory/stockvalidation?${qs}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch stock validations");
   return res.json();
 }
@@ -350,9 +356,9 @@ export default function StockValidationPage() {
   const [applyTaxes, setApplyTaxes] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [loadingStores, setLoadingStores] = useState(false);
-  const [loadingList, setLoadingList] = useState(true);
-  const [tableData, setTableData] = useState([]);
   const [draftId, setDraftId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [listFilters, setListFilters] = useState({
     dateFrom: "",
     dateTo: "",
@@ -376,51 +382,25 @@ export default function StockValidationPage() {
   const [deletingDraftId, setDeletingDraftId] = useState(null);
   const [pendingDeleteRow, setPendingDeleteRow] = useState(null);
 
-  const visibleTableData = useMemo(() => {
-    return tableData.filter((row) => {
-      const invoiceTime = row._invoiceDate
-        ? new Date(row._invoiceDate).getTime()
-        : null;
-      if (
-        listFilters.dateFrom &&
-        invoiceTime &&
-        invoiceTime < new Date(listFilters.dateFrom).getTime()
-      )
-        return false;
-      if (
-        listFilters.dateTo &&
-        invoiceTime &&
-        invoiceTime > new Date(`${listFilters.dateTo}T23:59:59`).getTime()
-      )
-        return false;
-      if (
-        listFilters.source &&
-        String(row._source || "") !== listFilters.source
-      )
-        return false;
-      return true;
-    });
-  }, [tableData, listFilters]);
-
-  const sourceOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(tableData.map((row) => row._source).filter(Boolean)),
-      ).sort(),
-    [tableData],
-  );
-
-  const loadList = () => {
-    setLoadingList(true);
-    fetchValidations()
-      .then((records) => setTableData(mapValidationsToTable(records)))
-      .catch(() => setTableData([]))
-      .finally(() => setLoadingList(false));
-  };
-
   useEffect(() => {
-    loadList();
-  }, []);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const listParams = useMemo(
+    () => ({ ...listFilters, search: debouncedSearch }),
+    [listFilters, debouncedSearch],
+  );
+  const pagedList = usePagedList("/api/inventory/stockvalidation", {
+    params: listParams,
+  });
+  const loadingList = pagedList.loading;
+  const visibleTableData = useMemo(
+    () => mapValidationsToTable(pagedList.records),
+    [pagedList.records],
+  );
+  const sourceOptions = pagedList.extra.sourceOptions || [];
+  const loadList = () => pagedList.refresh();
 
   useEffect(() => {
     if (!showModal) return;
@@ -835,13 +815,16 @@ export default function StockValidationPage() {
 
   const downloadConsolidatedExcel = async () => {
     if (downloadingConsolidated) return;
-    const rows = visibleTableData.filter((row) => row?._id);
-    if (!rows.length) return alert("No audit records available to export.");
     setDownloadingConsolidated(true);
     try {
+      const rows = (await fetchValidations(listParams)).filter((row) => row?.id);
+      if (!rows.length) {
+        alert("No audit records available to export.");
+        return;
+      }
       const entries = [];
       for (const row of rows) {
-        entries.push(await fetchValidationDetails(row._id));
+        entries.push(await fetchValidationDetails(row.id));
       }
       await downloadStockValidationConsolidatedWorkbook(entries);
     } catch (err) {
@@ -941,6 +924,10 @@ export default function StockValidationPage() {
         tableHeaders={tableHeaders}
         tableData={loadingList ? [] : visibleTableData}
         emptyMessage={loadingList ? "Loading records..." : "No Records Found"}
+        searchValue={search}
+        onSearchChange={setSearch}
+        onDownload={() => downloadFromUrl(pagedList.exportUrl())}
+        pagination={pagedList.pagination}
         rowActions={(row) => (
           <div className="flex justify-end">
             <div className="hidden flex-wrap justify-end gap-2 sm:flex">

@@ -3,6 +3,7 @@ import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
 import { ensureConstructionSchema } from "@/lib/constructionSchema";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
 
 async function guard(request, write = false) {
   const auth = await requireAuth(request);
@@ -23,8 +24,37 @@ export async function GET(request) {
   try {
     await ensureConstructionSchema();
     await ensureConstructionOpsSchema();
-    const projectId =
-      Number(new URL(request.url).searchParams.get("projectId")) || null;
+    const sp = new URL(request.url).searchParams;
+    const projectId = Number(sp.get("projectId")) || null;
+    const pagination = getPagination(sp, { legacyLimit: 100 });
+    const logParams = [projectId];
+    const logsSql = `SELECT l.*, e.name AS equipment_name, e.asset_code, s.name AS site_name,
+              COUNT(*) OVER() AS __total
+       FROM construction_equipment_logs l
+       JOIN construction_equipment e ON e.id = l.equipment_id
+       LEFT JOIN construction_sites s ON s.id = l.site_id
+       WHERE ($1::bigint IS NULL OR e.project_id = $1)
+       ORDER BY l.log_date DESC, l.id DESC
+       ${limitOffsetSql(pagination, logParams)}`;
+
+    if (pagination.isExport) {
+      const logs = await query(logsSql, logParams);
+      return spreadsheetResponse(logs.rows, {
+        filename: "equipment_usage_logs",
+        format: pagination.format,
+        columns: [
+          { key: "log_date", label: "Date" },
+          { key: "asset_code", label: "Asset code" },
+          { key: "equipment_name", label: "Equipment" },
+          { key: "site_name", label: "Site" },
+          { key: "hours_used", label: "Hours used" },
+          { key: "operator_name", label: "Operator" },
+          { key: "notes", label: "Notes" },
+          { key: "created_at", label: "Logged" },
+        ],
+      });
+    }
+
     const [equipment, logs] = await Promise.all([
       query(
         `SELECT e.*, p.name AS project_name, s.name AS site_name
@@ -35,20 +65,13 @@ export async function GET(request) {
          ORDER BY e.name`,
         [projectId],
       ),
-      query(
-        `SELECT l.*, e.name AS equipment_name, e.asset_code, s.name AS site_name
-         FROM construction_equipment_logs l
-         JOIN construction_equipment e ON e.id = l.equipment_id
-         LEFT JOIN construction_sites s ON s.id = l.site_id
-         WHERE ($1::bigint IS NULL OR e.project_id = $1)
-         ORDER BY l.log_date DESC, l.id DESC
-         LIMIT 100`,
-        [projectId],
-      ),
+      query(logsSql, logParams),
     ]);
+    const payload = pagedPayload(logs.rows, pagination);
     return successResponse({
+      ...payload,
       equipment: equipment.rows,
-      logs: logs.rows,
+      logs: payload.records,
     });
   } catch (error) {
     console.error("[construction equipment GET]", error);

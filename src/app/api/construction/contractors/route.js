@@ -3,6 +3,7 @@ import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
 import { ensureConstructionSchema } from "@/lib/constructionSchema";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
 
 async function guard(request, write = false) {
   const auth = await requireAuth(request);
@@ -23,15 +24,33 @@ export async function GET(request) {
   try {
     await ensureConstructionSchema();
     await ensureConstructionOpsSchema();
-    const activeOnly =
-      new URL(request.url).searchParams.get("active") === "1";
+    const sp = new URL(request.url).searchParams;
+    const activeOnly = sp.get("active") === "1";
+    const pagination = getPagination(sp, { legacyLimit: 500 });
+    const params = [activeOnly];
     const result = await query(
-      `SELECT * FROM construction_contractors
+      `SELECT *, COUNT(*) OVER() AS __total
+       FROM construction_contractors
        WHERE ($1::boolean IS FALSE OR is_active = TRUE)
-       ORDER BY name`,
-      [activeOnly],
+       ORDER BY name
+       ${limitOffsetSql(pagination, params)}`,
+      params,
     );
-    return successResponse({ records: result.rows });
+    if (pagination.isExport) {
+      return spreadsheetResponse(result.rows, {
+        filename: "contractors",
+        format: pagination.format,
+        columns: [
+          { key: "name", label: "Name" },
+          { key: "phone", label: "Phone" },
+          { key: "email", label: "Email" },
+          { key: "gstin", label: "GSTIN" },
+          { key: "is_active", label: "Active", value: (r) => (r.is_active ? "Yes" : "No") },
+          { key: "created_at", label: "Created" },
+        ],
+      });
+    }
+    return successResponse(pagedPayload(result.rows, pagination));
   } catch (error) {
     console.error("[construction contractors GET]", error);
     return errorResponse("Contractors could not be loaded");

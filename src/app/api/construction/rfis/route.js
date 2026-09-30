@@ -3,6 +3,7 @@ import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
 import { ensureConstructionSchema } from "@/lib/constructionSchema";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
 
 async function guard(request, write = false) {
   const auth = await requireAuth(request);
@@ -26,9 +27,12 @@ export async function GET(request) {
     const sp = new URL(request.url).searchParams;
     const projectId = Number(sp.get("projectId")) || null;
     const status = sp.get("status");
+    const pagination = getPagination(sp);
+    const params = [projectId, status || null];
     const result = await query(
       `SELECT r.*, p.name AS project_name, s.name AS site_name,
-              ru.name AS raised_by_name, au.name AS answered_by_name
+              ru.name AS raised_by_name, au.name AS answered_by_name,
+              COUNT(*) OVER() AS __total
        FROM construction_rfis r
        LEFT JOIN construction_projects p ON p.id = r.project_id
        LEFT JOIN construction_sites s ON s.id = r.site_id
@@ -37,10 +41,29 @@ export async function GET(request) {
        WHERE ($1::bigint IS NULL OR r.project_id = $1)
          AND ($2::text IS NULL OR r.status = $2)
        ORDER BY r.created_at DESC
-       LIMIT 200`,
-      [projectId, status || null],
+       ${limitOffsetSql(pagination, params)}`,
+      params,
     );
-    return successResponse({ records: result.rows });
+    if (pagination.isExport) {
+      return spreadsheetResponse(result.rows, {
+        filename: "rfis",
+        format: pagination.format,
+        columns: [
+          { key: "rfi_number", label: "RFI", value: (r) => r.rfi_number || `#${r.id}` },
+          { key: "project_name", label: "Project" },
+          { key: "site_name", label: "Site" },
+          { key: "subject", label: "Subject" },
+          { key: "status", label: "Status" },
+          { key: "question", label: "Question" },
+          { key: "answer", label: "Answer" },
+          { key: "raised_by_name", label: "Raised by" },
+          { key: "answered_by_name", label: "Answered by" },
+          { key: "due_at", label: "Due" },
+          { key: "created_at", label: "Created" },
+        ],
+      });
+    }
+    return successResponse(pagedPayload(result.rows, pagination));
   } catch (error) {
     console.error("[construction rfis GET]", error);
     return errorResponse("RFIs could not be loaded");

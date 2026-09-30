@@ -1,6 +1,8 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import MainLayout from "@/components/MainLayout";
+import Pagination from "@/components/ui/Pagination";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -30,6 +32,7 @@ export default function InventoryShell({
   showTable = true,
   rowActions = null,
   compactMobile = false,
+  pagination = null,
   children,
 }) {
   const [localSearch, setLocalSearch] = useState("");
@@ -37,7 +40,9 @@ export default function InventoryShell({
   const [currentPage, setCurrentPage] = useState(1);
   const activeSearch =
     typeof onSearchChange === "function" ? searchValue || "" : localSearch;
+  const serverPaged = Boolean(pagination);
   const visibleTableData = useMemo(() => {
+    if (serverPaged) return tableData;
     const q = String(activeSearch || "")
       .trim()
       .toLowerCase();
@@ -52,13 +57,15 @@ export default function InventoryShell({
         );
       }),
     );
-  }, [activeSearch, tableData]);
+  }, [activeSearch, tableData, serverPaged]);
   const totalResults = visibleTableData.length;
   const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pageStart = totalResults ? (safeCurrentPage - 1) * pageSize : 0;
   const pageEnd = Math.min(pageStart + pageSize, totalResults);
-  const paginatedTableData = visibleTableData.slice(pageStart, pageEnd);
+  const paginatedTableData = serverPaged
+    ? visibleTableData
+    : visibleTableData.slice(pageStart, pageEnd);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -97,7 +104,7 @@ export default function InventoryShell({
               {item.label}
             </span>
             {index < breadcrumb.length - 1 && (
-              <i className="ti ti-chevron-right text-[11px] text-slate-400" />
+              <Icon name="ti ti-chevron-right text-[11px] text-slate-400" />
             )}
           </span>
         ))}
@@ -244,7 +251,7 @@ export default function InventoryShell({
                       {card.text}
                     </span>
                   </span>
-                  <i className="ti ti-chevron-right text-slate-400 text-[16px]" />
+                  <Icon name="ti ti-chevron-right text-slate-400 text-[16px]" />
                 </>,
               )}
             </div>
@@ -256,7 +263,7 @@ export default function InventoryShell({
         <div className="flex h-[calc(100vh-250px)] min-h-[480px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
           <div className="z-20 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-4">
             <div className="flex min-w-0 max-w-full flex-[1_1_260px] items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 sm:max-w-[340px]">
-              <i className="ti ti-search text-slate-400 text-[16px]" />
+              <Icon name="ti ti-search text-slate-400 text-[16px]" />
               <input
                 type="text"
                 placeholder={searchPlaceholder}
@@ -277,9 +284,9 @@ export default function InventoryShell({
                       type="button"
                       className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600 transition-colors hover:bg-slate-50"
                     >
-                      <i className="ti ti-filter text-[14px] text-indigo-500" />
+                      <Icon name="ti ti-filter text-[14px] text-indigo-500" />
                       {filter}
-                      <i className="ti ti-chevron-down text-[11px]" />
+                      <Icon name="ti ti-chevron-down text-[11px]" />
                     </button>
                   ))
                 : filters}
@@ -290,7 +297,7 @@ export default function InventoryShell({
                   className="rounded-xl border border-slate-200 p-2 transition-colors hover:bg-slate-50"
                   title="Download"
                 >
-                  <i className="ti ti-download text-slate-500 text-[16px]" />
+                  <Icon name="ti ti-download text-slate-500 text-[16px]" />
                 </button>
               )}
             </div>
@@ -354,6 +361,9 @@ export default function InventoryShell({
             </table>
           </div>
 
+          {serverPaged ? (
+            <Pagination {...pagination} className="z-20 shrink-0 bg-white" />
+          ) : (
           <div className="z-20 flex shrink-0 flex-wrap items-center gap-3 border-t border-slate-100 bg-white px-4 py-3 text-[12px] text-slate-400">
             <select
               value={pageSize}
@@ -396,6 +406,7 @@ export default function InventoryShell({
               </button>
             </div>
           </div>
+          )}
         </div>
       )}
 

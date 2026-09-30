@@ -205,10 +205,10 @@
 }
 .ui-button--accent {
   background: var(--color-accent);
-  color: #162033;
+  color: white;
 }
 .ui-button--accent:hover {
-  background: #e99108;
+  background: #ea580c;
 }
 .ui-button--danger {
   background: #dc2626;

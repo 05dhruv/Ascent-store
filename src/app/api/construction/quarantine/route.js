@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
 
 async function guard(request, write = false) {
   const auth = await requireAuth(request);
@@ -21,13 +22,17 @@ export async function GET(request) {
   if (auth.error) return auth.error;
   try {
     await ensureConstructionOpsSchema();
-    const status = new URL(request.url).searchParams.get("status");
+    const sp = new URL(request.url).searchParams;
+    const status = sp.get("status");
+    const pagination = getPagination(sp);
+    const params = [status || null];
     const result = await query(
       `SELECT q.*,
               p.name AS product_name,
               s.name AS store_name,
               ru.name AS requested_by_name,
-              au.name AS approved_by_name
+              au.name AS approved_by_name,
+              COUNT(*) OVER() AS __total
        FROM construction_quarantine_releases q
        LEFT JOIN products p ON p.id = q.product_id
        LEFT JOIN stores s ON s.id = q.store_id
@@ -35,10 +40,29 @@ export async function GET(request) {
        LEFT JOIN users au ON au.id = q.approved_by
        WHERE ($1::text IS NULL OR q.status = $1)
        ORDER BY q.created_at DESC
-       LIMIT 200`,
-      [status || null],
+       ${limitOffsetSql(pagination, params)}`,
+      params,
     );
-    return successResponse({ records: result.rows });
+    if (pagination.isExport) {
+      return spreadsheetResponse(result.rows, {
+        filename: "quarantine_releases",
+        format: pagination.format,
+        columns: [
+          { key: "id", label: "ID" },
+          { key: "batch_id", label: "Batch ID" },
+          { key: "product_name", label: "Product", value: (r) => r.product_name || r.product_id || "" },
+          { key: "store_name", label: "Store", value: (r) => r.store_name || r.store_id || "" },
+          { key: "qty", label: "Qty" },
+          { key: "reason", label: "Reason" },
+          { key: "status", label: "Status" },
+          { key: "requested_by_name", label: "Requested by" },
+          { key: "approved_by_name", label: "Resolved by" },
+          { key: "created_at", label: "Created" },
+          { key: "resolved_at", label: "Resolved" },
+        ],
+      });
+    }
+    return successResponse(pagedPayload(result.rows, pagination));
   } catch (error) {
     console.error("[construction quarantine GET]", error);
     return errorResponse("Quarantine releases could not be loaded");

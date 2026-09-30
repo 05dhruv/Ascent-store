@@ -3,6 +3,7 @@ import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
 import { ensureConstructionSchema } from "@/lib/constructionSchema";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
 
 async function guard(request, write = false) {
   const auth = await requireAuth(request);
@@ -23,20 +24,40 @@ export async function GET(request) {
   try {
     await ensureConstructionSchema();
     await ensureConstructionOpsSchema();
-    const projectId =
-      Number(new URL(request.url).searchParams.get("projectId")) || null;
+    const sp = new URL(request.url).searchParams;
+    const projectId = Number(sp.get("projectId")) || null;
+    const pagination = getPagination(sp);
+    const params = [projectId];
     const result = await query(
-      `SELECT d.*, p.name AS project_name, s.name AS site_name, u.name AS uploaded_by_name
+      `SELECT d.*, p.name AS project_name, s.name AS site_name, u.name AS uploaded_by_name,
+              COUNT(*) OVER() AS __total
        FROM construction_documents d
        LEFT JOIN construction_projects p ON p.id = d.project_id
        LEFT JOIN construction_sites s ON s.id = d.site_id
        LEFT JOIN users u ON u.id = d.uploaded_by
        WHERE ($1::bigint IS NULL OR d.project_id = $1)
        ORDER BY d.created_at DESC
-       LIMIT 200`,
-      [projectId],
+       ${limitOffsetSql(pagination, params)}`,
+      params,
     );
-    return successResponse({ records: result.rows });
+    if (pagination.isExport) {
+      return spreadsheetResponse(result.rows, {
+        filename: "project_documents",
+        format: pagination.format,
+        columns: [
+          { key: "title", label: "Title" },
+          { key: "doc_type", label: "Type" },
+          { key: "revision", label: "Revision" },
+          { key: "status", label: "Status" },
+          { key: "project_name", label: "Project", value: (r) => r.project_name || r.project_id || "" },
+          { key: "site_name", label: "Site" },
+          { key: "file_url", label: "File URL" },
+          { key: "uploaded_by_name", label: "Uploaded by" },
+          { key: "created_at", label: "Created" },
+        ],
+      });
+    }
+    return successResponse(pagedPayload(result.rows, pagination));
   } catch (error) {
     console.error("[construction documents GET]", error);
     return errorResponse("Documents could not be loaded");

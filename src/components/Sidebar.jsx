@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -13,23 +14,6 @@ function normalize(path) {
 
 function childrenOf(item) {
   return (item.subSidebar?.groups || []).flatMap((group) => group.items || []);
-}
-
-function initials(name) {
-  return (
-    String(name || "")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase())
-      .join("") || "U"
-  );
-}
-
-function prettyRole(role) {
-  return String(role || "")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
@@ -73,7 +57,6 @@ export default function Sidebar({
   onToggleCollapse,
   mobileOpen = false,
   onMobileClose,
-  user,
 }) {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
@@ -164,14 +147,10 @@ export default function Sidebar({
         }`;
         const content = (
           <>
-            <i
-              className={`ti ${item.icon} text-[19px] ${isActive ? "text-white" : "text-[#8FA7BB] group-hover:text-white"}`}
-            />
+            <Icon name={`ti ${item.icon} text-[19px] ${isActive ? "text-white" : "text-[#8FA7BB] group-hover:text-white"}`} />
             <span className="flex-1 truncate text-left">{item.label}</span>
             {hasChildren && (
-              <i
-                className={`ti ti-chevron-down text-[13px] transition-transform duration-200 ${isOpen ? "rotate-180" : ""} ${isActive ? "text-white" : "text-[#6F8BA3]"}`}
-              />
+              <Icon name={`ti ti-chevron-down text-[13px] transition-transform duration-200 ${isOpen ? "rotate-180" : ""} ${isActive ? "text-white" : "text-[#6F8BA3]"}`} />
             )}
           </>
         );
@@ -239,28 +218,6 @@ export default function Sidebar({
     </Link>
   );
 
-  const userCard = (compact) =>
-    user ? (
-      <div
-        className={`flex items-center gap-3 rounded-xl bg-white/[0.05] ${compact ? "justify-center p-2" : "px-3 py-2.5"}`}
-        title={compact ? user.name : undefined}
-      >
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-orange-500 text-[12px] font-bold text-white">
-          {initials(user.name)}
-        </span>
-        {!compact && (
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-semibold text-white">
-              {user.name || "User"}
-            </span>
-            <span className="block truncate text-[11px] text-[#8FA7BB]">
-              {prettyRole(user.role_name || user.role)}
-            </span>
-          </span>
-        )}
-      </div>
-    ) : null;
-
   return (
     <>
       {/* Mobile / tablet drawer */}
@@ -286,11 +243,10 @@ export default function Sidebar({
             aria-label="Close navigation"
             className="rounded-lg p-2 text-[#8FA7BB] hover:bg-white/10 hover:text-white"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti ti-x text-[18px]" />
           </button>
         </div>
         {renderExpandedNav({ onNavigate: onMobileClose })}
-        <div className="border-t border-white/[0.06] p-3">{userCard(false)}</div>
       </aside>
 
       {/* Desktop */}
@@ -323,7 +279,7 @@ export default function Sidebar({
                       : "text-[#8FA7BB] hover:bg-white/[0.06] hover:text-white"
                   }`}
                 >
-                  <i className={`ti ${item.icon} text-[20px]`} />
+                  <Icon name={`ti ${item.icon} text-[20px]`} />
                 </Link>
               );
             })}
@@ -332,17 +288,14 @@ export default function Sidebar({
           renderExpandedNav()
         )}
 
-        <div className="space-y-2 border-t border-white/[0.06] p-3">
-          {userCard(collapsed)}
+        <div className="border-t border-white/[0.06] p-3">
           <button
             type="button"
             onClick={onToggleCollapse}
             className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-medium text-[#8FA7BB] transition-colors hover:bg-white/[0.06] hover:text-white ${collapsed ? "justify-center" : ""}`}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <i
-              className={`ti ${collapsed ? "ti-layout-sidebar-left-expand" : "ti-layout-sidebar-left-collapse"} text-[18px]`}
-            />
+            <Icon name={`ti ${collapsed ? "ti-layout-sidebar-left-expand" : "ti-layout-sidebar-left-collapse"} text-[18px]`} />
             {!collapsed && <span>Collapse</span>}
           </button>
         </div>
@@ -363,7 +316,7 @@ export default function Sidebar({
               href={flyout.item.href}
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-white hover:bg-white/[0.06]"
             >
-              <i className={`ti ${flyout.item.icon} text-[16px] text-orange-400`} />
+              <Icon name={`ti ${flyout.item.icon} text-[16px] text-orange-400`} />
               {flyout.item.label}
             </Link>
             {childrenOf(flyout.item).length > 0 && (

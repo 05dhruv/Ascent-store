@@ -2,7 +2,8 @@
 
 import Button from "@/components/ui/Button";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionEmpty,
@@ -13,9 +14,10 @@ import ConstructionShell, {
 } from "@/components/construction/ConstructionShell";
 
 export default function SchedulePage() {
-  const [records, setRecords] = useState([]);
-  const [activities, setActivities] = useState([]);
-  const [error, setError] = useState("");
+  const list = usePagedList("/api/construction/schedule");
+  const records = list.records;
+  const activities = list.extra.activities || [];
+  const error = list.error;
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
@@ -26,22 +28,7 @@ export default function SchedulePage() {
     baselineProgress: "0",
   });
 
-  const load = async () => {
-    setError("");
-    try {
-      const r = await fetch("/api/construction/schedule", { cache: "no-store" });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.message || j.error);
-      setRecords(j.data?.records || []);
-      setActivities(j.data?.activities || []);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+  const load = () => list.refresh();
 
   const save = async (e) => {
     e.preventDefault();
@@ -65,7 +52,7 @@ export default function SchedulePage() {
   };
 
   return (
-    <ConstructionShell
+    <ConstructionShell loading={list.loading}
       title="Activity schedule"
       subtitle="Plan start/end, dependencies and baseline progress for work activities."
     >
@@ -151,9 +138,22 @@ export default function SchedulePage() {
         </form>
       </ConstructionSection>
 
-      <ConstructionSection title="Schedule rows">
+      <ConstructionSection
+        title="Schedule rows"
+        action={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="ti-download"
+            onClick={() => downloadFromUrl(list.exportUrl())}
+          >
+            Download
+          </Button>
+        }
+      >
         <ConstructionTable
           headers={["Activity", "Start", "End", "Depends", "Baseline %"]}
+          pagination={list.pagination}
         >
           {records.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50/80">

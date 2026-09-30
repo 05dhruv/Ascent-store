@@ -1,4 +1,5 @@
 'use client';
+import { confirmDialog } from "@/lib/notify";
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -608,8 +609,8 @@ export default function EditCategoryPage() {
                     <button
                       type="button"
                       disabled={deletingTypeId === t.id}
-                      onClick={() => {
-                        if (confirm(`Are you sure you want to delete category type "${t.name}"?`)) {
+                      onClick={async () => {
+                        if (await confirmDialog(`Delete category type "${t.name}"?`, { title: "Delete category type", confirmLabel: "Delete", danger: true })) {
                           handleDeleteCategoryType(t.id);
                         }
                       }}

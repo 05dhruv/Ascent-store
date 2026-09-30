@@ -1,4 +1,5 @@
 "use client";
+import { confirmDialog } from "@/lib/notify";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -7,7 +8,7 @@ import { validatePhoneNumber } from "@/lib/phoneValidator";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/MainLayout";
 import { fetchAuthEndpoint } from "@/lib/auth-endpoints";
-import { formatIndianDate, formatIndianDateTime } from "@/lib/dateUtils";
+import { formatIndianDate, formatIndianDateTime } from "@/lib/dateUtils";
 import Icon from "@/components/Icon";
 
 // ============================================================================
@@ -4429,8 +4430,9 @@ export default function POSPage() {
       bill?.invoiceNumber ||
       bill?.bill_number ||
       `Bill ${billId}`;
-    const confirmed = window.confirm(
+    const confirmed = await confirmDialog(
       `Delete ${label}? Inventory for this bill will be added back to the original store.`,
+      { title: "Delete bill", confirmLabel: "Delete", danger: true },
     );
     if (!confirmed) return;
 

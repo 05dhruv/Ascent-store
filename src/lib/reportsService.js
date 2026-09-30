@@ -1,5 +1,7 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import * as XLSX from "xlsx";
-import { query } from "@/lib/db";
+import { query as dbQuery } from "@/lib/db";
+import { EXPORT_MAX_ROWS } from "@/lib/pagination";
 import { ensureSalesBillingSchema } from "@/lib/salesBillingSchema";
 import { ensureCatalogExtrasSchema } from "@/lib/catalogExtrasSchema";
 import { ensureStockInSchema } from "@/lib/stockInSchema";
@@ -17,6 +19,102 @@ import { ensurePosDeletedCartItemsSchema } from "@/lib/posDeletedCartItemsSchema
 import { ensureSalesReturnsSchema } from "@/lib/salesReturnsSchema";
 
 const REPORT_ROLES = ["super_admin", "admin", "manager"];
+
+// Report SQL ends with a literal `LIMIT n` cap. Inside getReportPage() that cap
+// is replaced by SQL paging (page mode) or EXPORT_MAX_ROWS (export mode); any
+// other caller keeps the original cap.
+const reportPaging = new AsyncLocalStorage();
+const TRAILING_LIMIT = /\s+LIMIT\s+(\d+)\s*$/i;
+
+async function query(sql, params) {
+  const ctx = reportPaging.getStore();
+  const match = ctx && typeof sql === "string" ? sql.match(TRAILING_LIMIT) : null;
+  if (!match) return dbQuery(sql, params);
+
+  const baseSql = sql.slice(0, match.index);
+  if (ctx.mode !== "page" || ctx.jsOnly) {
+    return dbQuery(`${baseSql}\n     LIMIT ${EXPORT_MAX_ROWS}`, params);
+  }
+
+  const values = [...(params || []), ctx.limit, ctx.offset];
+  const res = await dbQuery(
+    `SELECT q.*, COUNT(*) OVER() AS __total
+     FROM (${baseSql}) q
+     LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    values,
+  );
+  let total = res.rows.length ? Number(res.rows[0].__total) || 0 : 0;
+  if (!res.rows.length && ctx.offset > 0) {
+    const countRes = await dbQuery(
+      `SELECT COUNT(*)::int AS total FROM (${baseSql}) q`,
+      params,
+    );
+    total = Number(countRes.rows[0]?.total) || 0;
+  }
+  ctx.sqlPaged = true;
+  ctx.total = total;
+  return res;
+}
+
+// For reports that filter or combine rows in JS after the capped query, so the
+// page has to be sliced from the full result instead of in SQL.
+function disableSqlPaging() {
+  const ctx = reportPaging.getStore();
+  if (ctx) ctx.jsOnly = true;
+}
+
+function parseReportNumber(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * Paged / export variant of getReportRows().
+ * - mode "page": returns one page plus the full filtered `total`.
+ * - mode "export": returns every row (SQL caps raised to EXPORT_MAX_ROWS).
+ * `search` and `summaryKeys` need the full result, so they force JS slicing.
+ */
+export async function getReportPage(
+  reportKey,
+  filters,
+  user,
+  { mode = "page", limit = 25, offset = 0, search = "", summaryKeys = [] } = {},
+) {
+  const needle = String(search || "").trim().toLowerCase();
+  const ctx = {
+    mode,
+    limit,
+    offset,
+    jsOnly: Boolean(needle || summaryKeys.length),
+    sqlPaged: false,
+    total: 0,
+  };
+  let rows = await reportPaging.run(ctx, () =>
+    getReportRows(reportKey, filters, user),
+  );
+
+  if (needle) {
+    rows = rows.filter((row) =>
+      Object.values(row).some((value) =>
+        String(value).toLowerCase().includes(needle),
+      ),
+    );
+  }
+
+  const summary = summaryKeys.length
+    ? Object.fromEntries(
+        summaryKeys.map((key) => {
+          const sum = rows.reduce((acc, row) => acc + parseReportNumber(row[key]), 0);
+          return [key, Math.round(sum * 100) / 100];
+        }),
+      )
+    : null;
+
+  if (mode !== "page") return { rows, total: rows.length, summary };
+  if (ctx.sqlPaged) return { rows, total: ctx.total, summary };
+  return { rows: rows.slice(offset, offset + limit), total: rows.length, summary };
+}
 
 const REPORTS = {
   "orders/list-of-orders": {
@@ -1812,6 +1910,7 @@ async function getStoreWiseBatchReport(filters, user) {
 }
 
 async function getStoreBatchPriceAuditReport(filters, user) {
+  disableSqlPaging();
   await ensureInventoryBatchSchema();
   const params = [];
   const conditions = [
@@ -4140,6 +4239,7 @@ async function getLogsFamilyReport(reportKey, filters, user) {
   if (reportKey.includes("order-sync"))
     return getAuditLogReport(filters, user, "order");
   if (reportKey.includes("product")) {
+    disableSqlPaging();
     const auditRows = await getAuditLogReport(filters, user, "product");
     if (auditRows.length) return auditRows;
     const range = parseDateRange(filters.date_range);

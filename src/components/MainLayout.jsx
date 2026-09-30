@@ -89,7 +89,6 @@ export default function MainLayout({ children }) {
           onToggleCollapse={toggleCollapsed}
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
-          user={user}
         />
       )}
 

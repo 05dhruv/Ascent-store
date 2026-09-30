@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -1445,7 +1446,7 @@ export default function CatalogListPage({
         {defaultVisibleColumns && (
           <details className="column-picker px-4">
             <summary className="ui-button ui-button--secondary">
-              <i className="ti ti-columns" aria-hidden="true" />
+              <Icon name="ti ti-columns" aria-hidden="true" />
               Columns
             </summary>
             <div className="ui-card">

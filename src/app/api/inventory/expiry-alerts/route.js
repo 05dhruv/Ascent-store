@@ -3,6 +3,7 @@ import { appendStoreScope, requireAuth, requirePermission } from '@/lib/api-prot
 import { query } from '@/lib/db';
 import { ensureInventoryBatchSchema } from '@/lib/inventoryBatching';
 import { ensureStockInSchema } from '@/lib/stockInSchema';
+import { getPagination, spreadsheetResponse } from '@/lib/pagination';
 
 function toPositiveInt(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
@@ -348,6 +349,45 @@ export async function GET(request) {
       .sort((a, b) => b.value - a.value || b.batches - a.batches)
       .slice(0, 8);
     summary.topStore = summary.storeBreakdown[0] || null;
+
+    const pagination = getPagination(url.searchParams, { legacyLimit: records.length || 1 });
+    if (pagination.isExport) {
+      return spreadsheetResponse(records, {
+        filename: 'near-expiry-products',
+        format: pagination.format,
+        columns: [
+          { key: 'bucket', label: 'Priority' },
+          { key: 'sellOrder', label: 'Sell Order' },
+          { key: 'productName', label: 'Product' },
+          { key: 'sku', label: 'SKU' },
+          { key: 'barcode', label: 'Barcode' },
+          { key: 'storeName', label: 'Store' },
+          { key: 'locationType', label: 'Location Type' },
+          { key: 'batchNo', label: 'Batch' },
+          { key: 'expiryDate', label: 'Expiry' },
+          { key: 'daysToExpiry', label: 'Days Left' },
+          { key: 'riskScore', label: 'Risk Score' },
+          { key: 'availableQty', label: 'Qty' },
+          { key: 'stockValue', label: 'Value' },
+          { key: 'suggestedAction', label: 'Suggested Action' },
+        ],
+      });
+    }
+    if (pagination.paged) {
+      const pageRows = records.slice(pagination.offset, pagination.offset + pagination.limit);
+      return NextResponse.json({
+        success: true,
+        data: {
+          records: pageRows,
+          total: records.length,
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          totalPages: Math.max(1, Math.ceil(records.length / pagination.pageSize)),
+          summary,
+          days,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, data: { records, summary, days } });
   } catch (err) {

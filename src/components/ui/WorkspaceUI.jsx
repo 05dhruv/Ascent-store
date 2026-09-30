@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useEffect, useRef } from "react";
 import Button from "./Button";
@@ -51,14 +52,14 @@ export function MetricCard({ label, value, note, icon, tone = "blue", trend }) {
     <div className="ui-card ui-metric">
       <div className="ui-metric-heading">
         <span className={`ui-icon ui-icon--${tone}`}>
-          <i aria-hidden="true" className={`ti ${icon}`} />
+          <Icon aria-hidden="true" name={`ti ${icon}`} />
         </span>
         <p>{label}</p>
       </div>
       <p className="ui-metric-value">{value}</p>
       {trend ? (
         <p className={`mt-1 flex items-center gap-1 text-[12px] font-semibold ${trendClass}`}>
-          <i aria-hidden="true" className={`ti ${trendIcon} text-[14px]`} />
+          <Icon aria-hidden="true" name={`ti ${trendIcon} text-[14px]`} />
           <span>{trend.label}</span>
         </p>
       ) : null}

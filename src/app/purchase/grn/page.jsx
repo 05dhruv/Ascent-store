@@ -3,15 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/MainLayout';
-import { formatIndianDate } from '@/lib/dateUtils';
+import { formatIndianDate } from '@/lib/dateUtils';
 import Icon from "@/components/Icon";
-
-
-async function fetchGrnList() {
-  const res = await fetch('/api/purchase/grns');
-  if (!res.ok) throw new Error('Failed to fetch GRN records');
-  return res.json();
-}
+import Pagination from '@/components/ui/Pagination';
+import { downloadFromUrl, usePagedList } from '@/hooks/usePagedList';
 
 function formatDate(value) {
   return formatIndianDate(value, '—');
@@ -36,9 +31,11 @@ function mapRecordsToTable(records) {
 }
 
 export default function GrnListPage() {
-  const [records, setRecords] = useState([]);
   const [search, setSearch] = useState('');
-  const [loadingList, setLoadingList] = useState(true);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const listParams = useMemo(() => ({ search: debouncedSearch }), [debouncedSearch]);
+  const list = usePagedList('/api/purchase/grns', { params: listParams });
+  const loadingList = list.loading;
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
   const isSuperAdmin = currentUser?.role === 'super_admin';
@@ -48,13 +45,12 @@ export default function GrnListPage() {
       .then((res) => res.json())
       .then((json) => setCurrentUser(json.data?.user || json.user || null))
       .catch(() => setCurrentUser(null));
-
-    setLoadingList(true);
-    fetchGrnList()
-      .then((data) => setRecords(Array.isArray(data) ? data : []))
-      .catch(() => setRecords([]))
-      .finally(() => setLoadingList(false));
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const handleCreate = () => router.push('/purchase/grn/create');
 
@@ -69,23 +65,9 @@ export default function GrnListPage() {
     'Reference ID',
     'Actions',
   ];
-  const tableData = useMemo(() => {
-    const mapped = mapRecordsToTable(records);
-    const q = search.trim().toLowerCase();
-    if (!q) return mapped;
-    return mapped.filter((row) =>
-      Object.values(row).some((value) => String(value ?? '').toLowerCase().includes(q))
-    );
-  }, [records, search]);
+  const tableData = useMemo(() => mapRecordsToTable(list.records), [list.records]);
 
-  const handleDownloadSheet = async () => {
-    const XLSX = await import('xlsx');
-    const rows = tableData.map(({ Actions, ...row }) => row);
-    const worksheet = XLSX.utils.json_to_sheet(rows.length ? rows : mapRecordsToTable(records));
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'GRN');
-    XLSX.writeFile(workbook, 'grn-sheet.xlsx');
-  };
+  const handleDownloadSheet = () => downloadFromUrl(list.exportUrl());
 
   return (
     <MainLayout>
@@ -134,6 +116,9 @@ export default function GrnListPage() {
             />
           </div>
         </div>
+        {list.error && (
+          <div className="border-b border-red-100 bg-red-50 px-4 py-2 text-[12px] text-red-700">{list.error}</div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1200px]">
@@ -185,14 +170,7 @@ export default function GrnListPage() {
           </table>
         </div>
 
-        <div className="flex items-center gap-3 px-4 py-3 border-t border-gray-100 text-[12px] text-gray-400">
-          <select className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-[12px] text-gray-600">
-            <option>10</option>
-            <option>20</option>
-            <option>50</option>
-          </select>
-          <span>Showing {tableData.length} Results</span>
-        </div>
+        <Pagination {...list.pagination} />
       </div>
     </MainLayout>
   );

@@ -2,7 +2,8 @@
 
 import Button from "@/components/ui/Button";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionEmpty,
@@ -13,8 +14,9 @@ import ConstructionShell, {
 } from "@/components/construction/ConstructionShell";
 
 export default function DocumentsPage() {
-  const [records, setRecords] = useState([]);
-  const [error, setError] = useState("");
+  const list = usePagedList("/api/construction/documents");
+  const records = list.records;
+  const error = list.error;
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
@@ -25,21 +27,7 @@ export default function DocumentsPage() {
     revision: "A",
   });
 
-  const load = async () => {
-    setError("");
-    try {
-      const r = await fetch("/api/construction/documents", { cache: "no-store" });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.message || j.error);
-      setRecords(j.data?.records || []);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+  const load = () => list.refresh();
 
   const save = async (e) => {
     e.preventDefault();
@@ -70,7 +58,7 @@ export default function DocumentsPage() {
   };
 
   return (
-    <ConstructionShell
+    <ConstructionShell loading={list.loading}
       title="Project documents"
       subtitle="Register drawings and docs with upload path references."
     >
@@ -135,9 +123,22 @@ export default function DocumentsPage() {
         </form>
       </ConstructionSection>
 
-      <ConstructionSection title="Documents">
+      <ConstructionSection
+        title="Documents"
+        action={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="ti-download"
+            onClick={() => downloadFromUrl(list.exportUrl())}
+          >
+            Download
+          </Button>
+        }
+      >
         <ConstructionTable
           headers={["Title", "Type", "Rev", "Project", "File"]}
+          pagination={list.pagination}
         >
           {records.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50/80">

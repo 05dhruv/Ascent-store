@@ -3,6 +3,7 @@ import { ensureConstructionSchema } from '@/lib/constructionSchema';
 import { ensureUsersTable } from '@/lib/userAuth';
 import { requireAuth, requirePermission, canAccessAllStores } from '@/lib/api-protection';
 import { errorResponse, successResponse, validationError } from '@/lib/api-response';
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from '@/lib/pagination';
 
 export async function GET(request) {
   const auth = await requireAuth(request);
@@ -20,8 +21,106 @@ export async function GET(request) {
   try {
     await ensureUsersTable();
     await ensureConstructionSchema();
-    const result = await query(
-      `
+    const sp = new URL(request.url).searchParams;
+    const pagination = getPagination(sp, { legacyLimit: 1000 });
+    const search = String(sp.get('search') || '').trim();
+    const status = String(sp.get('status') || '').trim();
+    const client = String(sp.get('client') || '').trim();
+    const storeScope = canAccessAllStores(auth.user) ? null : auth.user.assigned_stores || [];
+
+    const params = [storeScope];
+    const filters = [];
+    if (search) {
+      params.push(`%${search}%`);
+      const n = params.length;
+      filters.push(`(pa.name ILIKE $${n} OR pa.project_code ILIKE $${n} OR pa.client_name ILIKE $${n}
+        OR EXISTS (SELECT 1 FROM jsonb_array_elements(pa.sites) site
+                   WHERE site->>'name' ILIKE $${n} OR site->>'site_code' ILIKE $${n}))`);
+    }
+    if (status) {
+      params.push(status);
+      filters.push(`pa.status = $${params.length}`);
+    }
+    if (client) {
+      params.push(client);
+      filters.push(`COALESCE(pa.client_name, 'Direct / Self') = $${params.length}`);
+    }
+    const whereSql = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+
+    const listQuery = query(
+      `${PROJECTS_CTE}
+      SELECT pa.*, COUNT(*) OVER() AS __total
+      FROM projects_agg pa
+      ${whereSql}
+      ORDER BY pa.created_at DESC, pa.id DESC
+      ${limitOffsetSql(pagination, params)}`,
+      params,
+    );
+
+    if (pagination.isExport) {
+      const result = await listQuery;
+      return spreadsheetResponse(result.rows, {
+        filename: 'construction_projects',
+        format: pagination.format,
+        columns: [
+          { key: 'project_code', label: 'Code' },
+          { key: 'name', label: 'Project' },
+          { key: 'client_name', label: 'Client', value: (r) => r.client_name || 'Direct / Self' },
+          { key: 'status', label: 'Status' },
+          { key: 'budget', label: 'Budget' },
+          { key: 'start_date', label: 'Start date' },
+          { key: 'expected_end_date', label: 'Expected end' },
+          { key: 'address', label: 'Address' },
+          { key: 'site_count', label: 'Site stores' },
+          { key: 'total_site_stock', label: 'On-site stock' },
+          { key: 'total_transferred_in', label: 'Transferred in' },
+          { key: 'total_consumed', label: 'Consumed' },
+          { key: 'total_in_transit', label: 'In transit' },
+          { key: 'created_at', label: 'Created' },
+        ],
+      });
+    }
+
+    if (!pagination.paged) {
+      const result = await listQuery;
+      return successResponse(pagedPayload(result.rows, pagination));
+    }
+
+    const [result, summary] = await Promise.all([
+      listQuery,
+      query(
+        `${PROJECTS_CTE}
+        SELECT COUNT(*)::int AS total_projects,
+               COALESCE(SUM(site_count), 0)::int AS total_sites,
+               COALESCE(SUM(total_site_stock), 0)::numeric AS total_stock,
+               COALESCE(SUM(total_in_transit), 0)::int AS total_in_transit,
+               COALESCE(
+                 array_agg(DISTINCT COALESCE(client_name, 'Direct / Self')::text),
+                 '{}'::text[]
+               ) AS clients
+        FROM projects_agg`,
+        [storeScope],
+      ),
+    ]);
+    const s = summary.rows[0] || {};
+    return successResponse(
+      pagedPayload(result.rows, pagination, {
+        summary: {
+          totalProjects: Number(s.total_projects) || 0,
+          totalSites: Number(s.total_sites) || 0,
+          totalStock: Number(s.total_stock) || 0,
+          totalInTransit: Number(s.total_in_transit) || 0,
+          clients: (s.clients || []).filter(Boolean).sort(),
+        },
+      }),
+    );
+  } catch (error) {
+    console.error('[construction projects GET]', error);
+    return errorResponse('Projects could not be loaded');
+  }
+}
+
+const PROJECTS_CTE = `
       WITH site_stock AS (
         SELECT store_id, SUM(available_qty) AS current_stock, COUNT(DISTINCT product_id) AS items_count
         FROM inventory_batches
@@ -73,7 +172,8 @@ export async function GET(request) {
         LEFT JOIN site_transfers_in sti ON sti.store_id = s.store_id
         LEFT JOIN site_consumed sc ON sc.store_id = s.store_id
         LEFT JOIN site_in_transit sit ON sit.store_id = s.store_id
-      )
+      ),
+      projects_agg AS (
       SELECT
         p.*,
         COUNT(es.id)::int AS site_count,
@@ -107,16 +207,7 @@ export async function GET(request) {
       LEFT JOIN enriched_sites es ON es.project_id = p.id
       WHERE ($1::int[] IS NULL OR es.store_id = ANY($1))
       GROUP BY p.id
-      ORDER BY p.created_at DESC
-    `,
-      [canAccessAllStores(auth.user) ? null : auth.user.assigned_stores || []],
-    );
-    return successResponse({ records: result.rows });
-  } catch (error) {
-    console.error('[construction projects GET]', error);
-    return errorResponse('Projects could not be loaded');
-  }
-}
+      )`;
 
 export async function POST(request) {
   const auth = await requireAuth(request);

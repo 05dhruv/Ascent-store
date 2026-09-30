@@ -1,13 +1,16 @@
 "use client";
+import { confirmDialog } from "@/lib/notify";
 
 import { RequiredMark } from "@/components/ui/FormField";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import MainLayout from "@/components/MainLayout";
 import { validatePhoneNumber } from "@/lib/phoneValidator";
-import { fetchLookup, normalizeVendors } from "@/lib/purchaseLookups";
+import { fetchLookup, normalizeVendors } from "@/lib/purchaseLookups";
 import Icon from "@/components/Icon";
+import Pagination from "@/components/ui/Pagination";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 
 const tableHeaders = [
   "S. No.",
@@ -71,6 +74,12 @@ export default function VendorsPage() {
   const [bulkChooserSearch, setBulkChooserSearch] = useState("");
   const [selectedBulkVendorIds, setSelectedBulkVendorIds] = useState({});
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const listParams = useMemo(
+    () => ({ search: debouncedSearch, includeInactive: "true" }),
+    [debouncedSearch],
+  );
+  const list = usePagedList("/api/vendors", { params: listParams });
   const bulkEditInputRef = useRef(null);
   const emptyForm = {
     id: null,
@@ -122,7 +131,6 @@ export default function VendorsPage() {
   }, []);
 
   useEffect(() => {
-    fetchVendors();
     fetchBrands();
   }, []);
 
@@ -150,88 +158,36 @@ export default function VendorsPage() {
     }
   };
 
-  const fetchVendors = async () => {
+  const fetchAllVendors = async () => {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams();
-      if (search.trim()) params.set("search", search.trim());
-      params.set("includeInactive", "true");
-      params.set("pageSize", "10000");
-      const data = await fetchLookup(`/api/vendors?${params.toString()}`);
-      setVendors(normalizeVendors(data));
+      const data = await fetchLookup(
+        "/api/vendors?includeInactive=true&pageSize=10000",
+      );
+      const all = normalizeVendors(data);
+      setVendors(all);
+      return all;
     } catch (err) {
       console.error("Failed to fetch vendors", err);
       setVendors([]);
       setError(err.message || "Failed to fetch vendors");
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDownloadVendors = async () => {
-    try {
-      const XLSX = await import("xlsx");
-      const rows = vendors.map((vendor, index) => ({
-        "S. No.": index + 1,
-        "Supplier / Contractor Name": vendor.name || "",
-        "Legal Company Name": vendor.company || "",
-        "Supplier Type":
-          normalizeDistributionVia(vendor.business) === "distributor"
-            ? "Distributor"
-            : "Company",
-        "Mobile Number": vendor.mobile_number || "",
-        "Email Address": vendor.email || "",
-        "Vendor Location": [vendor.city, vendor.state, vendor.pincode]
-          .filter(Boolean)
-          .join(", "),
-        "GST Number": vendor.gst_number || "",
-        "Rate Variance (%)": Number(vendor.margin || 0),
-        "Credit Terms (Days)": vendor.credit_days ?? "",
-        "Brands / Makes Supplied": Array.isArray(vendor.brands) ? vendor.brands.join(", ") : "",
-        Address: getVendorAddress(vendor),
-        "Address 1": vendor.address_1 || "",
-        "Address 2": vendor.address_2 || "",
-        City: vendor.city || "",
-        State: vendor.state || "",
-        Pincode: vendor.pincode || "",
-        Country: vendor.country || "",
-        Status: vendor.is_active === false ? "Inactive" : "Active",
-      }));
-      const worksheet = XLSX.utils.json_to_sheet(rows);
-      worksheet["!cols"] = [
-        { wch: 8 },
-        { wch: 28 },
-        { wch: 24 },
-        { wch: 16 },
-        { wch: 16 },
-        { wch: 30 },
-        { wch: 18 },
-        { wch: 12 },
-        { wch: 32 },
-        { wch: 60 },
-        { wch: 28 },
-        { wch: 28 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 12 },
-        { wch: 18 },
-        { wch: 12 },
-      ];
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Vendors");
-      XLSX.writeFile(
-        workbook,
-        `vendors-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      );
-    } catch (err) {
-      console.error("Vendor download failed", err);
-      alert("Unable to download vendors Excel sheet");
-    }
+  const refreshVendors = () => {
+    list.refresh();
+    if (bulkChooserOpen) fetchAllVendors();
   };
 
-  const openBulkEditChooser = () => {
-    if (!vendors.length) return alert("No vendors available to edit.");
+  const handleDownloadVendors = () => downloadFromUrl(list.exportUrl());
+
+  const openBulkEditChooser = async () => {
+    const all = await fetchAllVendors();
+    if (!all.length) return alert("No vendors available to edit.");
     setBulkEditOpen(false);
     setBulkChooserSearch("");
     setSelectedBulkVendorIds({});
@@ -457,7 +413,7 @@ export default function VendorsPage() {
           );
         }
       }
-      await fetchVendors();
+      await list.refresh();
       alert(`Updated ${rows.length} vendor(s) successfully.`);
     } catch (err) {
       console.error("Editable vendor upload failed", err);
@@ -468,9 +424,9 @@ export default function VendorsPage() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(fetchVendors, 250);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 250);
     return () => clearTimeout(timer);
-  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [search]);
 
   const openCreate = () => {
     setForm(emptyForm);
@@ -505,9 +461,10 @@ export default function VendorsPage() {
 
   const handleDelete = async (vendor) => {
     if (
-      !window.confirm(
-        `Delete vendor ${vendor.name}? Used vendors will be archived.`,
-      )
+      !(await confirmDialog(
+        `Delete supplier ${vendor.name}? Suppliers already used on records will be archived instead.`,
+        { title: "Delete supplier", confirmLabel: "Delete", danger: true },
+      ))
     )
       return;
     try {
@@ -516,7 +473,7 @@ export default function VendorsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
-      fetchVendors();
+      refreshVendors();
     } catch (err) {
       alert(err.message || "Failed to delete vendor");
     }
@@ -549,7 +506,7 @@ export default function VendorsPage() {
       if (!res.ok) throw new Error(data.error || "Save failed");
       setShowModal(false);
       setForm(emptyForm);
-      fetchVendors();
+      refreshVendors();
     } catch (err) {
       console.error(err);
       alert(err.message || "Failed to save vendor");
@@ -599,9 +556,9 @@ export default function VendorsPage() {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-        {error && (
+        {(error || list.error) && (
           <div className="border-b border-red-100 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
-            {error}
+            {error || list.error}
           </div>
         )}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 justify-between flex-wrap">
@@ -620,7 +577,7 @@ export default function VendorsPage() {
               <button
                 type="button"
                 onClick={() => setBulkEditOpen((open) => !open)}
-                disabled={loading || bulkEditBusy || vendors.length === 0}
+                disabled={loading || bulkEditBusy || list.total === 0}
                 className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[12px] font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
                 title="Bulk edit vendors"
               >
@@ -653,7 +610,7 @@ export default function VendorsPage() {
             <button
               type="button"
               onClick={handleDownloadVendors}
-              disabled={loading || vendors.length === 0}
+              disabled={list.loading || list.total === 0}
               className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               title="Download vendors Excel"
             >
@@ -684,26 +641,26 @@ export default function VendorsPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {list.loading ? (
                 <tr>
                   <td className="px-4 py-6" colSpan={tableHeaders.length}>
                     Loading...
                   </td>
                 </tr>
-              ) : vendors.length === 0 ? (
+              ) : list.records.length === 0 ? (
                 <tr>
                   <td className="px-4 py-6" colSpan={tableHeaders.length}>
                     No vendors found
                   </td>
                 </tr>
               ) : (
-                vendors.map((row, rowIdx) => (
+                list.records.map((row, rowIdx) => (
                   <tr
                     key={row.id || rowIdx}
                     className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors"
                   >
                     <td className="px-4 py-3 text-[13px] text-gray-700">
-                      {rowIdx + 1}
+                      {(list.page - 1) * list.pageSize + rowIdx + 1}
                     </td>
                     <td className="px-4 py-3 text-[13px] text-gray-700">
                       <div className="font-medium text-gray-900">
@@ -767,14 +724,7 @@ export default function VendorsPage() {
           </table>
         </div>
 
-        <div className="flex items-center gap-3 px-4 py-3 border-t border-gray-100 text-[12px] text-gray-400">
-          <select className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-[12px] text-gray-600">
-            <option>10</option>
-            <option>20</option>
-            <option>50</option>
-          </select>
-          <span>Showing {vendors.length} Results</span>
-        </div>
+        <Pagination {...list.pagination} />
       </div>
 
       {bulkChooserOpen &&

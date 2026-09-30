@@ -3,6 +3,7 @@
 import Button from "@/components/ui/Button";
 
 import { useEffect, useState } from "react";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionEmpty,
@@ -13,7 +14,8 @@ import ConstructionShell, {
 } from "@/components/construction/ConstructionShell";
 
 export default function EvidencePage() {
-  const [records, setRecords] = useState([]);
+  const list = usePagedList("/api/construction/evidence");
+  const records = list.records;
   const [limits, setLimits] = useState([]);
   const [documentedKeys, setDocumentedKeys] = useState([]);
   const [error, setError] = useState("");
@@ -34,17 +36,11 @@ export default function EvidencePage() {
 
   const [file, setFile] = useState(null);
 
-  const load = async () => {
+  const loadLimits = async () => {
     setError("");
     try {
-      const [ev, lim] = await Promise.all([
-        fetch("/api/construction/evidence", { cache: "no-store" }),
-        fetch("/api/construction/approval-limits", { cache: "no-store" }),
-      ]);
-      const ej = await ev.json();
+      const lim = await fetch("/api/construction/approval-limits", { cache: "no-store" });
       const lj = await lim.json();
-      if (!ev.ok) throw new Error(ej.message || ej.error || "Unable to load evidence");
-      setRecords(ej.data?.records || []);
       if (lim.ok) {
         setLimits(lj.data?.records || []);
         setDocumentedKeys(lj.data?.documentedPermissionKeys || []);
@@ -55,7 +51,7 @@ export default function EvidencePage() {
   };
 
   useEffect(() => {
-    load();
+    loadLimits();
   }, []);
 
   const saveEvidence = async (e) => {
@@ -94,7 +90,7 @@ export default function EvidencePage() {
       });
       setFile(null);
       setMessage("Evidence saved.");
-      await load();
+      await list.refresh();
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -114,7 +110,7 @@ export default function EvidencePage() {
       const j = await r.json();
       if (!r.ok) throw new Error(j.message || j.error);
       setMessage("Approval limit saved.");
-      await load();
+      await loadLimits();
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -123,11 +119,11 @@ export default function EvidencePage() {
   };
 
   return (
-    <ConstructionShell
+    <ConstructionShell loading={list.loading}
       title="Movement evidence"
       subtitle={`Upload photos/PDFs or paste a URL. Signatures accepted as data URLs and stored under /uploads/…. Limits: ${documentedKeys.join(", ") || "SITE_RECEIVER, DISPATCHER, QC_APPROVE"}.`}
     >
-      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {(error || list.error) && <ConstructionAlert>{error || list.error}</ConstructionAlert>}
       {message && (
         <ConstructionAlert type="info">{message}</ConstructionAlert>
       )}
@@ -201,8 +197,20 @@ export default function EvidencePage() {
         </form>
       </ConstructionSection>
 
-      <ConstructionSection title="Evidence records">
-        <ConstructionTable headers={["Entity", "File", "By", "When"]}>
+      <ConstructionSection
+        title="Evidence records"
+        action={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="ti-download"
+            onClick={() => downloadFromUrl(list.exportUrl())}
+          >
+            Download
+          </Button>
+        }
+      >
+        <ConstructionTable headers={["Entity", "File", "By", "When"]} pagination={list.pagination}>
           {records.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50/80">
               <td className="px-4 py-3 text-slate-700">

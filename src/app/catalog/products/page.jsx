@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -1731,7 +1732,7 @@ export default function ProductsPage() {
             />
           ) : (
             <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-300">
-              <i className="ti ti-package text-xl" aria-hidden="true" />
+              <Icon name="ti ti-package text-xl" aria-hidden="true" />
             </div>
           ),
           name: record.name,

@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/MainLayout";
 import { formatIndianDate } from "@/lib/dateUtils";
-import { fetchCatalogProductPage } from "@/lib/productPagination";
+import { fetchCatalogProductPage } from "@/lib/productPagination";
 import Icon from "@/components/Icon";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 
 function money(value) {
   return `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -393,8 +394,8 @@ function useLookups() {
 
 export function VendorQuotationsPage() {
   const { stores, vendors, products } = useLookups();
-  const [rows, setRows] = useState([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filters, setFilters] = useState({
     dateFrom: "",
     dateTo: "",
@@ -413,23 +414,20 @@ export function VendorQuotationsPage() {
     freightAmount: 0,
   });
 
-  const load = useCallback(
-    () =>
-      fetch(`/api/purchase/quotations${buildQuery({ search, ...filters })}`, {
-        credentials: "include",
-        cache: "no-store",
-      })
-        .then((r) => r.json())
-        .then((data) => setRows(normalizeList(data)))
-        .catch(() => setRows([])),
-    [search, filters],
-  );
   useEffect(() => {
-    const timer = setTimeout(load, 250);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 250);
     return () => clearTimeout(timer);
-  }, [load]);
-
-  const filtered = useMemo(() => rows, [rows]);
+  }, [search]);
+  const listParams = useMemo(
+    () => ({ search: debouncedSearch, ...filters }),
+    [debouncedSearch, filters],
+  );
+  const list = usePagedList("/api/purchase/quotations", {
+    params: listParams,
+    pageSize: 20,
+  });
+  const load = list.refresh;
+  const filtered = list.records;
 
   const save = async () => {
     if (!form.vendorId) return alert("Select a vendor");
@@ -493,12 +491,17 @@ export function VendorQuotationsPage() {
     >
       <Toolbar search={search} setSearch={setSearch}>
         <button
-          onClick={() => downloadCsv("vendor-quotations.csv", filtered)}
+          onClick={() => downloadFromUrl(list.exportUrl("csv"))}
           className="rounded-lg border border-gray-200 px-4 py-2 text-[13px] font-semibold text-gray-700"
         >
           Export CSV
         </button>
       </Toolbar>
+      {list.error && (
+        <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-[12px] font-semibold text-red-600">
+          {list.error}
+        </div>
+      )}
       <FilterBar
         filters={filters}
         setFilters={setFilters}
@@ -604,6 +607,13 @@ export function VendorQuotationsPage() {
           "Actions",
         ]}
         rows={filtered}
+        empty={list.loading ? "Loading..." : "No Records Found"}
+        page={list.page}
+        pageSize={list.pageSize}
+        totalRows={list.total}
+        totalPages={list.totalPages}
+        onPageChange={list.setPage}
+        onPageSizeChange={list.setPageSize}
         renderRow={(row) => (
           <Row key={row.id}>
             <Cell>{row.transactionId}</Cell>

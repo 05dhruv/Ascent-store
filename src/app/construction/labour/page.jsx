@@ -2,7 +2,8 @@
 
 import Button from "@/components/ui/Button";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionEmpty,
@@ -13,9 +14,10 @@ import ConstructionShell, {
 } from "@/components/construction/ConstructionShell";
 
 export default function LabourPage() {
-  const [crews, setCrews] = useState([]);
-  const [attendance, setAttendance] = useState([]);
-  const [error, setError] = useState("");
+  const list = usePagedList("/api/construction/labour");
+  const attendance = list.records;
+  const crews = list.extra.crews || [];
+  const error = list.error;
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [crewForm, setCrewForm] = useState({
@@ -33,22 +35,7 @@ export default function LabourPage() {
     notes: "",
   });
 
-  const load = async () => {
-    setError("");
-    try {
-      const r = await fetch("/api/construction/labour", { cache: "no-store" });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.message || j.error);
-      setCrews(j.data?.crews || []);
-      setAttendance(j.data?.attendance || []);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+  const load = () => list.refresh();
 
   const post = async (body) => {
     setBusy(true);
@@ -70,46 +57,15 @@ export default function LabourPage() {
     }
   };
 
-  const exportCsv = () => {
-    const rows = attendance.map((row) => ({
-      date: row.work_date || "",
-      crew_id: row.crew_id || "",
-      crew_name:
-        crews.find((c) => String(c.id) === String(row.crew_id))?.name || "",
-      site_id: row.site_id || "",
-      headcount: row.headcount ?? "",
-      hours: row.hours ?? "",
-      notes: row.notes || "",
-    }));
-    if (!rows.length) {
-      setMessage("No attendance rows to export.");
-      return;
-    }
-    const keys = Object.keys(rows[0]);
-    const esc = (v) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-    const csv = [
-      keys.join(","),
-      ...rows.map((r) => keys.map((k) => esc(r[k])).join(",")),
-    ].join("\r\n");
-    const url = URL.createObjectURL(
-      new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `labour-attendance-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
-    <ConstructionShell
+    <ConstructionShell loading={list.loading}
       title="Crews & attendance"
       subtitle="Track site headcount and hours by crew. Export CSV for payroll."
       actions={[
         {
           label: "Export attendance CSV",
           icon: "ti ti-download",
-          onClick: exportCsv,
+          onClick: () => downloadFromUrl(list.exportUrl("csv")),
           primary: true,
         },
       ]}
@@ -276,9 +232,22 @@ export default function LabourPage() {
         </ConstructionTable>
       </ConstructionSection>
 
-      <ConstructionSection title="Recent attendance">
+      <ConstructionSection
+        title="Recent attendance"
+        action={
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="ti-download"
+            onClick={() => downloadFromUrl(list.exportUrl())}
+          >
+            Download
+          </Button>
+        }
+      >
         <ConstructionTable
           headers={["Date", "Crew", "Headcount", "Hours", "Notes"]}
+          pagination={list.pagination}
         >
           {attendance.map((row) => (
             <tr key={row.id} className="hover:bg-slate-50/80">
@@ -288,7 +257,8 @@ export default function LabourPage() {
                   : "—"}
               </td>
               <td className="px-4 py-3 text-slate-700">
-                {crews.find((c) => String(c.id) === String(row.crew_id))?.name ||
+                {row.crew_name ||
+                  crews.find((c) => String(c.id) === String(row.crew_id))?.name ||
                   row.crew_id ||
                   "—"}
               </td>

@@ -5,6 +5,7 @@ import { ensurePurchaseOrderSchema } from '@/lib/purchaseOrderSchema';
 import { ensureStockRequisitionSchema } from '@/lib/stockRequisitionSchema';
 import { ensureVendorsSchema } from '@/lib/vendorsSchema';
 import { appendStoreScope, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from '@/lib/pagination';
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -93,9 +94,14 @@ export async function GET(request) {
         OR COALESCE(sr.requested_by, '') ILIKE $${params.length}
         OR COALESCE(u_req.name, '') ILIKE $${params.length}
         OR COALESCE(v.name, '') ILIKE $${params.length}
+        OR COALESCE(sr.mail_to, '') ILIKE $${params.length}
+        OR COALESCE(sr.status, '') ILIKE $${params.length}
+        OR COALESCE(sr.approval_status, '') ILIKE $${params.length}
+        OR COALESCE(po.transaction_id, '') ILIKE $${params.length}
       )`);
     }
 
+    const pagination = getPagination(searchParams, { legacyLimit: 300 });
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const res = await query(
       `SELECT
@@ -126,7 +132,8 @@ export async function GET(request) {
              ORDER BY COALESCE(sri.product_name, p.name)
            ) FILTER (WHERE sri.id IS NOT NULL),
            '[]'::json
-         ) AS items
+         ) AS items,
+         COUNT(*) OVER() AS __total
        FROM stock_requisitions sr
        LEFT JOIN stores src ON src.id = sr.source_id
        LEFT JOIN stores dst ON dst.id = sr.destination_id
@@ -139,11 +146,41 @@ export async function GET(request) {
        ${whereSql}
        GROUP BY sr.id, src.name, dst.name, u_req.name, u_req.email, u_app.name, po.transaction_id, v.name
        ORDER BY sr.created_at DESC
-       LIMIT 300`,
+       ${limitOffsetSql(pagination, params)}`,
       params
     );
 
-    return NextResponse.json({ success: true, records: res.rows.map(mapRow) });
+    const records = res.rows.map(mapRow);
+    if (pagination.isExport) {
+      return spreadsheetResponse(records, {
+        filename: 'site-requests',
+        format: pagination.format,
+        columns: [
+          { key: 'transactionId', label: 'Request ID' },
+          { key: 'destinationName', label: 'Site (Destination)' },
+          { key: 'sourceName', label: 'Source Warehouse' },
+          { key: 'requestedBy', label: 'Requested By', value: (r) => r.requestedBy || r.requesterUserName },
+          { key: 'createdAt', label: 'Request Time' },
+          { key: 'totalItems', label: 'Total Items' },
+          { key: 'shortageStatus', label: 'Shortage Status' },
+          { key: 'totalShortageQty', label: 'Shortage Qty' },
+          { key: 'approvalStatus', label: 'Approval Status' },
+          { key: 'fulfillmentStatus', label: 'Fulfillment Status' },
+          { key: 'poTransactionId', label: 'PO' },
+          { key: 'vendorName', label: 'Vendor' },
+          { key: 'remarks', label: 'Remarks' },
+        ],
+      });
+    }
+    if (pagination.paged) {
+      const payload = pagedPayload(
+        res.rows.map((row, index) => ({ ...records[index], __total: row.__total })),
+        pagination
+      );
+      return NextResponse.json({ success: true, records: payload.records, data: payload });
+    }
+
+    return NextResponse.json({ success: true, records });
   } catch (err) {
     console.error('[stockrequisition GET]', err);
     return NextResponse.json({ success: false, message: 'Failed to fetch requisitions', records: [] }, { status: 500 });

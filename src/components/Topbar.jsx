@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -486,7 +487,7 @@ export default function Topbar({
           className="lg:hidden p-2 rounded-xl hover:bg-slate-100 transition-colors mr-2 flex-shrink-0"
           aria-label="Open menu"
         >
-          <i className="ti ti-menu-2 text-slate-700 text-[20px]" />
+          <Icon name="ti ti-menu-2 text-slate-700 text-[20px]" />
         </button>
       )}
 
@@ -521,10 +522,10 @@ export default function Topbar({
                 0,
               );
             }}
-            className="md:hidden rounded-xl p-2 text-slate-500 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
+            className="md:hidden rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
             aria-label="Search pages"
           >
-            <i className="ti ti-search text-[20px]" />
+            <Icon name="ti ti-search text-[20px]" />
           </button>
 
           <div
@@ -535,7 +536,7 @@ export default function Topbar({
             }`}
           >
             <div className="relative w-full md:w-[280px] xl:w-[420px]">
-              <i className="ti ti-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[17px] text-slate-400" />
+              <Icon name="ti ti-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[17px] text-slate-400" />
               <input
                 type="search"
                 value={searchQuery}
@@ -574,7 +575,7 @@ export default function Topbar({
                       }`}
                     >
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                        <i className={`ti ${item.icon} text-[17px]`} />
+                        <Icon name={`ti ${item.icon} text-[17px]`} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[13px] font-bold text-slate-900">
@@ -585,7 +586,7 @@ export default function Topbar({
                           {item.group ? ` / ${item.group}` : ""}
                         </span>
                       </span>
-                      <i className="ti ti-arrow-up-right text-[15px] text-slate-300" />
+                      <Icon name="ti ti-arrow-up-right text-[15px] text-slate-300" />
                     </button>
                   ))
                 ) : (
@@ -594,7 +595,7 @@ export default function Topbar({
                       No matching page found
                     </p>
                     <p className="mt-1 text-[12px] text-slate-400">
-                      Try report, stock, customer, settings, or billing.
+                      Try project, material, transfer, supplier, or report.
                     </p>
                   </div>
                 )}
@@ -610,10 +611,10 @@ export default function Topbar({
               setOpenNotifications((prev) => !prev);
               loadNotifications();
             }}
-            className="relative rounded-xl p-2 text-slate-500 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
+            className="relative rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
             aria-label="Notifications"
           >
-            <i className="ti ti-bell text-slate-500 text-[20px]" />
+            <Icon name="ti ti-bell text-slate-500 text-[20px]" />
             {notificationCount > 0 && (
               <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
                 {notificationCount > 9 ? "9+" : notificationCount}
@@ -641,13 +642,13 @@ export default function Topbar({
                 <div className="max-h-80 overflow-auto py-1">
                   {promotionAlerts.length > 0 && (
                     <div className="border-b border-gray-100">
-                      <p className="px-4 pb-1 pt-3 text-[11px] font-black uppercase tracking-widest text-indigo-600">
+                      <p className="px-4 pb-1 pt-3 text-[11px] font-black uppercase tracking-widest text-orange-600">
                         Promotion Alerts
                       </p>
                       {promotionAlerts.map((promotion) => (
                         <div
                           key={`${promotion.id}:${promotion.alertType}`}
-                          className="flex items-start justify-between gap-2 border-t border-gray-100 px-4 py-3 hover:bg-indigo-50"
+                          className="flex items-start justify-between gap-2 border-t border-gray-100 px-4 py-3 hover:bg-slate-50"
                         >
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-gray-900">
@@ -974,7 +975,7 @@ export default function Topbar({
                 {loadingUser ? "" : roleLabel}
               </p>
             </div>
-            <i className="ti ti-chevron-down text-gray-400 text-[13px] hidden sm:block" />
+            <Icon name="ti ti-chevron-down text-gray-400 text-[13px] hidden sm:block" />
           </button>
 
           {openProfile && (
@@ -1028,7 +1029,7 @@ export default function Topbar({
                   }}
                   className="flex w-full items-center gap-2 px-4 py-2 text-left text-[14px] text-gray-700 hover:bg-gray-50"
                 >
-                  <i className="ti ti-lock text-[16px]" />
+                  <Icon name="ti ti-lock text-[16px]" />
                   Change password
                 </button>
 
@@ -1036,7 +1037,7 @@ export default function Topbar({
                   type="button"
                   className="flex w-full items-center gap-2 px-4 py-2 text-left text-[14px] text-gray-700 hover:bg-gray-50"
                 >
-                  <i className="ti ti-world text-[16px]" />
+                  <Icon name="ti ti-world text-[16px]" />
                   Change language
                 </button>
 
@@ -1044,7 +1045,7 @@ export default function Topbar({
                   type="button"
                   className="flex w-full items-center gap-2 px-4 py-2 text-left text-[14px] text-gray-700 hover:bg-gray-50"
                 >
-                  <i className="ti ti-help-circle text-[16px]" />
+                  <Icon name="ti ti-help-circle text-[16px]" />
                   Help & support
                 </button>
               </div>
@@ -1055,7 +1056,7 @@ export default function Topbar({
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] text-red-600 hover:bg-red-50"
                 >
-                  <i className="ti ti-logout text-[16px]" />
+                  <Icon name="ti ti-logout text-[16px]" />
                   Log out
                 </button>
               </div>
@@ -1082,7 +1083,7 @@ export default function Topbar({
                   }}
                   className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
                 >
-                  <i className="ti ti-x text-[16px]" />
+                  <Icon name="ti ti-x text-[16px]" />
                 </button>
               </div>
 

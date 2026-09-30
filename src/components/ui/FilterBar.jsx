@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 export function FilterSearch({
   value,
@@ -9,10 +10,7 @@ export function FilterSearch({
 }) {
   return (
     <div className={`relative min-w-[200px] flex-1 ${className}`}>
-      <i
-        className="ti ti-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-        aria-hidden="true"
-      />
+      <Icon name="ti ti-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
       <input
         type="search"
         aria-label={ariaLabel}

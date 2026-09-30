@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { clampPageSize, LOOKUP_MAX_PAGE_SIZE } from "@/lib/pagination";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
+import { successResponse } from '@/lib/api-response';
 import { query } from '@/lib/db';
 import { ensureStockInSchema } from '@/lib/stockInSchema';
 import { ensureStockOutSchema } from '@/lib/stockOutSchema';
@@ -32,6 +33,14 @@ function mapVendor(r) {
     created_at: r.created_at,
     updated_at: r.updated_at,
   };
+}
+
+const LOOKUP_MAX_PAGE_SIZE = 5000;
+
+function lookupLimit(raw, fallback = 200) {
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.min(n, LOOKUP_MAX_PAGE_SIZE);
 }
 
 function normalizeBrandIds(value) {
@@ -67,7 +76,9 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const search = String(searchParams.get('search') || '').trim();
     const includeInactive = searchParams.get('includeInactive') === 'true';
-    const pageSize = clampPageSize(searchParams.get('pageSize'), { fallback: 200, max: LOOKUP_MAX_PAGE_SIZE });
+    const pagination = getPagination(searchParams, {
+      legacyLimit: lookupLimit(searchParams.get('pageSize')),
+    });
     const params = [];
     const conditions = [];
 
@@ -80,27 +91,68 @@ export async function GET(req) {
         OR COALESCE(v.email, '') ILIKE $${params.length}
         OR COALESCE(v.mobile_number, '') ILIKE $${params.length}
         OR COALESCE(v.gst_number, '') ILIKE $${params.length}
+        OR COALESCE(v.city, '') ILIKE $${params.length}
+        OR COALESCE(v.state, '') ILIKE $${params.length}
       )`);
     }
-    params.push(pageSize);
 
     const res = await query(
           `SELECT v.id, v.name, v.company, v.business, v.address_1, v.address_2, v.city, v.state, v.pincode, v.country,
             v.email, v.mobile_number, v.gst_number, v.margin, v.credit_days, v.is_active, v.created_at, v.updated_at,
             COALESCE(ARRAY_AGG(b.id ORDER BY b.name) FILTER (WHERE b.id IS NOT NULL), '{}') AS brand_ids,
-            COALESCE(ARRAY_AGG(b.name ORDER BY b.name) FILTER (WHERE b.id IS NOT NULL), '{}') AS brands
+            COALESCE(ARRAY_AGG(b.name ORDER BY b.name) FILTER (WHERE b.id IS NOT NULL), '{}') AS brands,
+            COUNT(*) OVER() AS __total
        FROM vendors v
        LEFT JOIN vendor_brands vb ON vb.vendor_id = v.id
        LEFT JOIN brands b ON b.id = vb.brand_id
        ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
        GROUP BY v.id
        ORDER BY v.name
-       LIMIT $${params.length}`,
+       ${limitOffsetSql(pagination, params)}`,
       params
     );
 
+    const vendors = res.rows.map((row) => ({ ...mapVendor(row), __total: row.__total }));
+    if (pagination.isExport) {
+      return spreadsheetResponse(vendors, {
+        filename: 'vendors',
+        format: pagination.format,
+        sheetName: 'Vendors',
+        columns: [
+          { key: 'name', label: 'Supplier / Contractor Name' },
+          { key: 'company', label: 'Legal Company Name' },
+          {
+            key: 'business',
+            label: 'Supplier Type',
+            value: (v) => (String(v.business || '').trim().toLowerCase() === 'distributor' ? 'Distributor' : 'Company'),
+          },
+          { key: 'mobile_number', label: 'Mobile Number' },
+          { key: 'email', label: 'Email Address' },
+          { key: 'location', label: 'Vendor Location', value: (v) => [v.city, v.state, v.pincode].filter(Boolean).join(', ') },
+          { key: 'gst_number', label: 'GST Number' },
+          { key: 'margin', label: 'Rate Variance (%)' },
+          { key: 'credit_days', label: 'Credit Terms (Days)', value: (v) => v.credit_days ?? '' },
+          { key: 'brands', label: 'Brands / Makes Supplied', value: (v) => v.brands.join(', ') },
+          {
+            key: 'address',
+            label: 'Address',
+            value: (v) => [v.address_1, v.address_2, v.city, v.state, v.pincode, v.country].filter(Boolean).join(', '),
+          },
+          { key: 'address_1', label: 'Address 1' },
+          { key: 'address_2', label: 'Address 2' },
+          { key: 'city', label: 'City' },
+          { key: 'state', label: 'State' },
+          { key: 'pincode', label: 'Pincode' },
+          { key: 'country', label: 'Country' },
+          { key: 'is_active', label: 'Status', value: (v) => (v.is_active ? 'Active' : 'Inactive') },
+        ],
+      });
+    }
+    if (pagination.paged) {
+      return successResponse(pagedPayload(vendors, pagination));
+    }
     // return array of vendor objects; keeping `name` property for backward compatibility
-    return NextResponse.json(res.rows.map(mapVendor));
+    return NextResponse.json(vendors.map(({ __total, ...vendor }) => vendor));
   } catch (err) {
     console.error('Vendors GET error', err);
     return NextResponse.json([]);

@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from "@/lib/pagination";
 import {
   MAX_UPLOAD_BYTES,
   UploadError,
@@ -32,17 +33,36 @@ export async function GET(request) {
     const sp = new URL(request.url).searchParams;
     const entityType = sp.get("entityType");
     const entityId = Number(sp.get("entityId")) || null;
+    const pagination = getPagination(sp);
+    const params = [entityType || null, entityId];
     const result = await query(
-      `SELECT e.*, u.name AS uploaded_by_name
+      `SELECT e.*, u.name AS uploaded_by_name,
+              COUNT(*) OVER() AS __total
        FROM construction_evidence_files e
        LEFT JOIN users u ON u.id = e.uploaded_by
        WHERE ($1::text IS NULL OR e.entity_type = $1)
          AND ($2::bigint IS NULL OR e.entity_id = $2)
        ORDER BY e.created_at DESC
-       LIMIT 200`,
-      [entityType || null, entityId],
+       ${limitOffsetSql(pagination, params)}`,
+      params,
     );
-    return successResponse({ records: result.rows });
+    if (pagination.isExport) {
+      return spreadsheetResponse(result.rows, {
+        filename: "evidence",
+        format: pagination.format,
+        columns: [
+          { key: "entity_type", label: "Entity type" },
+          { key: "entity_id", label: "Entity ID" },
+          { key: "file_name", label: "File name" },
+          { key: "file_url", label: "File URL" },
+          { key: "mime_type", label: "Type" },
+          { key: "signature_data", label: "Signed", value: (r) => (r.signature_data ? "Yes" : "No") },
+          { key: "uploaded_by_name", label: "Uploaded by" },
+          { key: "created_at", label: "Uploaded" },
+        ],
+      });
+    }
+    return successResponse(pagedPayload(result.rows, pagination));
   } catch (error) {
     console.error("[construction evidence GET]", error);
     return errorResponse("Evidence could not be loaded");

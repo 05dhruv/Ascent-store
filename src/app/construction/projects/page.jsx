@@ -1,11 +1,14 @@
 "use client";
+import Icon from "@/components/Icon";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import ProjectCreateDialog from "@/components/construction/ProjectCreateDialog";
 import { MetricCard, StatusBadge } from "@/components/ui/WorkspaceUI";
 import ConstructionShell from "@/components/construction/ConstructionShell";
 import FilterBar, { FilterSelect } from "@/components/ui/FilterBar";
+import Pagination from "@/components/ui/Pagination";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 
 const emptyForm = {
   projectCode: "",
@@ -48,28 +51,43 @@ function projectTimeline(project) {
 }
 
 export default function ProjectsPage() {
-  const [records, setRecords] = useState([]);
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [clientFilter, setClientFilter] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
 
-  const load = () =>
-    fetch("/api/construction/projects", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((json) => {
-        const list = json.data?.records || [];
-        setRecords(list);
-      })
-      .catch((err) => console.error("[projects load]", err));
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const list = usePagedList("/api/construction/projects", {
+    pageSize: 10,
+    params: {
+      search: debouncedSearch,
+      status: statusFilter === "all" ? "" : statusFilter,
+      client: clientFilter === "all" ? "" : clientFilter,
+    },
+  });
+  const records = list.records;
+  const loading = list.loading && !records.length;
+  const loadError = list.error;
+  const summary = list.extra.summary || {};
+  const stats = {
+    totalProjects: summary.totalProjects || 0,
+    totalSites: summary.totalSites || 0,
+    totalStock: Number(summary.totalStock || 0),
+    totalInTransit: summary.totalInTransit || 0,
+  };
+  const clientOptions = summary.clients || [];
 
   useEffect(() => {
-    load();
     fetch("/api/auth/users", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : []))
       .then((data) => setUsers(Array.isArray(data) ? data : []))
@@ -123,7 +141,7 @@ export default function ProjectsPage() {
       setMessage(
         "Project and Site Store created successfully! Site Store is active for stock transfers.",
       );
-      await load();
+      await list.refresh();
     } catch (error) {
       setErrorMessage(error.message || "Unable to create project");
     } finally {
@@ -131,51 +149,17 @@ export default function ProjectsPage() {
     }
   }
 
-  const filteredRecords = useMemo(() => {
-    return records.filter((proj) => {
-      const matchesSearch =
-        !searchQuery ||
-        proj.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        proj.project_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        proj.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        proj.sites?.some(
-          (s) =>
-            s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.site_code?.toLowerCase().includes(searchQuery.toLowerCase()),
-        );
-
-      const matchesStatus =
-        statusFilter === "all" || proj.status === statusFilter;
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        (clientFilter === "all" ||
-          (proj.client_name || "Direct / Self") === clientFilter)
-      );
-    });
-  }, [records, searchQuery, statusFilter, clientFilter]);
-
-  const stats = useMemo(() => {
-    const totalProjects = records.length;
-    let totalSites = 0;
-    let totalStock = 0;
-    let totalInTransit = 0;
-
-    records.forEach((p) => {
-      totalSites += p.sites?.length || p.site_count || 0;
-      totalStock += Number(p.total_site_stock || 0);
-      totalInTransit += Number(p.total_in_transit || 0);
-    });
-
-    return { totalProjects, totalSites, totalStock, totalInTransit };
-  }, [records]);
-
   return (
     <ConstructionShell
       title="Projects & Site Stores"
       subtitle="Manage construction projects, site stores, warehouse dispatch, and field activity."
       breadcrumb={[{ label: "Projects" }]}
       actions={[
+        {
+          label: "Download",
+          icon: "ti ti-download",
+          onClick: () => downloadFromUrl(list.exportUrl()),
+        },
         {
           label: "New Project",
           icon: "ti ti-plus",
@@ -243,7 +227,7 @@ export default function ProjectsPage() {
               onSearchChange={setSearchQuery}
               searchPlaceholder="Search projects by name, code, client, or site store..."
               searchLabel="Search projects"
-              count={filteredRecords.length}
+              count={list.total}
               countLabel="Project"
             >
               <FilterSelect
@@ -263,17 +247,35 @@ export default function ProjectsPage() {
                 value={clientFilter}
                 onChange={setClientFilter}
                 allLabel="All Clients"
-                options={[
-                  ...new Set(records.map((p) => p.client_name || "Direct / Self")),
-                ].sort()}
+                options={clientOptions}
               />
             </FilterBar>
 
             {/* Project List Cards */}
-            {filteredRecords.length === 0 ? (
+            {loadError ? (
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {loadError}
+              </p>
+            ) : null}
+            {loading ? (
+              <div className="space-y-4" aria-busy="true" aria-label="Loading projects">
+                {[0, 1].map((key) => (
+                  <div key={key} className="ui-card animate-pulse">
+                    <div className="flex gap-4">
+                      <div className="hidden h-20 w-24 rounded-xl bg-slate-100 sm:block" />
+                      <div className="flex-1 space-y-3">
+                        <div className="h-4 w-1/3 rounded bg-slate-100" />
+                        <div className="h-3 w-1/2 rounded bg-slate-100" />
+                        <div className="h-2 w-full rounded bg-slate-100" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : records.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-400 shadow-xs">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                  <i className="ti ti-folder-off text-2xl" />
+                  <Icon name="ti ti-folder-off text-2xl" />
                 </div>
                 <p className="mt-3 font-bold text-slate-700">
                   No construction projects found
@@ -284,7 +286,7 @@ export default function ProjectsPage() {
                 </p>
               </div>
             ) : (
-              filteredRecords.map((project) => {
+              records.map((project) => {
                 const sites = project.sites || [];
                 const budgetNum = Number(project.budget || 0);
 
@@ -297,7 +299,7 @@ export default function ProjectsPage() {
                           className="hidden h-20 w-24 shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,#1e3a5f,#0f2740)] text-white/80 sm:grid"
                           aria-hidden="true"
                         >
-                          <i className="ti ti-building-skyscraper text-[34px]" />
+                          <Icon name="ti ti-building-skyscraper text-[34px]" />
                         </div>
                         <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -344,10 +346,7 @@ export default function ProjectsPage() {
                     <div className="project-inline-stats">
                       <div className="px-1">
                         <p className="text-[11px] font-medium text-slate-400">
-                          <i
-                            className="ti ti-package mr-1"
-                            aria-hidden="true"
-                          />
+                          <Icon name="ti ti-package mr-1" aria-hidden="true" />
                           On-Site Stock
                         </p>
                         <p className="mt-0.5 text-base font-black text-slate-900">
@@ -362,7 +361,7 @@ export default function ProjectsPage() {
 
                       <div className="px-1">
                         <p className="text-[11px] font-medium text-blue-700">
-                          <i className="ti ti-truck mr-1" aria-hidden="true" />
+                          <Icon name="ti ti-truck mr-1" aria-hidden="true" />
                           Transferred In
                         </p>
                         <p className="mt-0.5 text-base font-black text-blue-900">
@@ -377,7 +376,7 @@ export default function ProjectsPage() {
 
                       <div className="px-1">
                         <p className="text-[11px] font-medium text-emerald-700">
-                          <i className="ti ti-hammer mr-1" aria-hidden="true" />
+                          <Icon name="ti ti-hammer mr-1" aria-hidden="true" />
                           Material Consumed
                         </p>
                         <p className="mt-0.5 text-base font-black text-emerald-900">
@@ -392,10 +391,7 @@ export default function ProjectsPage() {
 
                       <div className="px-1">
                         <p className="text-[11px] font-medium text-amber-700">
-                          <i
-                            className="ti ti-hourglass mr-1"
-                            aria-hidden="true"
-                          />
+                          <Icon name="ti ti-hourglass mr-1" aria-hidden="true" />
                           In Transit
                         </p>
                         <p className="mt-0.5 text-base font-black text-amber-900">
@@ -413,7 +409,7 @@ export default function ProjectsPage() {
                         <div className="mb-4">
                           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
                             <span>
-                              <i className="ti ti-calendar mr-1" aria-hidden="true" />
+                              <Icon name="ti ti-calendar mr-1" aria-hidden="true" />
                               {formatDate(project.start_date || project.created_at) || "—"}
                               {" → "}
                               {formatDate(project.expected_end_date) || "End date not set"}
@@ -499,7 +495,7 @@ export default function ProjectsPage() {
                                     className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 py-2 text-xs font-bold text-amber-900 transition hover:bg-amber-100 text-center"
                                     title="View Material Movement and Stock Balance Report"
                                   >
-                                    <i className="ti ti-chart-bar text-amber-700" />
+                                    <Icon name="ti ti-chart-bar text-amber-700" />
                                     <span>Stock Report</span>
                                   </Link>
                                 ) : (
@@ -511,7 +507,7 @@ export default function ProjectsPage() {
                                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-2.5 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-100 text-center"
                                   title="Transfer material from Central Warehouse to this Site Store"
                                 >
-                                  <i className="ti ti-truck text-blue-700" />
+                                  <Icon name="ti ti-truck text-blue-700" />
                                   <span>Transfer Stock</span>
                                 </Link>
 
@@ -520,7 +516,7 @@ export default function ProjectsPage() {
                                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100 text-center"
                                   title="Raise Material Requisition for this Site"
                                 >
-                                  <i className="ti ti-clipboard-text text-slate-600" />
+                                  <Icon name="ti ti-clipboard-text text-slate-600" />
                                   <span>Requisition</span>
                                 </Link>
 
@@ -529,7 +525,7 @@ export default function ProjectsPage() {
                                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-2 text-xs font-bold text-emerald-900 transition hover:bg-emerald-100 text-center"
                                   title="Record Material Consumption at this Site"
                                 >
-                                  <i className="ti ti-hammer text-emerald-700" />
+                                  <Icon name="ti ti-hammer text-emerald-700" />
                                   <span>Issue Material</span>
                                 </Link>
                               </div>
@@ -541,6 +537,12 @@ export default function ProjectsPage() {
                   </div>
                 );
               })
+            )}
+            {!loading && list.total > 0 && (
+              <Pagination
+                {...list.pagination}
+                className="rounded-2xl border border-slate-200/90 bg-white"
+              />
             )}
           </div>
         </div>

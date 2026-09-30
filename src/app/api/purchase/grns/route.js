@@ -5,6 +5,8 @@ import { ensureInventoryBatchSchema } from '@/lib/inventoryBatching';
 import { ensurePurchaseOrderSchema } from '@/lib/purchaseOrderSchema';
 import { appendStoreScope, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
 import { toDateInputValue } from '@/lib/dateUtils';
+import { successResponse } from '@/lib/api-response';
+import { getPagination, limitOffsetSql, pagedPayload, spreadsheetResponse } from '@/lib/pagination';
 
 function normalizeDate(value) {
   return toDateInputValue(value) || null;
@@ -24,6 +26,16 @@ export async function GET(request) {
     const params = [];
     const scope = appendStoreScope(where, params, 's.destination_id', auth.user);
     if (scope.error) return scope.error;
+    const sp = new URL(request.url).searchParams;
+    const pagination = getPagination(sp, { legacyLimit: 200 });
+    const search = String(sp.get('search') || '').trim();
+    if (search) {
+      params.push(`%${search}%`);
+      const p = `$${params.length}`;
+      where.push(`(s.id::text ILIKE ${p} OR s.transaction_id ILIKE ${p} OR s.invoice_number ILIKE ${p}
+        OR st.name ILIKE ${p} OR s.vendor_name ILIKE ${p} OR s.reference_type ILIKE ${p}
+        OR s.reference_id::text ILIKE ${p})`);
+    }
     const whereSql = `WHERE ${where.join(' AND ')}`;
 
     const res = await query(
@@ -44,14 +56,15 @@ export async function GET(request) {
         s.created_at,
         st.name AS destination_name,
         COALESCE(SUM(si.qty), 0) AS item_qty_sum,
-        COALESCE(SUM(si.qty * si.cost_price), 0) AS items_cost_sum
+        COALESCE(SUM(si.qty * si.cost_price), 0) AS items_cost_sum,
+        COUNT(*) OVER() AS __total
       FROM stock_in s
       LEFT JOIN stores st ON st.id = s.destination_id
       LEFT JOIN stock_in_items si ON si.stock_in_id = s.id
       ${whereSql}
       GROUP BY s.id, st.name
       ORDER BY s.confirmed_at DESC NULLS LAST, s.created_at DESC
-      LIMIT 200`,
+      ${limitOffsetSql(pagination, params)}`,
       params
     );
 
@@ -72,10 +85,34 @@ export async function GET(request) {
         vendorName: row.vendor_name,
         totalTax: Number(row.total_tax || 0),
         createdAt: row.created_at,
+        __total: row.__total,
       };
     });
 
-    return NextResponse.json(records);
+    if (pagination.isExport) {
+      return spreadsheetResponse(records, {
+        filename: 'grn',
+        format: pagination.format,
+        sheetName: 'GRN',
+        columns: [
+          { key: 'transactionId', label: 'Transaction ID' },
+          { key: 'invoiceNumber', label: 'Invoice Number' },
+          { key: 'destination', label: 'Destination' },
+          { key: 'vendorName', label: 'Vendor' },
+          { key: 'invoiceDate', label: 'Invoice Date', value: (r) => normalizeDate(r.invoiceDate) || '' },
+          { key: 'totalItems', label: 'Total Item Number' },
+          { key: 'cost', label: 'Cost' },
+          { key: 'totalTax', label: 'Total Tax' },
+          { key: 'referenceType', label: 'Reference Transaction Type' },
+          { key: 'referenceId', label: 'Reference ID' },
+          { key: 'createdAt', label: 'Created At' },
+        ],
+      });
+    }
+    if (pagination.paged) {
+      return successResponse(pagedPayload(records, pagination));
+    }
+    return NextResponse.json(records.map(({ __total, ...row }) => row));
   } catch (err) {
     console.error('[grns GET]', err.message);
     return NextResponse.json([], { status: 200 });

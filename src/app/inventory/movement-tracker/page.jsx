@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import MainLayout from "@/components/MainLayout";
+import Pagination from "@/components/ui/Pagination";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 
 const input = "rounded border border-slate-300 p-2 text-sm w-full";
 const button =
@@ -11,43 +13,26 @@ const button =
 const pretty = (value) => String(value || "").replaceAll("_", " ");
 const num = (value) =>
   Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 3 });
-function exportRows(rows) {
-  if (!rows.length) return;
-  const keys = Object.keys(rows[0]).filter(
-    (k) => typeof rows[0][k] !== "object",
-  );
-  const escape = (value) =>
-    '"' +
-    String(value ?? "")
-      .replace(/^[=+@-]/, "'$&")
-      .replaceAll('"', '""') +
-    '"';
-  const csv = [keys, ...rows.map((row) => keys.map((k) => row[k]))]
-    .map((row) => row.map(escape).join(","))
-    .join("\r\n");
-  const url = URL.createObjectURL(
-    new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }),
-  );
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "material-movement.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}
+const EMPTY_FILTERS = {
+  search: "",
+  store: "",
+  project: "",
+  from: "",
+  to: "",
+};
 
 export default function MovementTracker() {
   const attempts = useRef(new Map());
-  const [data, setData] = useState(null),
-    [tab, setTab] = useState("transfers"),
-    [filters, setFilters] = useState({
-      search: "",
-      store: "",
-      project: "",
-      from: "",
-      to: "",
-    });
+  const [tab, setTab] = useState("transfers"),
+    [filters, setFilters] = useState(EMPTY_FILTERS),
+    [appliedFilters, setAppliedFilters] = useState(EMPTY_FILTERS);
+  const list = usePagedList("/api/inventory/movement-tracker", {
+    params: { ...appliedFilters, view: tab },
+    pageSize: 50,
+  });
+  const data = list.extra;
+  const loading = list.loading;
   const [error, setError] = useState(""),
-    [loading, setLoading] = useState(false),
     [detail, setDetail] = useState(null),
     [busy, setBusy] = useState(false);
   const [form, setForm] = useState({}),
@@ -55,25 +40,18 @@ export default function MovementTracker() {
     [notice, setNotice] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [scanCode, setScanCode] = useState("");
-  async function load() {
-    setLoading(true);
+  function load() {
     setError("");
-    try {
-      const r = await fetch(
-        "/api/inventory/movement-tracker?" + new URLSearchParams(filters),
-      );
-      const json = await r.json();
-      if (!r.ok) throw new Error(json.error);
-      setData(json);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
+    return list.refresh();
+  }
+  function applyFilters() {
+    setError("");
+    if (JSON.stringify(filters) === JSON.stringify(appliedFilters)) {
+      list.refresh();
+    } else {
+      setAppliedFilters({ ...filters });
     }
   }
-  useEffect(() => {
-    load();
-  }, []);
   async function open(id) {
     setError("");
     setBusy(true);
@@ -189,7 +167,7 @@ export default function MovementTracker() {
       }),
     );
   }
-  const rows = data?.[tab] || [],
+  const rows = data?.view === tab ? list.records : [],
     state = detail?.transfer.workflow_status;
   const receiving = ["dispatched", "partially_received"].includes(state);
   const usableExcessApprovals = (detail?.events || [])
@@ -263,9 +241,9 @@ export default function MovementTracker() {
             </Link>
           </div>
         </div>
-        {error && (
+        {(error || list.error) && (
           <p role="alert" className="rounded bg-red-50 p-3 text-red-800">
-            {error}
+            {error || list.error}
           </p>
         )}
         {notice && (
@@ -276,7 +254,7 @@ export default function MovementTracker() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            load();
+            applyFilters();
           }}
           className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6"
         >
@@ -336,9 +314,9 @@ export default function MovementTracker() {
           ))}
           <button
             className="ml-auto text-indigo-700"
-            onClick={() => exportRows(rows)}
+            onClick={() => downloadFromUrl(list.exportUrl())}
           >
-            Export displayed rows
+            Export
           </button>
         </div>
         {tab === "buckets" && (
@@ -354,12 +332,6 @@ export default function MovementTracker() {
             Recorded balance follows retained movement history, including
             isolated stock. Historical corrections before this workflow may
             require opening reconciliation.
-          </p>
-        )}
-        {data?.truncated && (
-          <p className="text-amber-800">
-            Showing up to 500 rows per report. Narrow the filters for a complete
-            export.
           </p>
         )}
         <div className="overflow-auto rounded border">
@@ -442,6 +414,7 @@ export default function MovementTracker() {
               No records match these filters.
             </p>
           )}
+          <Pagination {...list.pagination} />
         </div>
         {detail &&
           typeof document !== "undefined" &&

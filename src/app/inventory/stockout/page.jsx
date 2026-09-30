@@ -1,4 +1,5 @@
 "use client";
+import { confirmDialog } from "@/lib/notify";
 
 import { RequiredMark } from "@/components/ui/FormField";
 
@@ -7,7 +8,8 @@ import InventoryShell from '@/components/inventory/InventoryShell';
 import SearchableSelect from '@/components/SearchableSelect';
 import { getBulkField, parseBulkSheet, pickSpreadsheetFile, toBoolean } from '@/lib/bulkSheet';
 import { formatIndianDate } from '@/lib/dateUtils';
-import { fetchAllInventoryProducts } from '@/lib/productPagination';
+import { fetchAllInventoryProducts } from '@/lib/productPagination';
+import { downloadFromUrl, usePagedList } from '@/hooks/usePagedList';
 import Icon from "@/components/Icon";
 
 async function fetchStores() {
@@ -15,12 +17,6 @@ async function fetchStores() {
   if (!res.ok) throw new Error('Failed to fetch stores');
   const json = await res.json();
   return json.data?.records || json.data?.stores || json.stores || [];
-}
-
-async function fetchStockOutList() {
-  const res = await fetch('/api/inventory/stockout');
-  if (!res.ok) throw new Error('Failed to fetch stock out records');
-  return res.json();
 }
 
 async function fetchInventoryProducts(storeId, searchTerm, filters = {}) {
@@ -122,9 +118,9 @@ export default function StockOutPage() {
   const [applyTaxes, setApplyTaxes] = useState(true);
   const [addProductsPrefill, setAddProductsPrefill] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [tableData, setTableData] = useState([]);
-  const [loadingList, setLoadingList] = useState(true);
   const [listFilters, setListFilters] = useState({ dateFrom: '', dateTo: '', source: '' });
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [previewEntry, setPreviewEntry] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
@@ -142,32 +138,18 @@ export default function StockOutPage() {
   const [deletingId, setDeletingId] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
 
-  const visibleTableData = useMemo(() => {
-    return tableData.filter((row) => {
-      const invoiceTime = row._invoiceDate ? new Date(row._invoiceDate).getTime() : null;
-      if (listFilters.dateFrom && invoiceTime && invoiceTime < new Date(listFilters.dateFrom).getTime()) return false;
-      if (listFilters.dateTo && invoiceTime && invoiceTime > new Date(`${listFilters.dateTo}T23:59:59`).getTime()) return false;
-      if (listFilters.source && String(row._source || '') !== listFilters.source) return false;
-      return true;
-    });
-  }, [tableData, listFilters]);
-
-  const sourceOptions = useMemo(
-    () => Array.from(new Set(tableData.map((row) => row._source).filter(Boolean))).sort(),
-    [tableData]
-  );
-
-  const loadList = () => {
-    setLoadingList(true);
-    fetchStockOutList()
-      .then((data) => setTableData(mapRecordsToTable(data)))
-      .catch(() => setTableData([]))
-      .finally(() => setLoadingList(false));
-  };
-
   useEffect(() => {
-    loadList();
-  }, []);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const list = usePagedList('/api/inventory/stockout', {
+    params: { ...listFilters, search: debouncedSearch },
+  });
+  const loadingList = list.loading;
+  const tableData = useMemo(() => mapRecordsToTable(list.records), [list.records]);
+  const sourceOptions = list.extra.referenceTypes || [];
+  const loadList = () => list.refresh();
 
   useEffect(() => {
     if (!showModal) return;
@@ -371,8 +353,9 @@ export default function StockOutPage() {
       alert('This POS stock movement is controlled by its sales bill. Delete the related bill instead.');
       return;
     }
-    const confirmed = window.confirm(
+    const confirmed = await confirmDialog(
       `Delete ${row['Transaction ID'] || 'this stock out'}? Confirmed quantities will be restored to the source store.`,
+      { title: 'Delete stock out', confirmLabel: 'Delete', danger: true },
     );
     if (!confirmed) return;
 
@@ -440,8 +423,12 @@ export default function StockOutPage() {
           </>
         )}
         tableHeaders={tableHeaders}
-        tableData={loadingList ? [] : visibleTableData}
+        tableData={loadingList ? [] : tableData}
         emptyMessage={loadingList ? 'Loading records...' : 'No Records Found'}
+        searchValue={search}
+        onSearchChange={setSearch}
+        onDownload={() => downloadFromUrl(list.exportUrl())}
+        pagination={list.pagination}
         rowActions={(row) => (
           <div className="flex flex-wrap justify-end gap-2">
             <button type="button" onClick={() => openPreview(row)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50">

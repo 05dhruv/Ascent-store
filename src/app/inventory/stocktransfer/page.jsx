@@ -1,9 +1,11 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { RequiredMark } from "@/components/ui/FormField";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import InventoryShell from "@/components/inventory/InventoryShell";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import {
   getBulkField,
   parseBulkSheet,
@@ -33,10 +35,10 @@ async function fetchStores() {
   );
 }
 
-async function fetchTransfers(sourceId = "", destinationId = "") {
-  const params = new URLSearchParams();
-  if (sourceId) params.set("sourceId", sourceId);
-  if (destinationId) params.set("destinationId", destinationId);
+async function fetchTransfers(filters = {}) {
+  const params = new URLSearchParams(
+    Object.entries(filters).filter(([, value]) => value),
+  );
   const query = params.size ? `?${params.toString()}` : "";
   const res = await fetch(`/api/inventory/stocktransfer${query}`);
   if (!res.ok) throw new Error("Failed to fetch stock transfers");
@@ -548,9 +550,10 @@ export default function StockTransferPage() {
   const createTransferLockRef = useRef(false);
   const createTransferRequestKeyRef = useRef(null);
   const [loadingStores, setLoadingStores] = useState(false);
-  const [loadingList, setLoadingList] = useState(true);
-  const [tableData, setTableData] = useState([]);
   const [draftId, setDraftId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedBrand, setDebouncedBrand] = useState("");
   const [listFilters, setListFilters] = useState({
     dateFrom: "",
     dateTo: "",
@@ -589,44 +592,41 @@ export default function StockTransferPage() {
       .catch(() => setCurrentUser(null));
   }, []);
 
-  const visibleTableData = useMemo(() => {
-    return tableData.filter((row) => {
-      const invoiceTime = row._invoiceDate
-        ? new Date(row._invoiceDate).getTime()
-        : null;
-      if (
-        listFilters.dateFrom &&
-        invoiceTime &&
-        invoiceTime < new Date(listFilters.dateFrom).getTime()
-      )
-        return false;
-      if (
-        listFilters.dateTo &&
-        invoiceTime &&
-        invoiceTime > new Date(`${listFilters.dateTo}T23:59:59`).getTime()
-      )
-        return false;
-      if (
-        listFilters.source &&
-        String(row._sourceId || "") !== listFilters.source
-      )
-        return false;
-      if (
-        listFilters.destination &&
-        String(row._destinationId || "") !== listFilters.destination
-      )
-        return false;
-      if (
-        listFilters.brand.trim() &&
-        !String(row._brands || "")
-          .toLowerCase()
-          .includes(listFilters.brand.trim().toLowerCase())
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [tableData, listFilters]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setDebouncedBrand(listFilters.brand.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, listFilters.brand]);
+
+  const listParams = useMemo(
+    () => ({
+      dateFrom: listFilters.dateFrom,
+      dateTo: listFilters.dateTo,
+      sourceId: listFilters.source,
+      destinationId: listFilters.destination,
+      brand: debouncedBrand,
+      search: debouncedSearch,
+    }),
+    [
+      listFilters.dateFrom,
+      listFilters.dateTo,
+      listFilters.source,
+      listFilters.destination,
+      debouncedBrand,
+      debouncedSearch,
+    ],
+  );
+  const pagedList = usePagedList("/api/inventory/stocktransfer", {
+    params: listParams,
+  });
+  const loadingList = pagedList.loading;
+  const tableData = useMemo(
+    () => mapTransfersToTable(pagedList.records),
+    [pagedList.records],
+  );
+  const visibleTableData = tableData;
 
   const sourceOptions = useMemo(() => {
     const options = new Map();
@@ -662,32 +662,9 @@ export default function StockTransferPage() {
     );
   }, [stores, tableData, transferFilterOptions.destinations]);
 
-  const brandOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          tableData.flatMap((row) =>
-            String(row._brands || "")
-              .split(",")
-              .map((brand) => brand.trim())
-              .filter(Boolean),
-          ),
-        ),
-      ).sort(),
-    [tableData],
-  );
+  const brandOptions = pagedList.extra.brandOptions || [];
 
-  const loadList = (sourceId = "", destinationId = "") => {
-    setLoadingList(true);
-    fetchTransfers(sourceId, destinationId)
-      .then((records) => setTableData(mapTransfersToTable(records)))
-      .catch(() => setTableData([]))
-      .finally(() => setLoadingList(false));
-  };
-
-  useEffect(() => {
-    loadList(listFilters.source, listFilters.destination);
-  }, [listFilters.source, listFilters.destination]);
+  const loadList = () => pagedList.refresh();
 
   useEffect(() => {
     fetchStores()
@@ -1310,7 +1287,7 @@ export default function StockTransferPage() {
         confirmed,
         approvalHolds,
       });
-      loadList(listFilters.source, listFilters.destination);
+      loadList();
     } catch (err) {
       console.error(err);
       setBulkImportResult({
@@ -1411,7 +1388,7 @@ export default function StockTransferPage() {
       await updateTransferDetails(editTransfer.id, editForm);
       setEditTransfer(null);
       alert("Stock transfer updated successfully.");
-      loadList(listFilters.source, listFilters.destination);
+      loadList();
     } catch (err) {
       console.error(err);
       alert(err.message || "Failed to update stock transfer");
@@ -1432,13 +1409,14 @@ export default function StockTransferPage() {
   };
 
   const downloadVisibleBrandExcel = async () => {
-    if (!visibleTableData.length) {
-      alert("No stock transfers found for selected filters.");
-      return;
-    }
     try {
+      const rows = await fetchTransfers(listParams);
+      if (!Array.isArray(rows) || !rows.length) {
+        alert("No stock transfers found for selected filters.");
+        return;
+      }
       const transfers = await Promise.all(
-        visibleTableData.map((row) => fetchTransferDetails(row._id)),
+        rows.map((row) => fetchTransferDetails(row.id)),
       );
       await downloadTransferItemsWorkbook(transfers, listFilters.brand);
     } catch (err) {
@@ -1454,16 +1432,14 @@ export default function StockTransferPage() {
     const id = row?._id;
     if (!id) return;
     setRevertingId(id);
-    setLoadingList(true);
     try {
       const result = await revertTransfer(id);
       setPendingRevert(null);
       alert(result.message || "Stock transfer reverted successfully.");
-      loadList(listFilters.source, listFilters.destination);
+      loadList();
     } catch (err) {
       console.error(err);
       alert(err.message || "Failed to revert stock transfer");
-      setLoadingList(false);
     } finally {
       setRevertingId(null);
     }
@@ -1620,6 +1596,10 @@ export default function StockTransferPage() {
         tableHeaders={tableHeaders}
         tableData={loadingList ? [] : visibleTableData}
         emptyMessage={loadingList ? "Loading records..." : "No Records Found"}
+        searchValue={search}
+        onSearchChange={setSearch}
+        onDownload={() => downloadFromUrl(pagedList.exportUrl())}
+        pagination={pagedList.pagination}
         rowActions={(row) => {
           const userPermissions = Array.isArray(currentUser?.permissions)
             ? currentUser.permissions
@@ -1683,7 +1663,7 @@ export default function StockTransferPage() {
                 className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
                 aria-label="Close"
               >
-                <i className="ti ti-x text-[24px]" />
+                <Icon name="ti ti-x text-[24px]" />
               </button>
             </div>
 
@@ -1769,7 +1749,7 @@ export default function StockTransferPage() {
           onClose={() => setDraftId(null)}
           onConfirmed={() => {
             setDraftId(null);
-            loadList(listFilters.source, listFilters.destination);
+            loadList();
           }}
         />
       )}
@@ -1796,7 +1776,7 @@ export default function StockTransferPage() {
               const result = await confirmTransfer(previewTransfer.id, {});
               const details = await fetchTransferDetails(previewTransfer.id);
               setPreviewTransfer(details);
-              loadList(listFilters.sourceId, listFilters.destinationId);
+              loadList();
               alert(
                 result?.success
                   ? "Approved transfer released and destination batches created."
@@ -2072,7 +2052,7 @@ function StockTransferPreviewDialog({
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
             aria-label="Close preview"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti ti-x text-[18px]" />
           </button>
         </div>
 
@@ -2281,7 +2261,7 @@ function StockTransferEditDialog({
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
             aria-label="Close edit dialog"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti ti-x text-[18px]" />
           </button>
         </div>
 
@@ -2417,7 +2397,7 @@ function BulkTransferResultDialog({ result, onClose }) {
           <span
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone.bg} ${tone.text}`}
           >
-            <i className={`ti ${tone.icon} text-[22px]`} />
+            <Icon name={`ti ${tone.icon} text-[22px]`} />
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-[16px] font-black text-slate-900">
@@ -2433,7 +2413,7 @@ function BulkTransferResultDialog({ result, onClose }) {
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
             aria-label="Close dialog"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti ti-x text-[18px]" />
           </button>
         </div>
 
@@ -2523,7 +2503,7 @@ function RevertConfirmDialog({ row, busy, onCancel, onConfirm }) {
       >
         <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700">
-            <i className="ti ti-rotate-2 text-[22px]" />
+            <Icon name="ti ti-rotate-2 text-[22px]" />
           </span>
           <div className="min-w-0 flex-1">
             <h2
@@ -2543,7 +2523,7 @@ function RevertConfirmDialog({ row, busy, onCancel, onConfirm }) {
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
             aria-label="Close dialog"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti ti-x text-[18px]" />
           </button>
         </div>
 
@@ -2605,7 +2585,7 @@ function SelectBox({ value, onChange, placeholder, stores, loading }) {
         )}
       </select>
       <span className="absolute right-10 top-2 h-6 border-l border-gray-300" />
-      <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-gray-400" />
+      <Icon name="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-gray-400" />
     </div>
   );
 }
@@ -2808,7 +2788,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
         <div className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
           <div className="flex items-center gap-2 text-[13px]">
             <span className="text-slate-500">Material Movement</span>
-            <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+            <Icon name="ti ti-chevron-right text-[11px] text-gray-400" />
             <span className="font-semibold text-gray-900">
               Transfer to Site
             </span>
@@ -2819,7 +2799,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
             className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
             aria-label="Close line items"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti ti-x text-[18px]" />
           </button>
         </div>
 
@@ -2895,7 +2875,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
 
             <main className="flex min-w-0 flex-col">
               <div className="mb-4 flex flex-shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-                <i className="ti ti-search text-[16px] text-gray-400" />
+                <Icon name="ti ti-search text-[16px] text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search"
@@ -2923,7 +2903,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
                       onChange={(e) => setCartFilter(e.target.value)}
                       className="min-w-0 flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
                     />
-                    <i className="ti ti-search text-[15px] text-gray-400" />
+                    <Icon name="ti ti-search text-[15px] text-gray-400" />
                   </div>
                 </div>
 
@@ -3033,7 +3013,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
                                 }
                                 className="rounded p-1.5 text-red-500 hover:bg-red-50"
                               >
-                                <i className="ti ti-trash text-[16px]" />
+                                <Icon name="ti ti-trash text-[16px]" />
                               </button>
                             </td>
                           </tr>
@@ -3074,7 +3054,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
                 className="rounded-lg border border-gray-200 p-2.5 text-gray-600 transition-colors hover:bg-gray-50"
                 title="Clear cart"
               >
-                <i className="ti ti-trash text-[18px]" />
+                <Icon name="ti ti-trash text-[18px]" />
               </button>
             </div>
           </div>

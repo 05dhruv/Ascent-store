@@ -1,4 +1,5 @@
 "use client";
+import { confirmDialog } from "@/lib/notify";
 
 import { RequiredMark } from "@/components/ui/FormField";
 
@@ -18,8 +19,10 @@ import {
   normalizeVendors,
 } from "@/lib/purchaseLookups";
 import { formatIndianDate } from "@/lib/dateUtils";
-import { addCalendarDays, getIndiaDate } from "@/lib/vendorCreditTerms";
+import { addCalendarDays, getIndiaDate } from "@/lib/vendorCreditTerms";
 import Icon from "@/components/Icon";
+import Pagination from "@/components/ui/Pagination";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 
 let XLSX = null;
 async function ensureXlsx() {
@@ -197,57 +200,19 @@ function mapRecordsToTable(records) {
   }));
 }
 
-function parseDateInput(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
-}
-
-function getDateWindow(range) {
-  const now = new Date();
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-
-  if (range === "last-7-days") {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 7);
-    start.setHours(0, 0, 0, 0);
-    return { start, end };
+function dateRangeParams(filters) {
+  if (filters.dateRange === "custom") {
+    return { dateFrom: filters.customStart, dateTo: filters.customEnd };
   }
-
-  if (range === "last-30-days") {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 30);
-    start.setHours(0, 0, 0, 0);
-    return { start, end };
-  }
-
-  return { start: null, end: null };
-}
-
-function isWithinRange(value, range) {
-  const date = parseDateInput(value);
-  if (!date || range === "all") return true;
-
-  if (range.type === "custom") {
-    if (range.start && date < range.start) return false;
-    if (range.end && date > range.end) return false;
-    return true;
-  }
-
-  if (range.type === "preset") {
-    if (!range.start || !range.end) return true;
-    return date >= range.start && date <= range.end;
-  }
-
-  return true;
-}
-
-async function fetchPurchaseOrders() {
-  const res = await fetch("/api/purchase-orders");
-  if (!res.ok) throw new Error("Failed to fetch purchase orders");
-  return res.json();
+  const days =
+    filters.dateRange === "last-7-days"
+      ? 7
+      : filters.dateRange === "last-30-days"
+        ? 30
+        : 0;
+  if (!days) return {};
+  const today = getIndiaDate();
+  return { dateFrom: addCalendarDays(today, -days), dateTo: today };
 }
 
 async function createPurchaseOrder(payload) {
@@ -314,9 +279,8 @@ export default function PurchaseOrdersPage() {
   const [loadingLookups, setLoadingLookups] = useState(false);
   const [stores, setStores] = useState([]);
   const [vendors, setVendors] = useState([]);
-  const [loadingList, setLoadingList] = useState(true);
-  const [records, setRecords] = useState([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [reqSaving, setReqSaving] = useState(false);
   const [requisitions, setRequisitions] = useState([]);
@@ -382,13 +346,26 @@ export default function PurchaseOrdersPage() {
       .then((res) => res.json())
       .then((json) => setCurrentUser(json.data?.user || json.user || null))
       .catch(() => setCurrentUser(null));
-
-    setLoadingList(true);
-    fetchPurchaseOrders()
-      .then((data) => setRecords(Array.isArray(data) ? data : []))
-      .catch(() => setRecords([]))
-      .finally(() => setLoadingList(false));
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const listParams = useMemo(
+    () => ({
+      search: debouncedSearch,
+      destinationId: filters.destination === "all" ? "" : filters.destination,
+      vendorId: filters.vendor === "all" ? "" : filters.vendor,
+      status: filters.status === "all" ? "" : filters.status,
+      ...dateRangeParams(filters),
+    }),
+    [debouncedSearch, filters],
+  );
+  const list = usePagedList("/api/purchase-orders", { params: listParams });
+  const filteredRecords = list.records;
+  const loadingList = list.loading;
 
   useEffect(() => {
     setLoadingLookups(true);
@@ -505,71 +482,6 @@ export default function PurchaseOrdersPage() {
   const handleApplyFilters = () => {
     setFilters(draftFilters);
   };
-
-  const filteredRecords = useMemo(() => {
-    const range = (() => {
-      if (filters.dateRange === "custom") {
-        return {
-          type: "custom",
-          start: parseDateInput(filters.customStart),
-          end: parseDateInput(filters.customEnd),
-        };
-      }
-
-      if (filters.dateRange === "last-7-days") {
-        const { start, end } = getDateWindow("last-7-days");
-        return { type: "preset", start, end };
-      }
-
-      if (filters.dateRange === "last-30-days") {
-        const { start, end } = getDateWindow("last-30-days");
-        return { type: "preset", start, end };
-      }
-
-      return "all";
-    })();
-
-    return records.filter((row) => {
-      const q = search.trim().toLowerCase();
-      const searchMatch =
-        !q ||
-        [
-          row.id,
-          row.transactionId,
-          row.destinationName,
-          row.vendorName,
-          row.invoiceNumber,
-          row.shipmentMode,
-          row.status,
-        ].some((value) =>
-          String(value ?? "")
-            .toLowerCase()
-            .includes(q),
-        );
-      const destinationMatch =
-        filters.destination === "all" ||
-        String(row.destinationId) === String(filters.destination);
-      const vendorMatch =
-        filters.vendor === "all" ||
-        String(row.vendorId) === String(filters.vendor);
-      const statusMatch =
-        filters.status === "all" ||
-        String(row.status || "").toLowerCase() ===
-          String(filters.status).toLowerCase();
-      const dateMatch = isWithinRange(
-        row.confirmedAt || row.createdAt || row.invoiceDate,
-        range,
-      );
-
-      return (
-        searchMatch &&
-        destinationMatch &&
-        vendorMatch &&
-        statusMatch &&
-        dateMatch
-      );
-    });
-  }, [filters, records, search]);
 
   const tableData = useMemo(
     () => mapRecordsToTable(filteredRecords),
@@ -962,13 +874,18 @@ export default function PurchaseOrdersPage() {
   const handleDeleteDraft = async (record) => {
     const label =
       record.transactionId || `PO-${String(record.id).padStart(4, "0")}`;
-    if (!confirm(`Delete draft ${label}?`)) return;
+    if (
+      !(await confirmDialog(`Delete draft ${label}?`, {
+        title: "Delete draft",
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    )
+      return;
 
     try {
       await deletePurchaseOrder(record.id);
-      setRecords((current) =>
-        current.filter((item) => String(item.id) !== String(record.id)),
-      );
+      await list.refresh();
     } catch (err) {
       alert(err.message || "Failed to delete purchase order");
     }
@@ -1174,7 +1091,20 @@ export default function PurchaseOrdersPage() {
               className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
             />
           </div>
+          <button
+            type="button"
+            onClick={() => downloadFromUrl(list.exportUrl())}
+            className="ml-auto flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-[12px] font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Icon name="ti-download" className="text-[14px]" />
+            Download
+          </button>
         </div>
+        {list.error && (
+          <div className="border-b border-red-100 bg-red-50 px-4 py-2 text-[12px] text-red-700">
+            {list.error}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1200px]">
@@ -1260,14 +1190,7 @@ export default function PurchaseOrdersPage() {
           </table>
         </div>
 
-        <div className="flex items-center gap-3 px-4 py-3 border-t border-gray-100 text-[12px] text-gray-400">
-          <select className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-[12px] text-gray-600">
-            <option>10</option>
-            <option>20</option>
-            <option>50</option>
-          </select>
-          <span>Showing {tableData.length} Results</span>
-        </div>
+        <Pagination {...list.pagination} />
       </div>
 
       {showModal && (

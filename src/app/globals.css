@@ -12,7 +12,7 @@
   --color-primary: #163b5c;
   --color-primary-dark: #0f2740;
   --color-sidebar: #0d2a42;
-  --color-accent: #f59e0b;
+  --color-accent: #f97316;
   --color-success: #2e8b57;
   --color-info: #3b82f6;
   --color-danger: #dc4c4c;
@@ -33,7 +33,7 @@
 @theme inline {
   --color-primary: #163b5c;
   --color-primary-dark: #0f2740;
-  --color-accent: #f59e0b;
+  --color-accent: #f97316;
   --color-workspace: #f4f7fa;
   --color-border: #e3eaf1;
   --color-background: var(--background);

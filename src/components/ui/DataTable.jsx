@@ -1,5 +1,7 @@
 "use client";
 
+import Pagination from "./Pagination";
+
 export function TableEmpty({ colSpan, message = "No records yet." }) {
   return (
     <tr>
@@ -19,6 +21,7 @@ const ALIGN = { left: "text-left", right: "text-right", center: "text-center" };
  * Two ways to use it:
  *  - Data mode: `columns=[{ key, label, render?, align?, className? }]` + `rows`.
  *  - Markup mode: `headers=["A", "B"]` + your own <tr> children.
+ * Pass `pagination` (from usePagedList) to show server-side page controls.
  */
 export default function DataTable({
   columns,
@@ -29,6 +32,7 @@ export default function DataTable({
   emptyMessage = "No records yet.",
   onRowClick,
   empty,
+  pagination,
   className = "",
   children,
 }) {
@@ -88,6 +92,7 @@ export default function DataTable({
         <tbody className="divide-y divide-slate-100">{body}</tbody>
       </table>
       {empty}
+      {pagination && <Pagination {...pagination} />}
     </div>
   );
 }

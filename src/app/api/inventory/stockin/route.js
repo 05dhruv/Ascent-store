@@ -12,6 +12,12 @@ import {
   requirePermission,
   requireStore,
 } from "@/lib/api-protection";
+import {
+  getPagination,
+  limitOffsetSql,
+  pagedPayload,
+  spreadsheetResponse,
+} from "@/lib/pagination";
 
 function isWarehouseMeta(meta) {
   return (
@@ -268,6 +274,7 @@ export async function GET(request) {
     const source = String(searchParams.get("source") || "").trim();
     const destination = String(searchParams.get("destination") || "").trim();
     const brand = String(searchParams.get("brand") || "").trim();
+    const pagination = getPagination(searchParams, { legacyLimit: 200 });
 
     if (search) {
       params.push(`%${search}%`);
@@ -486,7 +493,8 @@ export async function GET(request) {
           FILTER (WHERE b.name IS NOT NULL) AS brand_names,
         COUNT(DISTINCT si.product_id)::int AS item_count,
         COALESCE(SUM(si.qty), 0) AS item_qty_sum,
-        COALESCE(SUM(si.qty * si.cost_price), 0) AS items_cost_sum
+        COALESCE(SUM(si.qty * si.cost_price), 0) AS items_cost_sum,
+        COUNT(*) OVER() AS __total
       FROM stock_in s
       LEFT JOIN stores st ON st.id = s.destination_id
       LEFT JOIN users stock_in_user ON stock_in_user.id = COALESCE(
@@ -503,7 +511,7 @@ export async function GET(request) {
       WHERE ${whereClauses.join(" AND ")}
       GROUP BY s.id, st.name, stock_in_user.name, stock_in_user.email
       ORDER BY s.id DESC
-      LIMIT 200`,
+      ${limitOffsetSql(pagination, params)}`,
       params,
     );
 
@@ -554,6 +562,40 @@ export async function GET(request) {
         createdAt: row.created_at,
       };
     });
+
+    if (pagination.isExport) {
+      return spreadsheetResponse(records, {
+        filename: "stock-in",
+        format: pagination.format,
+        columns: [
+          { key: "transactionId", label: "GRN / Inward No" },
+          { key: "stockInBy", label: "Received By" },
+          { key: "createdAt", label: "Inward Date" },
+          { key: "invoiceNumber", label: "Challan / Invoice No" },
+          { key: "brandNames", label: "Brand / Make" },
+          { key: "vendorName", label: "Supplier / Vendor" },
+          { key: "destination", label: "Site / Warehouse" },
+          { key: "status", label: "Status" },
+          { key: "invoiceDate", label: "Challan / Invoice Date" },
+          { key: "itemCount", label: "Material Items" },
+          { key: "totalItems", label: "Received Quantity" },
+          { key: "cost", label: "Total Amount" },
+          { key: "totalTax", label: "Tax" },
+          { key: "referenceType", label: "PO / Ref Type" },
+          { key: "referenceId", label: "PO / Work Order No" },
+        ],
+      });
+    }
+
+    if (pagination.paged) {
+      return NextResponse.json({
+        success: true,
+        data: pagedPayload(
+          res.rows.map((row, index) => ({ ...records[index], __total: row.__total })),
+          pagination,
+        ),
+      });
+    }
 
     return NextResponse.json(records);
   } catch (err) {

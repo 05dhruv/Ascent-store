@@ -5,8 +5,10 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/MainLayout';
 import { fetchLookup, normalizeVendors } from '@/lib/purchaseLookups';
-import { formatIndianDate } from '@/lib/dateUtils';
+import { formatIndianDate } from '@/lib/dateUtils';
 import Icon from "@/components/Icon";
+import Pagination from '@/components/ui/Pagination';
+import { downloadFromUrl, usePagedList } from '@/hooks/usePagedList';
 
 const tableHeaders = [
   'Invoice ID',
@@ -49,12 +51,6 @@ function mapRecordsToTable(records) {
   }));
 }
 
-async function fetchVendorInvoices() {
-  const res = await fetch('/api/vendor-invoices', { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch vendor invoices');
-  return res.json();
-}
-
 async function settleVendorInvoice(payload) {
   const res = await fetch('/api/vendor-invoices', {
     method: 'PUT',
@@ -66,27 +62,11 @@ async function settleVendorInvoice(payload) {
   return data;
 }
 
-function exportCsv(rows) {
-  const headers = tableHeaders.filter((header) => header !== 'Actions');
-  const csv = [
-    headers.join(','),
-    ...mapRecordsToTable(rows).map((row) => headers.map((header) => `"${String(row[header] || '').replace(/"/g, '""')}"`).join(',')),
-  ].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `vendor-invoices-${new Date().toISOString().slice(0, 10)}.csv`;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 export default function VendorInvoicesPage() {
   const router = useRouter();
-  const [records, setRecords] = useState([]);
   const [vendors, setVendors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [vendorFilter, setVendorFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [error, setError] = useState('');
@@ -99,60 +79,33 @@ export default function VendorInvoicesPage() {
     remarks: '',
   });
   const [savingSettlement, setSavingSettlement] = useState(false);
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
-
-  const loadData = () => {
-    setLoading(true);
-    setError('');
-    Promise.allSettled([fetchVendorInvoices(), fetchLookup('/api/vendors')])
-      .then(([invoiceResult, vendorResult]) => {
-        if (invoiceResult.status === 'fulfilled') {
-          setRecords(Array.isArray(invoiceResult.value) ? invoiceResult.value : []);
-        } else {
-          setError(invoiceResult.reason?.message || 'Failed to load vendor invoices');
-          setRecords([]);
-        }
-
-        if (vendorResult.status === 'fulfilled') {
-          setVendors(normalizeVendors(vendorResult.value));
-        } else {
-          setError((current) => current || vendorResult.reason?.message || 'Failed to load vendors');
-          setVendors([]);
-        }
-      })
-      .finally(() => setLoading(false));
-  };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const filteredRecords = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return records.filter((row) => {
-      const vendorMatch = vendorFilter === 'all' || String(row.vendorId) === String(vendorFilter);
-      const statusMatch = statusFilter === 'all' || String(row.status || '').toLowerCase() === statusFilter.toLowerCase();
-      const searchMatch = !q || [row.transactionId, row.invoiceNumber, row.vendorName, row.status, row.remarks]
-        .filter(Boolean)
-        .some((field) => String(field).toLowerCase().includes(q));
-      return vendorMatch && statusMatch && searchMatch;
-    });
-  }, [records, search, vendorFilter, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const startRecord = filteredRecords.length ? (safePage - 1) * pageSize + 1 : 0;
-  const endRecord = Math.min(safePage * pageSize, filteredRecords.length);
-  const paginatedRecords = useMemo(() => {
-    const start = (safePage - 1) * pageSize;
-    return filteredRecords.slice(start, start + pageSize);
-  }, [filteredRecords, safePage]);
+  const listParams = useMemo(
+    () => ({
+      search: debouncedSearch,
+      vendorId: vendorFilter === 'all' ? '' : vendorFilter,
+      status: statusFilter === 'all' ? '' : statusFilter,
+    }),
+    [debouncedSearch, vendorFilter, statusFilter],
+  );
+  const list = usePagedList('/api/vendor-invoices', { params: listParams, pageSize: 10 });
+  const loading = list.loading;
+  const paginatedRecords = list.records;
   const tableData = useMemo(() => mapRecordsToTable(paginatedRecords), [paginatedRecords]);
 
   useEffect(() => {
-    setPage(1);
-  }, [search, vendorFilter, statusFilter]);
+    fetchLookup('/api/vendors')
+      .then((data) => setVendors(normalizeVendors(data)))
+      .catch((err) => {
+        setError(err?.message || 'Failed to load vendors');
+        setVendors([]);
+      });
+  }, []);
 
   const openSettlement = (invoice) => {
     setActiveInvoice(invoice);
@@ -177,7 +130,7 @@ export default function VendorInvoicesPage() {
         amount,
       });
       setActiveInvoice(null);
-      loadData();
+      list.refresh();
     } catch (err) {
       alert(err.message || 'Failed to settle invoice');
     } finally {
@@ -254,13 +207,13 @@ export default function VendorInvoicesPage() {
               className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
             />
           </div>
-          <button onClick={() => exportCsv(filteredRecords)} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors" title="Download CSV">
+          <button onClick={() => downloadFromUrl(list.exportUrl('csv'))} className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors" title="Download CSV">
             <Icon name="ti-download" className="text-gray-500 text-[16px]" />
           </button>
         </div>
-        {error && (
+        {(error || list.error) && (
           <div className="px-4 py-3 border-b border-red-100 bg-red-50 text-[12px] font-semibold text-red-600">
-            {error}
+            {error || list.error}
           </div>
         )}
 
@@ -323,31 +276,7 @@ export default function VendorInvoicesPage() {
           </table>
         </div>
 
-        <div className="flex flex-none flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-white px-4 py-3 text-[12px] text-gray-500">
-          <div className="flex items-center gap-3">
-            <span className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-[12px] font-semibold text-gray-700">10</span>
-            <span>Showing {startRecord} to {endRecord} of {filteredRecords.length} Results</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              disabled={safePage <= 1}
-              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span className="px-2 text-[12px] font-semibold text-gray-600">Page {safePage} of {totalPages}</span>
-            <button
-              type="button"
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              disabled={safePage >= totalPages}
-              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination {...list.pagination} className="flex-none bg-white" />
       </div>
       </div>
 

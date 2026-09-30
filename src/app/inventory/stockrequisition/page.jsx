@@ -1,10 +1,12 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { RequiredMark } from "@/components/ui/FormField";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import InventoryShell from "@/components/inventory/InventoryShell";
 import { useUser } from "@/hooks/useUser";
+import { downloadFromUrl, usePagedList } from "@/hooks/usePagedList";
 import { formatIndianDateTime } from "@/lib/dateUtils";
 import { fetchCatalogProductPage } from "@/lib/productPagination";
 
@@ -64,13 +66,12 @@ function productLabel(product) {
 
 export default function StockRequisitionPage() {
   const { user } = useUser();
-  const [records, setRecords] = useState([]);
   const [stores, setStores] = useState([]);
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeProductPicker, setActiveProductPicker] = useState(null);
   const [fulfillmentSources, setFulfillmentSources] = useState({});
 
@@ -105,21 +106,16 @@ export default function StockRequisitionPage() {
     userPermissions.includes("MANAGE_INVENTORY") ||
     userPermissions.includes("SITE_REQUEST_APPROVE");
 
-  const loadRecords = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/inventory/stockrequisition", {
-        cache: "no-store",
-        credentials: "include",
-      });
-      const data = await res.json();
-      setRecords(Array.isArray(data?.records) ? data.records : []);
-    } catch {
-      setRecords([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const list = usePagedList("/api/inventory/stockrequisition", {
+    params: { search: debouncedSearch },
+  });
+  const loading = list.loading;
+  const loadRecords = () => list.refresh();
 
   const loadProductOptions = async (search = "") => {
     try {
@@ -139,7 +135,6 @@ export default function StockRequisitionPage() {
   };
 
   useEffect(() => {
-    loadRecords();
     fetch("/api/stores?include_locations=all", {
       credentials: "include",
     })
@@ -258,28 +253,7 @@ export default function StockRequisitionPage() {
     }
   };
 
-  const filteredRecords = useMemo(() => {
-    if (!search.trim()) return records;
-    const term = search.toLowerCase();
-    return records.filter((row) =>
-      [
-        row.transactionId,
-        row.sourceName,
-        row.destinationName,
-        row.requestedBy,
-        row.requesterUserName,
-        row.mailTo,
-        row.status,
-        row.approvalStatus,
-        row.poTransactionId,
-        row.vendorName,
-      ].some((value) =>
-        String(value || "")
-          .toLowerCase()
-          .includes(term),
-      ),
-    );
-  }, [records, search]);
+  const filteredRecords = list.records;
 
   const updateLine = (index, updates) => {
     setForm((current) => ({
@@ -469,18 +443,18 @@ export default function StockRequisitionPage() {
       <div>
         {row.purchaseOrderId ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700 border border-purple-200">
-            <i className="ti ti-shopping-cart text-[12px]" /> PO Generated
+            <Icon name="ti ti-shopping-cart text-[12px]" /> PO Generated
           </span>
         ) : row.stockTransferId ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
-            <i className="ti ti-truck text-[12px]" /> Transfer Created
+            <Icon name="ti ti-truck text-[12px]" /> Transfer Created
           </span>
         ) : (
           <button
             onClick={() => openShortageAnalysis(row)}
             className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 border border-amber-200 transition"
           >
-            <i className="ti ti-search text-[12px]" /> Check Stock & Shortage
+            <Icon name="ti ti-search text-[12px]" /> Check Stock & Shortage
           </button>
         )}
       </div>
@@ -510,7 +484,7 @@ export default function StockRequisitionPage() {
             )}
             {row.poEmailedAt ? (
               <span className="inline-flex items-center gap-1 text-[11px] text-green-600 font-medium">
-                <i className="ti ti-mail-check" /> Emailed to Vendor
+                <Icon name="ti ti-mail-check" /> Emailed to Vendor
               </span>
             ) : row.vendorEmail ? (
               <span className="text-[11px] text-gray-500 block">
@@ -572,6 +546,8 @@ export default function StockRequisitionPage() {
         searchValue={search}
         onSearchChange={setSearch}
         emptyMessage={loading ? "Loading records..." : "No Records Found"}
+        onDownload={() => downloadFromUrl(list.exportUrl())}
+        pagination={list.pagination}
       />
 
       {/* SHORTAGE ANALYSIS & VENDOR PO RESOLUTION MODAL */}
@@ -608,7 +584,7 @@ export default function StockRequisitionPage() {
                 onClick={() => setSelectedReq(null)}
                 className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition"
               >
-                <i className="ti ti-x text-[20px]" />
+                <Icon name="ti ti-x text-[20px]" />
               </button>
             </div>
 
@@ -652,7 +628,7 @@ export default function StockRequisitionPage() {
 
               {poSuccessMessage && (
                 <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 flex items-start gap-2">
-                  <i className="ti ti-circle-check text-[20px] text-green-600 mt-0.5" />
+                  <Icon name="ti ti-circle-check text-[20px] text-green-600 mt-0.5" />
                   <span>{poSuccessMessage}</span>
                 </div>
               )}
@@ -780,7 +756,7 @@ export default function StockRequisitionPage() {
                   {shortageData.requisition?.total_shortage_qty > 0 && (
                     <div className="rounded-2xl border border-purple-200 bg-purple-50/40 p-5 space-y-4">
                       <div className="flex items-center gap-2 border-b border-purple-100 pb-3">
-                        <i className="ti ti-file-invoice text-[22px] text-purple-700" />
+                        <Icon name="ti ti-file-invoice text-[22px] text-purple-700" />
                         <div>
                           <h3 className="text-sm font-bold text-gray-900">
                             Create Purchase Order for Remaining Shortage (
@@ -903,7 +879,7 @@ export default function StockRequisitionPage() {
                             </>
                           ) : (
                             <>
-                              <i className="ti ti-mail-fast text-[16px]" />
+                              <Icon name="ti ti-mail-fast text-[16px]" />
                               Generate PO (
                               {
                                 shortageData.requisition?.total_shortage_qty
@@ -968,7 +944,7 @@ export default function StockRequisitionPage() {
                 onClick={() => setShowModal(false)}
                 className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-200"
               >
-                <i className="ti ti-x text-[18px]" />
+                <Icon name="ti ti-x text-[18px]" />
               </button>
             </div>
 
@@ -1156,7 +1132,7 @@ export default function StockRequisitionPage() {
                         onClick={() => removeLine(index)}
                         className="rounded-lg p-2 text-red-500 hover:bg-red-50 text-center"
                       >
-                        <i className="ti ti-trash text-[16px]" />
+                        <Icon name="ti ti-trash text-[16px]" />
                       </button>
                     </div>
                   ))}

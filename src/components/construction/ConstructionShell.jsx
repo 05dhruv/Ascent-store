@@ -1,5 +1,7 @@
 "use client";
+import Icon from "@/components/Icon";
 
+import { createContext, useContext } from "react";
 import Link from "next/link";
 import MainLayout from "@/components/MainLayout";
 import Button from "@/components/ui/Button";
@@ -58,8 +60,11 @@ export function ConstructionTable(props) {
   return <DataTable {...props} />;
 }
 
+const ShellLoadingContext = createContext(false);
+
 export function ConstructionEmpty(props) {
-  return <TableEmpty {...props} />;
+  const loading = useContext(ShellLoadingContext);
+  return <TableEmpty {...props} message={loading ? "Loading…" : props.message} />;
 }
 
 /**
@@ -74,6 +79,7 @@ export default function ConstructionShell({
     { label: title },
   ],
   actions = [],
+  loading = false,
   children,
 }) {
   return (
@@ -100,7 +106,7 @@ export default function ConstructionShell({
               </span>
             )}
             {index < breadcrumb.length - 1 && (
-              <i className="ti ti-chevron-right text-[11px] text-slate-400" />
+              <Icon name="ti ti-chevron-right text-[11px] text-slate-400" />
             )}
           </span>
         ))}
@@ -150,7 +156,9 @@ export default function ConstructionShell({
         </div>
       </div>
 
-      <div className="space-y-5 pb-10">{children}</div>
+      <ShellLoadingContext.Provider value={loading}>
+        <div className="space-y-5 pb-10">{children}</div>
+      </ShellLoadingContext.Provider>
     </MainLayout>
   );
 }
