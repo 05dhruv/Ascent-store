@@ -9,7 +9,6 @@ import {
 import { ensureCatalogExtrasSchema } from "@/lib/catalogExtrasSchema";
 import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { setRecycleBinContext } from "@/lib/recycleBin";
-import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 
 function toDateString(v) {
   if (!v) return null;
@@ -74,8 +73,6 @@ const ensurePromotionsColumns = makeSchemaEnsurer("promotions_columns", async ()
     `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS requested_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL`,
   );
 });
-
-const ensurePromotionsColumns = makeSchemaEnsurer("promotions_columns_item", runEnsurePromotionsColumns);
 
 export async function PUT(request, { params }) {
   try {

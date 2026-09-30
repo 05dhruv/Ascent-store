@@ -7,7 +7,6 @@ import {
   errorResponse,
   validationError,
 } from "@/lib/api-response";
-import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 
 const ensureBrandExtras = makeSchemaEnsurer("brand_extras", async () => {
   await query(
@@ -17,8 +16,6 @@ const ensureBrandExtras = makeSchemaEnsurer("brand_extras", async () => {
     `ALTER TABLE brands ADD COLUMN IF NOT EXISTS margin NUMERIC(7,2) NOT NULL DEFAULT 0`,
   );
 });
-
-const ensureBrandExtras = makeSchemaEnsurer("brands_extras_list", runEnsureBrandExtras);
 
 export async function GET(request) {
   try {

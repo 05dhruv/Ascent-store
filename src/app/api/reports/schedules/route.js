@@ -1,5 +1,4 @@
 import { successResponse, errorResponse, validationError } from '@/lib/api-response';
-import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 import { query } from '@/lib/db';
 import { requireAuth, requireRole } from '@/lib/api-protection';
 import { makeSchemaEnsurer } from '@/lib/schemaGuard';
@@ -22,8 +21,6 @@ const ensureReportSchedulesSchema = makeSchemaEnsurer('report_schedules', async 
       ON report_schedules(user_id, is_active, created_at DESC);
   `);
 });
-
-const ensureReportSchedulesSchema = makeSchemaEnsurer("report_schedules_route", runEnsureReportSchedulesSchema);
 
 export async function GET(request) {
   try {

@@ -1,5 +1,4 @@
 import { getClient, query } from '@/lib/db';
-import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 import { successResponse, errorResponse, notFoundError, validationError } from '@/lib/api-response';
 import { requireAuth, requirePermission } from '@/lib/api-protection';
 import { setRecycleBinContext } from '@/lib/recycleBin';
@@ -15,8 +14,6 @@ function getIdFromRequest(request) {
   const parts = url.pathname.split('/').filter(Boolean);
   return parts[parts.length - 1];
 }
-
-const ensureBrandExtras = makeSchemaEnsurer("brands_extras_item", runEnsureBrandExtras);
 
 export async function GET(request) {
   try {
