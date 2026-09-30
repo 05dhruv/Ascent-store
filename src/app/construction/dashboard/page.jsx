@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 const links = [
   ['Material Receipt / GRN', '/inventory/stockin', 'ti-package-import'],
@@ -76,7 +77,7 @@ export default function ConstructionDashboard() {
       )}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([label, value, note, icon]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span><i className={`ti ${icon} text-xl text-amber-600`} /></div>
+          <div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span><Icon name={icon} className="text-xl text-amber-600" /></div>
           <p className="mt-3 text-3xl font-black text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-400">{note}</p>
         </div>)}
       </div>
@@ -90,7 +91,7 @@ export default function ConstructionDashboard() {
           </div>)}{data && !data.projects?.length && <p className="py-10 text-center text-sm text-slate-400">Create your first project and site to begin.</p>}</div>
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="mb-4 font-black text-slate-900">Quick operations</h2>
-          <div className="grid gap-2">{links.map(([label, href, icon]) => <Link key={label} href={href} className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 hover:border-amber-300 hover:bg-amber-50"><span className="flex items-center gap-3 text-sm font-semibold text-slate-700"><i className={`ti ${icon} text-lg text-amber-600`} />{label}</span><i className="ti ti-chevron-right text-slate-400" /></Link>)}</div>
+          <div className="grid gap-2">{links.map(([label, href, icon]) => <Link key={label} href={href} className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 hover:border-amber-300 hover:bg-amber-50"><span className="flex items-center gap-3 text-sm font-semibold text-slate-700"><Icon name={icon} className="text-lg text-amber-600" />{label}</span><Icon name="ti-chevron-right" className="text-slate-400" /></Link>)}</div>
         </section>
       </div>
 

@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 const STATUS_LABELS = {
   pending_store_acceptance: 'New',
@@ -232,7 +233,7 @@ export default function OnlineOrdersPage() {
             className="h-9 w-9 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
             title="Refresh orders"
           >
-            <i className="ti ti-refresh" />
+            <Icon name="ti-refresh" />
           </button>
         </div>
       </header>
@@ -271,7 +272,7 @@ export default function OnlineOrdersPage() {
         <div className="py-16 text-center text-sm text-slate-500">Loading orders...</div>
       ) : orders.length === 0 ? (
         <div className="border border-dashed border-slate-300 py-16 text-center">
-          <i className="ti ti-package text-3xl text-slate-400" />
+          <Icon name="ti-package" className="text-3xl text-slate-400" />
           <p className="mt-2 text-sm font-medium text-slate-600">
             No {filterLabel} in this view
           </p>
@@ -453,13 +454,7 @@ export default function OnlineOrdersPage() {
                       : 'bg-emerald-50 text-emerald-700'
                   }`}
                 >
-                  <i
-                    className={
-                      dialog.action === 'reject'
-                        ? 'ti ti-package-off text-xl'
-                        : 'ti ti-receipt-2 text-xl'
-                    }
-                  />
+                  <Icon name={dialog.action === 'reject' ? "ti-package-off" : "ti-receipt-2"} className="text-xl" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase text-slate-500">
@@ -482,7 +477,7 @@ export default function OnlineOrdersPage() {
                 className="grid h-9 w-9 shrink-0 place-items-center text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50"
                 title="Close"
               >
-                <i className="ti ti-x text-xl" />
+                <Icon name="ti-x" className="text-xl" />
               </button>
             </div>
 

@@ -18,7 +18,8 @@ import {
   sortOptions,
   uniqueOptions,
 } from "@/lib/xlsxDropdowns";
-import { loadXlsx } from "@/lib/loadXlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
+import Icon from "@/components/Icon";
 
 async function fetchStores() {
   const res = await fetch("/api/stores");
@@ -261,7 +262,7 @@ function DateTextInput({ value, onChange, className = "" }) {
         className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-blue-600"
         title="Open calendar"
       >
-        <i className="ti ti-calendar text-[14px]" />
+        <Icon name="ti-calendar" className="text-[14px]" />
       </button>
     </div>
   );
@@ -1026,7 +1027,7 @@ export default function StockValidationPage() {
           <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-start gap-3 border-b border-slate-100 px-6 py-5">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-700">
-                <i className="ti ti-alert-triangle text-[20px]" />
+                <Icon name="ti-alert-triangle" className="text-[20px]" />
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="text-base font-black text-slate-950">
@@ -1047,7 +1048,7 @@ export default function StockValidationPage() {
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
                 aria-label="Close"
               >
-                <i className="ti ti-x text-[18px]" />
+                <Icon name="ti-x" className="text-[18px]" />
               </button>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4">
@@ -1091,7 +1092,7 @@ export default function StockValidationPage() {
                 onClick={() => setBulkOpen(false)}
                 className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
               >
-                <i className="ti ti-x text-[18px]" />
+                <Icon name="ti-x" className="text-[18px]" />
               </button>
             </div>
 
@@ -1216,7 +1217,7 @@ export default function StockValidationPage() {
                 className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
                 aria-label="Close"
               >
-                <i className="ti ti-x text-[24px]" />
+                <Icon name="ti-x" className="text-[24px]" />
               </button>
             </div>
 
@@ -1244,7 +1245,7 @@ export default function StockValidationPage() {
                     )}
                   </select>
                   <span className="absolute right-10 top-2 h-6 border-l border-gray-300" />
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-gray-400" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-gray-400" />
                 </div>
               </div>
 
@@ -1576,7 +1577,7 @@ function InventoryEntryPreviewDialog({ title, entry, loading, onClose }) {
             disabled={loading}
             className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti-x" className="text-[18px]" />
           </button>
         </div>
         <div className="overflow-auto p-6">
@@ -1751,7 +1752,7 @@ function StockValidationEditDialog({
             disabled={saving}
             className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti-x" className="text-[18px]" />
           </button>
         </div>
         <div className="min-h-0 overflow-auto p-6">
@@ -2382,7 +2383,7 @@ function ValidationLineItemsWindow({ id, onClose, onConfirmed }) {
         <div className="flex h-12 items-center justify-between border-b border-gray-200 bg-[#f1f2f5] px-9">
           <div className="flex items-center gap-2 text-[13px]">
             <span className="text-gray-500">Inventory</span>
-            <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+            <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
             <span className="font-semibold text-gray-900">
               Stock Validation
             </span>
@@ -2406,7 +2407,7 @@ function ValidationLineItemsWindow({ id, onClose, onConfirmed }) {
             className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
             aria-label="Close line items"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti-x" className="text-[18px]" />
           </button>
         </div>
 
@@ -2496,7 +2497,7 @@ function ValidationLineItemsWindow({ id, onClose, onConfirmed }) {
 
               <main className="flex h-full min-w-0 flex-col">
                 <div className="mb-4 flex flex-shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-                  <i className="ti ti-search text-[16px] text-gray-400" />
+                  <Icon name="ti-search" className="text-[16px] text-gray-400" />
                   <input
                     type="text"
                     placeholder="Search"
@@ -2510,7 +2511,7 @@ function ValidationLineItemsWindow({ id, onClose, onConfirmed }) {
                     className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-blue-600 focus:outline-none"
                     title="Scan barcode with camera"
                   >
-                    <i className="ti ti-camera text-[20px]" />
+                    <Icon name="ti-camera" className="text-[20px]" />
                   </button>
                 </div>
 
@@ -2532,7 +2533,7 @@ function ValidationLineItemsWindow({ id, onClose, onConfirmed }) {
                         onChange={(e) => setCartFilter(e.target.value)}
                         className="min-w-0 flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
                       />
-                      <i className="ti ti-search text-[15px] text-gray-400" />
+                      <Icon name="ti-search" className="text-[15px] text-gray-400" />
                     </div>
                   </div>
 
@@ -2735,7 +2736,7 @@ function ValidationLineItemsWindow({ id, onClose, onConfirmed }) {
                                       onClick={() => removeCartItem(itemKey)}
                                       className="rounded p-1.5 text-red-500 hover:bg-red-50"
                                     >
-                                      <i className="ti ti-trash text-[16px]" />
+                                      <Icon name="ti-trash" className="text-[16px]" />
                                     </button>
                                   </td>
                                 </tr>
@@ -2792,7 +2793,7 @@ function ValidationLineItemsWindow({ id, onClose, onConfirmed }) {
                 className="rounded-lg border border-gray-200 p-2.5 text-gray-600 transition-colors hover:bg-gray-50"
                 title="Clear cart"
               >
-                <i className="ti ti-trash text-[18px]" />
+                <Icon name="ti-trash" className="text-[18px]" />
               </button>
             </div>
           </div>
@@ -2815,7 +2816,7 @@ function ValidationLineItemsWindow({ id, onClose, onConfirmed }) {
                   onClick={closeCreateBatch}
                   className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
                 >
-                  <i className="ti ti-x text-[18px]" />
+                  <Icon name="ti-x" className="text-[18px]" />
                 </button>
               </div>
 
@@ -2946,7 +2947,7 @@ function ValidationLineItemsWindow({ id, onClose, onConfirmed }) {
                   onClick={() => setBatchChoice(null)}
                   className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
                 >
-                  <i className="ti ti-x text-[18px]" />
+                  <Icon name="ti-x" className="text-[18px]" />
                 </button>
               </div>
 

@@ -28,7 +28,8 @@ import {
   sortOptions,
   uniqueOptions,
 } from "@/lib/xlsxDropdowns";
-import { loadXlsx } from "@/lib/loadXlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
+import Icon from "@/components/Icon";
 
 async function fetchStores() {
   const res = await fetch("/api/stores?include_locations=all");
@@ -2916,13 +2917,13 @@ export default function StockInPage() {
                 onClick={() => setEditExcelChooserOpen(false)}
                 className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
               >
-                <i className="ti ti-x text-[18px]" />
+                <Icon name="ti-x" className="text-[18px]" />
               </button>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-3">
               <div className="flex min-w-[280px] flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-                <i className="ti ti-search text-[16px] text-gray-400" />
+                <Icon name="ti-search" className="text-[16px] text-gray-400" />
                 <input
                   type="text"
                   value={editExcelChooserSearch}
@@ -3093,7 +3094,7 @@ export default function StockInPage() {
             <div className="border-b border-gray-100 px-6 py-5">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
-                  <i className="ti ti-trash text-[20px]" />
+                  <Icon name="ti-trash" className="text-[20px]" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -3265,7 +3266,7 @@ export default function StockInPage() {
                 className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
                 title="Close"
               >
-                <i className="ti ti-x text-[18px]" />
+                <Icon name="ti-x" className="text-[18px]" />
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-auto p-6">
@@ -3326,7 +3327,7 @@ export default function StockInPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                        <i className="ti ti-file-spreadsheet text-base" />
+                        <Icon name="ti-file-spreadsheet" className="text-base" />
                       </span>
                       <h2 className="text-lg font-bold text-slate-900">
                         Review & Confirm Material Inward (Excel)
@@ -3347,7 +3348,7 @@ export default function StockInPage() {
                     disabled={bulkUploadReviewBusy}
                     className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
                   >
-                    <i className="ti ti-x text-lg" />
+                    <Icon name="ti-x" className="text-lg" />
                   </button>
                 </div>
 
@@ -3680,7 +3681,7 @@ export default function StockInPage() {
                         </>
                       ) : (
                         <>
-                          <i className="ti ti-check text-sm" />
+                          <Icon name="ti-check" className="text-sm" />
                           <span>Confirm & Inward Stock</span>
                         </>
                       )}

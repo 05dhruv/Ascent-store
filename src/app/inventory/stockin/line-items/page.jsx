@@ -5,7 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import MainLayout from "@/components/MainLayout";
 import { formatIndianDate } from "@/lib/dateUtils";
-import { createPortal } from "react-dom";
+import { createPortal } from "react-dom";
+import Icon from "@/components/Icon";
 
 function formatCurrency(n) {
   return Number(n || 0).toLocaleString("en-IN", {
@@ -429,7 +430,7 @@ function LineItemsContent() {
               <Link href="/inventory/stockin" className="text-blue-600 hover:underline">
                 Material Inward (GRN)
               </Link>
-              <i className="ti ti-chevron-right text-[10px] text-slate-400" />
+              <Icon name="ti-chevron-right" className="text-[10px] text-slate-400" />
               <span className="font-semibold text-slate-800">
                 Inward #{draft?.transactionId || `GRN-${id}`}
               </span>
@@ -469,7 +470,7 @@ function LineItemsContent() {
                   onClick={() => setShowAddProductModal(true)}
                   className="flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-bold text-blue-700 shadow-sm hover:bg-blue-100"
                 >
-                  <i className="ti ti-plus text-sm" />
+                  <Icon name="ti-plus" className="text-sm" />
                   <span>Add Material</span>
                 </button>
                 <button
@@ -497,7 +498,7 @@ function LineItemsContent() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
-              <i className="ti ti-truck-delivery text-blue-600 text-sm" />
+              <Icon name="ti-truck-delivery" className="text-blue-600 text-sm" />
               <span>Inward & Receipt Details</span>
             </div>
             <div className="text-xs text-slate-500">
@@ -611,7 +612,7 @@ function LineItemsContent() {
 
             <div className="flex items-center gap-2">
               <div className="relative">
-                <i className="ti ti-search absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
+                <Icon name="ti-search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
                 <input
                   type="text"
                   placeholder="Filter materials..."
@@ -627,7 +628,7 @@ function LineItemsContent() {
                   onClick={() => setShowAddProductModal(true)}
                   className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
                 >
-                  <i className="ti ti-plus text-xs" />
+                  <Icon name="ti-plus" className="text-xs" />
                   <span>Add Material</span>
                 </button>
               )}
@@ -656,7 +657,7 @@ function LineItemsContent() {
                 {filteredCart.length === 0 ? (
                   <tr>
                     <td colSpan={12} className="py-12 text-center text-slate-400">
-                      <i className="ti ti-box text-3xl mb-1 block opacity-40" />
+                      <Icon name="ti-box" className="text-3xl mb-1 block opacity-40" />
                       <p className="font-semibold text-slate-600">No materials added yet.</p>
                       <p className="mt-1 text-[11px]">
                         Click &ldquo;Add Material&rdquo; above to select items from catalog.
@@ -790,7 +791,7 @@ function LineItemsContent() {
                               className="rounded-lg p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                               title="Remove item"
                             >
-                              <i className="ti ti-trash text-sm" />
+                              <Icon name="ti-trash" className="text-sm" />
                             </button>
                           </td>
                         )}
@@ -854,7 +855,7 @@ function LineItemsContent() {
                     className="rounded-xl border border-slate-200 p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                     title="Clear all materials"
                   >
-                    <i className="ti ti-trash text-base" />
+                    <Icon name="ti-trash" className="text-base" />
                   </button>
                   <button
                     type="button"
@@ -880,7 +881,7 @@ function LineItemsContent() {
                       </>
                     ) : (
                       <>
-                        <i className="ti ti-check text-sm" />
+                        <Icon name="ti-check" className="text-sm" />
                         <span>Confirm & Post GRN</span>
                       </>
                     )}
@@ -908,14 +909,14 @@ function LineItemsContent() {
                   onClick={() => setShowAddProductModal(false)}
                   className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                 >
-                  <i className="ti ti-x text-base" />
+                  <Icon name="ti-x" className="text-base" />
                 </button>
               </div>
 
               {/* Search & Filter bar */}
               <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-slate-50/50 p-4">
                 <div className="relative flex-1 min-w-[200px]">
-                  <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
+                  <Icon name="ti-search" className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
                   <input
                     type="text"
                     value={productSearchTerm}
@@ -980,7 +981,7 @@ function LineItemsContent() {
                                 : "bg-blue-600 text-white hover:bg-blue-700"
                             }`}
                           >
-                            <i className={isAdded ? "ti ti-check" : "ti ti-plus"} />
+                            <Icon name={isAdded ? "ti-check" : "ti-plus"} />
                             <span>{isAdded ? "Added (+1)" : "Add"}</span>
                           </button>
                         </div>

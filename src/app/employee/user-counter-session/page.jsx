@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/MainLayout';
-import { formatIndianDate, formatIndianDateTime } from '@/lib/dateUtils';
+import { formatIndianDate, formatIndianDateTime } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -120,7 +121,7 @@ export default function UserCounterSessionPage() {
           <Link href="/employee" className="text-blue-600 hover:underline font-medium">
             Employee
           </Link>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-blue-600 font-semibold">User Counter Session</span>
         </nav>
 
@@ -136,7 +137,7 @@ export default function UserCounterSessionPage() {
 
         <div className="flex justify-end mb-3">
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 w-full sm:w-[280px] shadow-sm">
-            <i className="ti ti-search text-gray-400 text-[15px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[15px]" />
             <input
               type="text"
               placeholder="Search"
@@ -163,7 +164,7 @@ export default function UserCounterSessionPage() {
                       onChange={(e) => setDateFrom(e.target.value)}
                       className="border border-gray-300 rounded-lg pl-3 pr-9 py-2 text-[12.5px] text-gray-800 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[160px]"
                     />
-                    <i className="ti ti-calendar pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
+                    <Icon name="ti-calendar" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
                   </div>
                   <span className="text-gray-400 text-[12px]">—</span>
                   <div className="relative">
@@ -173,7 +174,7 @@ export default function UserCounterSessionPage() {
                       onChange={(e) => setDateTo(e.target.value)}
                       className="border border-gray-300 rounded-lg pl-3 pr-9 py-2 text-[12.5px] text-gray-800 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 min-w-[160px]"
                     />
-                    <i className="ti ti-calendar pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
+                    <Icon name="ti-calendar" className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
                   </div>
                 </div>
                 <p className="text-[11px] text-gray-400 mt-1.5 md:hidden">{rangeLabel}</p>
@@ -191,7 +192,7 @@ export default function UserCounterSessionPage() {
               className="p-2 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors self-end"
               title="Export"
             >
-              <i className="ti ti-download text-[18px]" />
+              <Icon name="ti-download" className="text-[18px]" />
             </button>
           </div>
         </div>
@@ -266,7 +267,7 @@ export default function UserCounterSessionPage() {
               ))}
             </select>
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
-              <i className="ti ti-chevron-down text-[11px]" />
+              <Icon name="ti-chevron-down" className="text-[11px]" />
             </span>
           </div>
           <span className="text-[12.5px] text-gray-500">

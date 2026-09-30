@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 async function fetchUsers() {
   const res = await fetch('/api/auth/users');
@@ -49,7 +50,7 @@ function UserMultiSelect({ users, value, onChange }) {
         className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-[13px] text-gray-700 bg-white flex items-center justify-between gap-3"
       >
         <span className="truncate text-left">{labels}</span>
-        <i className={`ti ti-chevron-down text-[12px] text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <Icon name="ti-chevron-down" className={`text-[12px] text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="absolute z-20 mt-2 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-64 overflow-auto">
@@ -134,9 +135,9 @@ export default function CreateEmployeeDepartmentPage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4">
         <span className="text-blue-600">Employee</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="text-blue-600">Employee Departments</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">Create Employee Departments</span>
       </div>
 
@@ -155,7 +156,7 @@ export default function CreateEmployeeDepartmentPage() {
             onClick={() => router.back()}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-300 text-[13px] font-medium text-blue-600 hover:bg-blue-50 transition-colors"
           >
-            <i className="ti ti-chevron-left text-[16px]" />
+            <Icon name="ti-chevron-left" className="text-[16px]" />
             Back
           </button>
           <button

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Icon from "@/components/Icon";
 
 function formatCountdown(totalSeconds) {
   const seconds = Math.max(0, Number(totalSeconds || 0));
@@ -74,7 +75,7 @@ export default function PasswordChangeWatcher() {
         className="fixed bottom-4 right-4 z-[80] flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-left text-[12px] font-semibold text-gray-800 shadow-lg hover:bg-amber-50"
         title="Password approval logout timer"
       >
-        <i className="ti ti-clock-hour-4 text-[16px] text-amber-600" />
+        <Icon name="ti-clock-hour-4" className="text-[16px] text-amber-600" />
         <span>Logout in {formatCountdown(approval.secondsRemaining)}</span>
       </button>
     );
@@ -84,7 +85,7 @@ export default function PasswordChangeWatcher() {
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
         <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-          <i className="ti ti-check text-[22px]" />
+          <Icon name="ti-check" className="text-[22px]" />
         </div>
         <h2 className="text-[17px] font-bold text-gray-900">Password request approved</h2>
         <p className="mt-2 text-[13px] leading-6 text-gray-600">

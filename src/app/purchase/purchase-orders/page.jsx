@@ -16,7 +16,8 @@ import {
   normalizeVendors,
 } from "@/lib/purchaseLookups";
 import { formatIndianDate } from "@/lib/dateUtils";
-import { addCalendarDays, getIndiaDate } from "@/lib/vendorCreditTerms";
+import { addCalendarDays, getIndiaDate } from "@/lib/vendorCreditTerms";
+import Icon from "@/components/Icon";
 
 let XLSX = null;
 async function ensureXlsx() {
@@ -975,7 +976,7 @@ export default function PurchaseOrdersPage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4">
         <span className="text-blue-600">Purchase</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">Purchase Orders</span>
       </div>
 
@@ -1001,7 +1002,7 @@ export default function PurchaseOrdersPage() {
                 onClick={handleDownloadPoTemplate}
                 className="flex items-center gap-2 rounded-lg border border-green-300 px-4 py-2 text-[13px] font-medium text-green-700 transition-colors hover:bg-green-50"
               >
-                <i className="ti ti-download text-[16px]" />
+                <Icon name="ti-download" className="text-[16px]" />
                 Download Template
               </button>
               <button
@@ -1010,7 +1011,7 @@ export default function PurchaseOrdersPage() {
                 disabled={saving}
                 title="Download every assigned product for every accessible store"
               >
-                <i className="ti ti-building-store text-[16px]" />
+                <Icon name="ti-building-store" className="text-[16px]" />
                 All Stores Product Sheet
               </button>
               <button
@@ -1018,28 +1019,28 @@ export default function PurchaseOrdersPage() {
                 className="flex items-center gap-2 rounded-lg border border-amber-300 px-4 py-2 text-[13px] font-medium text-amber-700 transition-colors hover:bg-amber-50"
                 disabled={saving}
               >
-                <i className="ti ti-upload text-[16px]" />
+                <Icon name="ti-upload" className="text-[16px]" />
                 Upload Template
               </button>
               <button
                 onClick={handleOpenReqModal}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-300 text-[13px] font-medium text-blue-600 hover:bg-blue-50 transition-colors"
               >
-                <i className="ti ti-file-document text-[16px]" />
+                <Icon name="ti-file-document" className="text-[16px]" />
                 Create PO Using Requisition
               </button>
               <button
                 onClick={() => router.push("/purchase/grn/create")}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-300 text-[13px] font-medium text-green-600 hover:bg-green-50 transition-colors"
               >
-                <i className="ti ti-box text-[16px]" />
+                <Icon name="ti-box" className="text-[16px]" />
                 Create GRN
               </button>
               <button
                 onClick={handleOpen}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-700 transition-colors"
               >
-                <i className="ti ti-plus text-[16px]" />
+                <Icon name="ti-plus" className="text-[16px]" />
                 Create Purchase Order
               </button>
             </div>
@@ -1162,7 +1163,7 @@ export default function PurchaseOrdersPage() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
           <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-[340px] bg-gray-50 rounded-lg px-3 py-2">
-            <i className="ti ti-search text-gray-400 text-[16px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[16px]" />
             <input
               type="text"
               placeholder="Search"
@@ -1231,7 +1232,7 @@ export default function PurchaseOrdersPage() {
                               className="p-1.5 rounded text-red-600 hover:bg-red-50"
                               title="Delete draft"
                             >
-                              <i className="ti ti-trash text-[16px]" />
+                              <Icon name="ti-trash" className="text-[16px]" />
                             </button>
                           ) : (
                             "-"
@@ -1279,7 +1280,7 @@ export default function PurchaseOrdersPage() {
                 className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
                 onClick={handleClose}
               >
-                <i className="ti ti-x text-[18px]" />
+                <Icon name="ti-x" className="text-[18px]" />
               </button>
             </div>
 
@@ -1680,7 +1681,7 @@ export default function PurchaseOrdersPage() {
                 className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
                 onClick={() => setShowReqModal(false)}
               >
-                <i className="ti ti-x text-[18px]" />
+                <Icon name="ti-x" className="text-[18px]" />
               </button>
             </div>
             <div className="space-y-4 p-6">

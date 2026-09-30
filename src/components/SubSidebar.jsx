@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import Icon from "@/components/Icon";
 
 export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onClose }) {
   const pathname = usePathname();
@@ -132,7 +133,7 @@ export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onCl
                 onClick={onBackToMain}
                 className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-indigo-700 hover:bg-indigo-50"
               >
-                <i className="ti ti-arrow-left text-[16px]" />
+                <Icon name="ti-arrow-left" className="text-[16px]" />
                 Sections
               </button>
             ) : (
@@ -145,7 +146,7 @@ export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onCl
                 className="p-1.5 rounded-lg hover:bg-slate-100"
                 aria-label="Close menu"
               >
-                <i className="ti ti-x text-slate-500 text-[16px]" />
+                <Icon name="ti-x" className="text-slate-500 text-[16px]" />
               </button>
             )}
           </div>
@@ -189,11 +190,9 @@ export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onCl
                 }`}
               >
                 {item.icon ? (
-                  <i
-                    className={`ti ${item.icon} text-[18px] w-[22px] text-center flex-shrink-0 ${
+                  <Icon name={item.icon} className={`text-[18px] w-[22px] text-center flex-shrink-0 ${
                       active ? 'text-indigo-600' : 'text-slate-500'
-                    }`}
-                  />
+                    }`} />
                 ) : (
                   <span className="w-[22px] flex-shrink-0" aria-hidden />
                 )}
@@ -222,20 +221,20 @@ export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onCl
               className="md:hidden -ml-2 rounded-lg p-1.5 text-indigo-700 hover:bg-indigo-50"
               aria-label="Back to sections"
             >
-              <i className="ti ti-arrow-left text-[17px]" />
+              <Icon name="ti-arrow-left" className="text-[17px]" />
             </button>
           )}
-          <i className={`ti ${subSidebar.titleIcon} text-indigo-700 text-[16px]`} />
+          <Icon name={subSidebar.titleIcon} className="text-indigo-700 text-[16px]" />
           <span className="text-[13px] font-black text-slate-900">{subSidebar.title}</span>
         </div>
         {onClose && (
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100">
-            <i className="ti ti-x text-slate-400 text-[14px]" />
+            <Icon name="ti-x" className="text-slate-400 text-[14px]" />
           </button>
         )}
         </div>
         <div className="relative">
-          <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-slate-400" />
+          <Icon name="ti-search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-slate-400" />
           <input
             type="search"
             placeholder="Search"
@@ -258,7 +257,7 @@ export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onCl
                 : 'text-indigo-700 hover:bg-indigo-50'
             }`}
           >
-            <i className="ti ti-layout-dashboard text-[16px]" />
+            <Icon name="ti-layout-dashboard" className="text-[16px]" />
             {subSidebar.title} home
           </Link>
         </div>
@@ -274,8 +273,8 @@ export default function SubSidebar({ subSidebar, sectionHref, onBackToMain, onCl
                 onClick={() => toggle(group.label)}
                 className="w-full flex items-center gap-2 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-white/80"
               >
-                <i className={`ti ${isOpen ? 'ti-chevron-down' : 'ti-chevron-right'} text-amber-500 text-[11px]`} />
-                <i className={`ti ${group.icon} text-indigo-700 text-[16px]`} />
+                <Icon name={isOpen ? 'ti-chevron-down' : 'ti-chevron-right'} className="text-amber-500 text-[11px]" />
+                <Icon name={group.icon} className="text-indigo-700 text-[16px]" />
                 <span className="text-[12.5px] font-black text-slate-900 text-left">{group.label}</span>
               </button>
               {isOpen && (

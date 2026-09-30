@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { formatIndianDate } from '@/lib/dateUtils';
+import { formatIndianDate } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 function formatMoney(value) {
   const number = Number(value);
@@ -56,7 +57,7 @@ export default function InactiveCustomersPage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4 flex-wrap">
         <span className="text-blue-600">Customer</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">Inactive Customers</span>
       </div>
 
@@ -70,7 +71,7 @@ export default function InactiveCustomersPage() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 justify-between flex-wrap">
           <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-[340px] bg-gray-50 rounded-lg px-3 py-2">
-            <i className="ti ti-search text-gray-400 text-[16px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[16px]" />
             <input
               type="text"
               placeholder="Search"

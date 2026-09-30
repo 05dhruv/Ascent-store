@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
+import Icon from "@/components/Icon";
 
 export default function Sidebar({
   items = [],
@@ -97,7 +98,7 @@ export default function Sidebar({
           {isActive && (
             <span className="absolute -left-2 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-orange-500" />
           )}
-          <i className={`ti ${item.icon} text-[22px]`} />
+          <Icon name={item.icon} className="text-[22px]" />
         </div>
 
         {/* Mobile */}
@@ -108,18 +109,14 @@ export default function Sidebar({
           ${isActive ? "bg-indigo-50 border-l-[3px] border-l-indigo-500" : "hover:bg-slate-50 border-l-[3px] border-l-transparent"}
         `}
         >
-          <i
-            className={`ti ${item.icon} text-[22px] flex-shrink-0 ${isActive ? "text-indigo-600" : "text-slate-700"}`}
-          />
+          <Icon name={item.icon} className={`text-[22px] flex-shrink-0 ${isActive ? "text-indigo-600" : "text-slate-700"}`} />
           <span
             className={`text-[14px] font-medium ${isActive ? "text-indigo-700" : "text-slate-700"}`}
           >
             {item.label}
           </span>
           {item.subSidebar && (
-            <i
-              className={`ti ti-chevron-right text-[13px] ml-auto ${isActive ? "text-indigo-400" : "text-slate-400"}`}
-            />
+            <Icon name="ti-chevron-right" className={`text-[13px] ml-auto ${isActive ? "text-indigo-400" : "text-slate-400"}`} />
           )}
         </div>
       </Link>
@@ -142,9 +139,7 @@ export default function Sidebar({
             : "border-slate-200 bg-white text-slate-700 hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700"
         }`}
       >
-        <i
-          className={`ti ${item.icon} text-[24px] ${isPageActive ? "text-indigo-700" : "text-slate-600 group-hover:text-indigo-700"}`}
-        />
+        <Icon name={item.icon} className={`text-[24px] ${isPageActive ? "text-indigo-700" : "text-slate-600 group-hover:text-indigo-700"}`} />
         <span className="mt-1.5 text-[12px] font-semibold leading-tight">
           {item.label}
         </span>
@@ -185,7 +180,7 @@ export default function Sidebar({
             onClick={onMobileClose}
             className="p-2 rounded-lg hover:bg-slate-100"
           >
-            <i className="ti ti-x text-slate-500 text-[18px]" />
+            <Icon name="ti-x" className="text-slate-500 text-[18px]" />
           </button>
         </div>
 
@@ -252,7 +247,7 @@ export default function Sidebar({
           style={{ top: tooltip.top }}
         >
           <span className="flex items-center gap-2 text-[16px] font-extrabold tracking-wide">
-            <i className={`ti ${tooltip.item.icon} text-[19px] text-orange-400`} />
+            <Icon name={tooltip.item.icon} className="text-[19px] text-orange-400" />
             {tooltip.item.label}
           </span>
           <span className="mt-2 block whitespace-normal text-[13px] font-medium leading-snug">

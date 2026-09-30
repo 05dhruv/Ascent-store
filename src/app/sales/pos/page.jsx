@@ -7,7 +7,8 @@ import { validatePhoneNumber } from "@/lib/phoneValidator";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/MainLayout";
 import { fetchAuthEndpoint } from "@/lib/auth-endpoints";
-import { formatIndianDate, formatIndianDateTime } from "@/lib/dateUtils";
+import { formatIndianDate, formatIndianDateTime } from "@/lib/dateUtils";
+import Icon from "@/components/Icon";
 
 // ============================================================================
 // UTILITIES
@@ -5469,7 +5470,7 @@ export default function POSPage() {
                 aria-label="Go back"
                 title="Back"
               >
-                <i className="ti ti-arrow-left text-[18px]" />
+                <Icon name="ti-arrow-left" className="text-[18px]" />
               </button>
               <button
                 type="button"
@@ -5478,7 +5479,7 @@ export default function POSPage() {
                 aria-label="Go home"
                 title="Home"
               >
-                <i className="ti ti-home text-[18px]" />
+                <Icon name="ti-home" className="text-[18px]" />
               </button>
             </div>
             <div>
@@ -5719,7 +5720,7 @@ export default function POSPage() {
                   className="h-10 w-10 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
                   title="Open mobile camera scanner"
                 >
-                  <i className="ti ti-camera text-base" />
+                  <Icon name="ti-camera" className="text-base" />
                 </button>
               </div>
             </div>
@@ -6192,9 +6193,7 @@ export default function POSPage() {
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <i
-                                className={`ti ${method.icon} text-base text-slate-600`}
-                              />
+                              <Icon name={method.icon} className="text-base text-slate-600" />
                               <span className="text-xs font-bold text-slate-800">
                                 {method.label}
                               </span>
@@ -6643,7 +6642,7 @@ export default function POSPage() {
                             className="rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-rose-600 transition-colors hover:bg-rose-50"
                             title="Delete bill and restore inventory"
                           >
-                            <i className="ti ti-trash text-[13px]" />
+                            <Icon name="ti-trash" className="text-[13px]" />
                           </button>
                         )}
                       </div>

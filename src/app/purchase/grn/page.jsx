@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/MainLayout';
-import { formatIndianDate } from '@/lib/dateUtils';
+import { formatIndianDate } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 
 async function fetchGrnList() {
@@ -90,7 +91,7 @@ export default function GrnListPage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4">
         <span className="text-blue-600">Purchase</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">GRN</span>
       </div>
 
@@ -106,12 +107,12 @@ export default function GrnListPage() {
           return (
             <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={handleDownloadSheet} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 bg-white text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                <i className="ti ti-download text-[16px]" />
+                <Icon name="ti-download" className="text-[16px]" />
                 Download Sheet
               </button>
               {canManageGrn && (
                 <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-700 transition-colors">
-                  <i className="ti ti-plus text-[16px]" />
+                  <Icon name="ti-plus" className="text-[16px]" />
                   Create GRN
                 </button>
               )}
@@ -123,7 +124,7 @@ export default function GrnListPage() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
           <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-[340px] bg-gray-50 rounded-lg px-3 py-2">
-            <i className="ti ti-search text-gray-400 text-[16px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[16px]" />
             <input
               type="text"
               placeholder="Search"
@@ -164,7 +165,7 @@ export default function GrnListPage() {
                             {canManageGrn && (
                               <div className="flex gap-2">
                                 <button onClick={() => router.push(`/purchase/grn/${encodeURIComponent(row['Reference ID'] || row['Transaction ID'] || '')}/edit`)} className="p-1.5 rounded border border-gray-200 hover:bg-gray-50" title="Edit GRN">
-                                  <i className="ti ti-edit text-[15px]" />
+                                  <Icon name="ti-edit" className="text-[15px]" />
                                 </button>
                               </div>
                             )}

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { loadXlsx } from '@/lib/loadXlsx';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 const initialForm = {
   id: null,
@@ -218,7 +219,7 @@ export default function CustomerGroupsPage() {
             onClick={() => router.back()}
             className="flex items-center gap-1.5 px-3 py-2 border border-blue-400 rounded-lg text-[12.5px] font-semibold text-blue-700 hover:bg-blue-50 transition-colors"
           >
-            <i className="ti ti-chevron-left text-[12px]" />
+            <Icon name="ti-chevron-left" className="text-[12px]" />
             Back
           </button>
           <button
@@ -234,7 +235,7 @@ export default function CustomerGroupsPage() {
       <div className="space-y-5">
         <SectionCard title="Customer Group List">
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 w-full sm:w-[320px] mb-4">
-            <i className="ti ti-search text-gray-400 text-[16px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[16px]" />
             <input
               type="text"
               placeholder="Search"

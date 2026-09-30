@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import InventoryShell from "@/components/inventory/InventoryShell";
 import { useUser } from "@/hooks/useUser";
 import { formatIndianDateTime } from "@/lib/dateUtils";
-import { fetchCatalogProductPage } from "@/lib/productPagination";
+import { fetchCatalogProductPage } from "@/lib/productPagination";
+import Icon from "@/components/Icon";
 
 const tableHeaders = [
   "Request ID",
@@ -467,18 +468,18 @@ export default function StockRequisitionPage() {
       <div>
         {row.purchaseOrderId ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700 border border-purple-200">
-            <i className="ti ti-shopping-cart text-[12px]" /> PO Generated
+            <Icon name="ti-shopping-cart" className="text-[12px]" /> PO Generated
           </span>
         ) : row.stockTransferId ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200">
-            <i className="ti ti-truck text-[12px]" /> Transfer Created
+            <Icon name="ti-truck" className="text-[12px]" /> Transfer Created
           </span>
         ) : (
           <button
             onClick={() => openShortageAnalysis(row)}
             className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 border border-amber-200 transition"
           >
-            <i className="ti ti-search text-[12px]" /> Check Stock & Shortage
+            <Icon name="ti-search" className="text-[12px]" /> Check Stock & Shortage
           </button>
         )}
       </div>
@@ -508,7 +509,7 @@ export default function StockRequisitionPage() {
             )}
             {row.poEmailedAt ? (
               <span className="inline-flex items-center gap-1 text-[11px] text-green-600 font-medium">
-                <i className="ti ti-mail-check" /> Emailed to Vendor
+                <Icon name="ti-mail-check" /> Emailed to Vendor
               </span>
             ) : row.vendorEmail ? (
               <span className="text-[11px] text-gray-500 block">
@@ -606,7 +607,7 @@ export default function StockRequisitionPage() {
                 onClick={() => setSelectedReq(null)}
                 className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition"
               >
-                <i className="ti ti-x text-[20px]" />
+                <Icon name="ti-x" className="text-[20px]" />
               </button>
             </div>
 
@@ -650,7 +651,7 @@ export default function StockRequisitionPage() {
 
               {poSuccessMessage && (
                 <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800 flex items-start gap-2">
-                  <i className="ti ti-circle-check text-[20px] text-green-600 mt-0.5" />
+                  <Icon name="ti-circle-check" className="text-[20px] text-green-600 mt-0.5" />
                   <span>{poSuccessMessage}</span>
                 </div>
               )}
@@ -778,7 +779,7 @@ export default function StockRequisitionPage() {
                   {shortageData.requisition?.total_shortage_qty > 0 && (
                     <div className="rounded-2xl border border-purple-200 bg-purple-50/40 p-5 space-y-4">
                       <div className="flex items-center gap-2 border-b border-purple-100 pb-3">
-                        <i className="ti ti-file-invoice text-[22px] text-purple-700" />
+                        <Icon name="ti-file-invoice" className="text-[22px] text-purple-700" />
                         <div>
                           <h3 className="text-sm font-bold text-gray-900">
                             Create Purchase Order for Remaining Shortage (
@@ -901,7 +902,7 @@ export default function StockRequisitionPage() {
                             </>
                           ) : (
                             <>
-                              <i className="ti ti-mail-fast text-[16px]" />
+                              <Icon name="ti-mail-fast" className="text-[16px]" />
                               Generate PO (
                               {
                                 shortageData.requisition?.total_shortage_qty
@@ -966,7 +967,7 @@ export default function StockRequisitionPage() {
                 onClick={() => setShowModal(false)}
                 className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-200"
               >
-                <i className="ti ti-x text-[18px]" />
+                <Icon name="ti-x" className="text-[18px]" />
               </button>
             </div>
 
@@ -1154,7 +1155,7 @@ export default function StockRequisitionPage() {
                         onClick={() => removeLine(index)}
                         className="rounded-lg p-2 text-red-500 hover:bg-red-50 text-center"
                       >
-                        <i className="ti ti-trash text-[16px]" />
+                        <Icon name="ti-trash" className="text-[16px]" />
                       </button>
                     </div>
                   ))}

@@ -1,6 +1,7 @@
-const CACHE_NAME = 'ascent-sync-shell-v1';
+const CACHE_NAME = 'ascent-sync-shell-v2';
+const STATIC_CACHE_NAME = 'ascent-sync-static-v1';
+const STATIC_CACHE_MAX_ENTRIES = 400;
 const APP_SHELL = [
-  '/',
   '/login',
   '/home/master-dashboard',
   '/manifest.webmanifest',
@@ -34,10 +35,34 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME && key !== STATIC_CACHE_NAME)
+          .map((key) => caches.delete(key)),
+      ))
       .then(() => self.clients.claim())
   );
 });
+
+async function trimStaticCache(cache) {
+  const keys = await cache.keys();
+  const excess = keys.length - STATIC_CACHE_MAX_ENTRIES;
+  for (let index = 0; index < excess; index += 1) {
+    await cache.delete(keys[index]);
+  }
+}
+
+async function cacheFirstStatic(request) {
+  const cache = await caches.open(STATIC_CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok && response.type === 'basic') {
+    await cache.put(request, response.clone());
+    trimStaticCache(cache).catch(() => {});
+  }
+  return response;
+}
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
@@ -51,6 +76,12 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin !== self.location.origin) {
     event.respondWith(fetch(request));
+    return;
+  }
+
+  // Build assets are content-hashed, so a cached copy can never be stale.
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(cacheFirstStatic(request));
     return;
   }
 

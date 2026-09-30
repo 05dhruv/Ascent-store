@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/MainLayout';
-import { fetchLookup, normalizeStores } from '@/lib/purchaseLookups';
+import { fetchLookup, normalizeStores } from '@/lib/purchaseLookups';
+import Icon from "@/components/Icon";
 
 async function fetchStores() {
   return normalizeStores(await fetchLookup('/api/stores'));
@@ -123,7 +124,7 @@ export default function CreateGrnPage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4">
         <span className="text-blue-600">Purchase</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">Create GRN</span>
       </div>
 
@@ -136,7 +137,7 @@ export default function CreateGrnPage() {
             <label className="block text-sm text-gray-700 font-medium mb-1">Purchase Order ID <span className="text-red-500">*</span></label>
             <div className="relative">
               <div className="mt-1 flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 focus-within:border-blue-500">
-                <i className="ti ti-search text-[16px] text-gray-400" />
+                <Icon name="ti-search" className="text-[16px] text-gray-400" />
                 <input
                   value={poSearch}
                   onChange={(event) => {

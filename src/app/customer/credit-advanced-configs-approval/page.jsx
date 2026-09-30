@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/MainLayout';
-import { formatIndianDate } from '@/lib/dateUtils';
+import { formatIndianDate } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 const columns = [
   { key: 'id', label: 'ID' },
@@ -200,7 +201,7 @@ export default function CreditAdvancedConfigsApprovalPage() {
       <div className="min-h-screen">
         <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-4 flex-wrap">
           <Link href="/customer/dashboard" className="hover:text-blue-600 transition-colors">Customer</Link>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-blue-600 font-medium">Credit Advanced Approval</span>
         </nav>
 
@@ -215,7 +216,7 @@ export default function CreditAdvancedConfigsApprovalPage() {
         <div className="flex justify-end mb-4">
           <div className="w-full max-w-[320px]">
             <div className="relative">
-              <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
+              <Icon name="ti-search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
               <input
                 type="text"
                 value={search}
@@ -245,7 +246,7 @@ export default function CreditAdvancedConfigsApprovalPage() {
                       </option>
                     ))}
                   </select>
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
                 </div>
               </div>
 
@@ -263,7 +264,7 @@ export default function CreditAdvancedConfigsApprovalPage() {
                     <option value="Rejected">Rejected</option>
                     <option value="Active">Active</option>
                   </select>
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
                 </div>
               </div>
 
@@ -303,7 +304,7 @@ export default function CreditAdvancedConfigsApprovalPage() {
                   className="h-10 w-10 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50"
                   title="Download CSV"
                 >
-                  <i className="ti ti-download text-[15px]" />
+                  <Icon name="ti-download" className="text-[15px]" />
                 </button>
               </div>
             </div>

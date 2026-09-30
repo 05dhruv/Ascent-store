@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 const emptyForm = {
   projectCode: '',
@@ -128,7 +129,7 @@ export default function ProjectsPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300 backdrop-blur-sm border border-amber-500/30">
-                <i className="ti ti-building" /> Construction ERP Suite
+                <Icon name="ti-building" /> Construction ERP Suite
               </span>
               <span className="text-xs text-slate-400">/</span>
               <span className="text-xs font-medium text-slate-300">Project Portfolio & Site Stores</span>
@@ -146,13 +147,13 @@ export default function ProjectsPage() {
               href="/inventory/stocktransfer"
               className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white backdrop-blur-sm border border-white/20 shadow-sm transition hover:bg-white hover:text-slate-900"
             >
-              <i className="ti ti-truck text-amber-400 text-sm" /> Stock Transfer
+              <Icon name="ti-truck" className="text-amber-400 text-sm" /> Stock Transfer
             </Link>
             <Link
               href="/reports/inventory/stock-movement"
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md transition hover:bg-amber-400 hover:shadow-lg"
             >
-              <i className="ti ti-chart-bar text-sm" /> Material Movement Report
+              <Icon name="ti-chart-bar" className="text-sm" /> Material Movement Report
             </Link>
           </div>
         </div>
@@ -163,7 +164,7 @@ export default function ProjectsPage() {
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Projects</p>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                <i className="ti ti-building text-base" />
+                <Icon name="ti-building" className="text-base" />
               </div>
             </div>
             <p className="mt-2 text-2xl font-black text-slate-900">{stats.totalProjects}</p>
@@ -174,7 +175,7 @@ export default function ProjectsPage() {
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Linked Site Stores</p>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-                <i className="ti ti-building-warehouse text-base" />
+                <Icon name="ti-building-warehouse" className="text-base" />
               </div>
             </div>
             <p className="mt-2 text-2xl font-black text-slate-900">{stats.totalSites}</p>
@@ -185,7 +186,7 @@ export default function ProjectsPage() {
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">On-Site Inventory</p>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                <i className="ti ti-packages text-base" />
+                <Icon name="ti-packages" className="text-base" />
               </div>
             </div>
             <p className="mt-2 text-2xl font-black text-emerald-700">{stats.totalStock.toLocaleString('en-IN')}</p>
@@ -196,7 +197,7 @@ export default function ProjectsPage() {
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active Transits</p>
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                <i className="ti ti-truck-delivery text-base" />
+                <Icon name="ti-truck-delivery" className="text-base" />
               </div>
             </div>
             <p className="mt-2 text-2xl font-black text-blue-700">{stats.totalInTransit}</p>
@@ -215,7 +216,7 @@ export default function ProjectsPage() {
                 <p className="text-xs text-slate-500">Setup project details and initialize its first site store</p>
               </div>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60 shadow-xs">
-                <i className="ti ti-plus text-base font-bold" />
+                <Icon name="ti-plus" className="text-base font-bold" />
               </div>
             </div>
 
@@ -397,14 +398,14 @@ export default function ProjectsPage() {
 
               {message && (
                 <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
-                  <i className="ti ti-circle-check text-base shrink-0 text-emerald-600" />
+                  <Icon name="ti-circle-check" className="text-base shrink-0 text-emerald-600" />
                   <span>{message}</span>
                 </div>
               )}
 
               {errorMessage && (
                 <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
-                  <i className="ti ti-alert-circle text-base shrink-0 text-rose-600" />
+                  <Icon name="ti-alert-circle" className="text-base shrink-0 text-rose-600" />
                   <span>{errorMessage}</span>
                 </div>
               )}
@@ -414,7 +415,7 @@ export default function ProjectsPage() {
                 disabled={saving}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-amber-600 disabled:opacity-50"
               >
-                <i className="ti ti-building-warehouse text-base" />
+                <Icon name="ti-building-warehouse" className="text-base" />
                 {saving ? 'Creating Project & Store...' : 'Create Project & Site Store'}
               </button>
             </form>
@@ -425,7 +426,7 @@ export default function ProjectsPage() {
             {/* Filter / Search Bar */}
             <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <div className="relative flex-1">
-                <i className="ti ti-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Icon name="ti-search" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search projects by name, code, client, or site store..."
@@ -457,7 +458,7 @@ export default function ProjectsPage() {
             {filteredRecords.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-400 shadow-xs">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                  <i className="ti ti-folder-off text-2xl" />
+                  <Icon name="ti-folder-off" className="text-2xl" />
                 </div>
                 <p className="mt-3 font-bold text-slate-700">No construction projects found</p>
                 <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
@@ -627,7 +628,7 @@ export default function ProjectsPage() {
                                     className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 py-2 text-xs font-bold text-amber-900 transition hover:bg-amber-100 text-center"
                                     title="View Material Movement and Stock Balance Report"
                                   >
-                                    <i className="ti ti-chart-bar text-amber-700" />
+                                    <Icon name="ti-chart-bar" className="text-amber-700" />
                                     <span>Stock Report</span>
                                   </Link>
                                 ) : (
@@ -639,7 +640,7 @@ export default function ProjectsPage() {
                                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-2.5 py-2 text-xs font-bold text-blue-800 transition hover:bg-blue-100 text-center"
                                   title="Transfer material from Central Warehouse to this Site Store"
                                 >
-                                  <i className="ti ti-truck text-blue-700" />
+                                  <Icon name="ti-truck" className="text-blue-700" />
                                   <span>Transfer Stock</span>
                                 </Link>
 
@@ -648,7 +649,7 @@ export default function ProjectsPage() {
                                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100 text-center"
                                   title="Raise Material Requisition for this Site"
                                 >
-                                  <i className="ti ti-clipboard-text text-slate-600" />
+                                  <Icon name="ti-clipboard-text" className="text-slate-600" />
                                   <span>Requisition</span>
                                 </Link>
 
@@ -657,7 +658,7 @@ export default function ProjectsPage() {
                                   className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-2 text-xs font-bold text-emerald-900 transition hover:bg-emerald-100 text-center"
                                   title="Record Material Consumption at this Site"
                                 >
-                                  <i className="ti ti-hammer text-emerald-700" />
+                                  <Icon name="ti-hammer" className="text-emerald-700" />
                                   <span>Issue Material</span>
                                 </Link>
                               </div>

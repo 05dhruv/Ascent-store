@@ -3,6 +3,7 @@
 import MainLayout from '@/components/MainLayout';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import Icon from "@/components/Icon";
 
 function normalizeSearchText(value) {
   return String(value ?? '')
@@ -82,7 +83,7 @@ export default function InventoryShell({
             <span className={index === breadcrumb.length - 1 ? 'font-semibold text-slate-900' : 'text-indigo-600'}>
               {item.label}
             </span>
-            {index < breadcrumb.length - 1 && <i className="ti ti-chevron-right text-[11px] text-slate-400" />}
+            {index < breadcrumb.length - 1 && <Icon name="ti-chevron-right" className="text-[11px] text-slate-400" />}
           </span>
         ))}
       </div>
@@ -108,7 +109,7 @@ export default function InventoryShell({
                 if (action.href) {
                   return (
                     <Link key={action.label} href={action.href} className={className}>
-                      {action.icon && <i className={action.icon} />}
+                      {action.icon && <Icon name={action.icon} />}
                       <span>{action.label}</span>
                     </Link>
                   );
@@ -121,7 +122,7 @@ export default function InventoryShell({
                     disabled={Boolean(action.disabled)}
                     className={`${className} disabled:cursor-not-allowed disabled:opacity-50`}
                   >
-                    {action.icon && <i className={action.icon} />}
+                    {action.icon && <Icon name={action.icon} />}
                     <span>{action.label}</span>
                   </button>
                 );
@@ -180,7 +181,7 @@ export default function InventoryShell({
                     <span className="block text-[13px] font-semibold text-slate-900">{card.title}</span>
                     <span className="mt-1 block text-[12px] text-slate-400">{card.text}</span>
                   </span>
-                  <i className="ti ti-chevron-right text-slate-400 text-[16px]" />
+                  <Icon name="ti-chevron-right" className="text-slate-400 text-[16px]" />
                 </>
               )}
             </div>
@@ -192,7 +193,7 @@ export default function InventoryShell({
       <div className="flex h-[calc(100vh-250px)] min-h-[480px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
         <div className="z-20 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-4">
           <div className="flex min-w-0 max-w-full flex-[1_1_260px] items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 sm:max-w-[340px]">
-            <i className="ti ti-search text-slate-400 text-[16px]" />
+            <Icon name="ti-search" className="text-slate-400 text-[16px]" />
             <input
               type="text"
               placeholder={searchPlaceholder}
@@ -207,14 +208,14 @@ export default function InventoryShell({
           <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
             {Array.isArray(filters) ? filters.map((filter) => (
               <button key={filter} type="button" className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] text-slate-600 transition-colors hover:bg-slate-50">
-                <i className="ti ti-filter text-[14px] text-indigo-500" />
+                <Icon name="ti-filter" className="text-[14px] text-indigo-500" />
                 {filter}
-                <i className="ti ti-chevron-down text-[11px]" />
+                <Icon name="ti-chevron-down" className="text-[11px]" />
               </button>
             )) : filters}
             {typeof onDownload === 'function' && (
               <button type="button" onClick={onDownload} className="rounded-xl border border-slate-200 p-2 transition-colors hover:bg-slate-50" title="Download">
-                <i className="ti ti-download text-slate-500 text-[16px]" />
+                <Icon name="ti-download" className="text-slate-500 text-[16px]" />
               </button>
             )}
           </div>

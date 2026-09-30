@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import SearchableSelect from '@/components/SearchableSelect';
+import SearchableSelect from '@/components/SearchableSelect';
+import Icon from "@/components/Icon";
 
 export default function EditCategoryPage() {
   const router   = useRouter();
@@ -208,7 +209,7 @@ export default function EditCategoryPage() {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="inline-flex items-center gap-2 text-gray-500 text-sm">
-          <i className="ti ti-loader-2 animate-spin text-[22px] text-blue-600" />
+          <Icon name="ti-loader-2" className="animate-spin text-[22px] text-blue-600" />
           <span>Loading category details...</span>
         </div>
       </div>
@@ -391,7 +392,7 @@ export default function EditCategoryPage() {
                     onClick={() => setShowAddTypeModal(true)}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
                   >
-                    <i className="ti ti-plus text-[12px]" /> + Add Type
+                    <Icon name="ti-plus" className="text-[12px]" /> + Add Type
                   </button>
                   <span className="text-gray-300">|</span>
                   <button
@@ -399,7 +400,7 @@ export default function EditCategoryPage() {
                     onClick={() => setShowManageTypesModal(true)}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-800 hover:underline"
                   >
-                    <i className="ti ti-settings text-[12px]" /> Manage
+                    <Icon name="ti-settings" className="text-[12px]" /> Manage
                   </button>
                 </div>
               </div>
@@ -492,7 +493,7 @@ export default function EditCategoryPage() {
                 onClick={() => setShowAddTypeModal(false)}
                 className="text-gray-400 hover:text-gray-600 rounded-lg p-1"
               >
-                <i className="ti ti-x text-[16px]" />
+                <Icon name="ti-x" className="text-[16px]" />
               </button>
             </div>
 
@@ -575,7 +576,7 @@ export default function EditCategoryPage() {
                 onClick={() => setShowManageTypesModal(false)}
                 className="text-gray-400 hover:text-gray-600 rounded-lg p-1"
               >
-                <i className="ti ti-x text-[16px]" />
+                <Icon name="ti-x" className="text-[16px]" />
               </button>
             </div>
 
@@ -613,7 +614,7 @@ export default function EditCategoryPage() {
                       className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                       title="Delete category type"
                     >
-                      <i className="ti ti-trash text-[15px]" />
+                      <Icon name="ti-trash" className="text-[15px]" />
                     </button>
                   </div>
                 ))

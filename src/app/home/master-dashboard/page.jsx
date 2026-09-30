@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import MainLayout from "@/components/MainLayout";
+import MainLayout from "@/components/MainLayout";
+import Icon from "@/components/Icon";
 
 const money = (value) =>
   `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -43,7 +44,7 @@ function Metric({ label, value, note, icon, tone = "amber" }) {
         <p className="text-[10px] font-black uppercase tracking-[.18em] opacity-65">
           {label}
         </p>
-        <i className={`ti ${icon} text-lg`} />
+        <Icon name={icon} className="text-lg" />
       </div>
       <p className="mt-3 text-2xl font-black">{value}</p>
       <p className="mt-1 text-[11px] opacity-70">{note}</p>
@@ -306,10 +307,10 @@ export default function ConstructionMasterDashboard() {
                   className={`flex items-center justify-between rounded-xl p-3 text-sm font-semibold ${style}`}
                 >
                   <span className="flex items-center gap-3">
-                    <i className={`ti ${icon} text-lg`} />
+                    <Icon name={icon} className="text-lg" />
                     {text}
                   </span>
-                  <i className="ti ti-chevron-right" />
+                  <Icon name="ti-chevron-right" />
                 </Link>
               ))}
               {!alerts.length && (

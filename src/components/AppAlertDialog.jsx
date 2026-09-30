@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Icon from "@/components/Icon";
 
 function normalizeMessage(message) {
   if (message == null) return 'Something needs your attention.';
@@ -74,7 +75,7 @@ export default function AppAlertDialog() {
       >
         <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700">
-            <i className="ti ti-alert-circle text-[22px]" />
+            <Icon name="ti-alert-circle" className="text-[22px]" />
           </span>
           <div className="min-w-0 flex-1">
             <h2 id="app-alert-title" className="text-[15px] font-black text-slate-900">
@@ -90,7 +91,7 @@ export default function AppAlertDialog() {
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
             aria-label="Close alert"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti-x" className="text-[18px]" />
           </button>
         </div>
 

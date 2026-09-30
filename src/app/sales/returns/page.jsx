@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/MainLayout";
 import { fetchAuthEndpoint } from "@/lib/auth-endpoints";
 import { formatIndianDateTime } from "@/lib/dateUtils";
-import { generateQRDataURL, getInvoiceURL } from "@/lib/qrService";
+import { generateQRDataURL, getInvoiceURL } from "@/lib/qrService";
+import Icon from "@/components/Icon";
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -1555,7 +1556,7 @@ export default function ReturnsPage() {
                   onClick={() => setActiveReceipt(null)}
                   className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
                 >
-                  <i className="ti ti-x text-lg" />
+                  <Icon name="ti-x" className="text-lg" />
                 </button>
               </div>
 

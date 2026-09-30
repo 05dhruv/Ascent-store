@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import MainLayout from "@/components/MainLayout";
 import { validatePhoneNumber } from "@/lib/phoneValidator";
-import { fetchLookup, normalizeVendors } from "@/lib/purchaseLookups";
+import { fetchLookup, normalizeVendors } from "@/lib/purchaseLookups";
+import Icon from "@/components/Icon";
 
 const tableHeaders = [
   "S. No.",
@@ -559,7 +560,7 @@ export default function VendorsPage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4">
         <span className="text-blue-600">Purchase</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">Vendors</span>
       </div>
 
@@ -587,7 +588,7 @@ export default function VendorsPage() {
               onClick={openCreate}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-700 transition-colors flex-shrink-0"
             >
-              <i className="ti ti-plus text-[16px]" />
+              <Icon name="ti-plus" className="text-[16px]" />
               Create Vendor
             </button>
           );
@@ -603,7 +604,7 @@ export default function VendorsPage() {
         )}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 justify-between flex-wrap">
           <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-[340px] bg-gray-50 rounded-lg px-3 py-2">
-            <i className="ti ti-search text-gray-400 text-[16px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[16px]" />
             <input
               type="text"
               placeholder="Search"
@@ -630,7 +631,7 @@ export default function VendorsPage() {
                     onClick={openBulkEditChooser}
                     className="flex w-full items-center gap-2 px-4 py-3 text-left text-[13px] font-semibold text-gray-700 hover:bg-gray-50"
                   >
-                    <i className="ti ti-download text-[16px]" />
+                    <Icon name="ti-download" className="text-[16px]" />
                     Download Editable Excel
                   </button>
                   <button
@@ -641,7 +642,7 @@ export default function VendorsPage() {
                     }}
                     className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-3 text-left text-[13px] font-semibold text-gray-700 hover:bg-gray-50"
                   >
-                    <i className="ti ti-upload text-[16px]" />
+                    <Icon name="ti-upload" className="text-[16px]" />
                     Upload Edited Excel
                   </button>
                 </div>
@@ -654,7 +655,7 @@ export default function VendorsPage() {
               className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               title="Download vendors Excel"
             >
-              <i className="ti ti-download text-gray-500 text-[16px]" />
+              <Icon name="ti-download" className="text-gray-500 text-[16px]" />
             </button>
             <input
               ref={bulkEditInputRef}
@@ -744,14 +745,14 @@ export default function VendorsPage() {
                               className="p-1.5 rounded border border-gray-200 hover:bg-gray-50"
                               title="Edit vendor"
                             >
-                              <i className="ti ti-edit text-[15px]" />
+                              <Icon name="ti-edit" className="text-[15px]" />
                             </button>
                             <button
                               onClick={() => handleDelete(row)}
                               className="p-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50"
                               title="Delete vendor"
                             >
-                              <i className="ti ti-trash text-[15px]" />
+                              <Icon name="ti-trash" className="text-[15px]" />
                             </button>
                           </div>
                         );
@@ -797,13 +798,13 @@ export default function VendorsPage() {
                   onClick={() => setBulkChooserOpen(false)}
                   className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
                 >
-                  <i className="ti ti-x text-[18px]" />
+                  <Icon name="ti-x" className="text-[18px]" />
                 </button>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-3">
                 <div className="flex min-w-[260px] flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-                  <i className="ti ti-search text-[16px] text-gray-400" />
+                  <Icon name="ti-search" className="text-[16px] text-gray-400" />
                   <input
                     type="text"
                     value={bulkChooserSearch}
@@ -990,7 +991,7 @@ export default function VendorsPage() {
                   className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
                   onClick={() => setShowModal(false)}
                 >
-                  <i className="ti ti-x text-[18px]" />
+                  <Icon name="ti-x" className="text-[18px]" />
                 </button>
               </div>
 

@@ -18,7 +18,8 @@ import {
   sheetToJsonRows,
   sortOptions,
   uniqueOptions,
-} from "@/lib/xlsxDropdowns";
+} from "@/lib/xlsxDropdowns";
+import Icon from "@/components/Icon";
 
 const TEMPLATE_HEADERS = [
   "store_id",
@@ -352,7 +353,7 @@ export default function AssignBulkStep1() {
         <h3 className="font-semibold mb-3 text-gray-700">Upload Template</h3>
         <div className="group rounded-2xl border border-dashed border-amber-200 bg-gradient-to-br from-amber-50 via-white to-blue-50 p-8 text-center shadow-sm transition hover:border-amber-300 hover:shadow-md">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-amber-100">
-            <i className="ti ti-file-spreadsheet text-[22px] text-amber-600" />
+            <Icon name="ti-file-spreadsheet" className="text-[22px] text-amber-600" />
           </div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
             Excel Upload
@@ -365,7 +366,7 @@ export default function AssignBulkStep1() {
             step.
           </p>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-700 hover:shadow-blue-500/35">
-            <i className="ti ti-upload text-[16px]" />
+            <Icon name="ti-upload" className="text-[16px]" />
             <span>Choose Excel File</span>
             <input
               ref={fileRef}

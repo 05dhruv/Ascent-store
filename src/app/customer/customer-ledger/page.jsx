@@ -3,7 +3,8 @@
 import MainLayout from '@/components/MainLayout';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import CustomerSearchModal from '@/components/CustomerSearchModal';
-import { formatIndianDate } from '@/lib/dateUtils';
+import { formatIndianDate } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 function formatDisplayDate(iso) {
   return formatIndianDate(iso, '');
@@ -118,7 +119,7 @@ export default function CustomerLedgerPage() {
         <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-4 flex-wrap">
           <span className="flex items-center gap-1.5">
             <a href="/customer/dashboard" className="hover:text-blue-600 transition-colors">Customer</a>
-            <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+            <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
             <span className="text-gray-900 font-semibold">Customer Ledger</span>
           </span>
         </nav>
@@ -166,7 +167,7 @@ export default function CustomerLedgerPage() {
                       className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-100"
                       aria-label="Open date range calendar"
                     >
-                      <i className="ti ti-calendar text-[16px] text-gray-500" />
+                      <Icon name="ti-calendar" className="text-[16px] text-gray-500" />
                     </button>
                     {showDatePicker && (
                       <div className="absolute left-0 top-full z-30 mt-1 w-[260px] rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
@@ -231,7 +232,7 @@ export default function CustomerLedgerPage() {
                     <div className="relative">
                       <input value={customer} readOnly onClick={() => setShowCustomerModal(true)} placeholder="Select customer" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-[13px] text-gray-700 bg-white placeholder:text-gray-400 cursor-pointer" />
                       <button onClick={() => setShowCustomerModal(true)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-100">
-                        <i className="ti ti-search text-gray-500" />
+                        <Icon name="ti-search" className="text-gray-500" />
                       </button>
                     </div>
                   </div>
@@ -243,7 +244,7 @@ export default function CustomerLedgerPage() {
 
               <div className="flex items-center gap-2 justify-end">
                 <button className="p-2 rounded-lg hover:bg-gray-100">
-                  <i className="ti ti-download text-[16px] text-gray-600" />
+                  <Icon name="ti-download" className="text-[16px] text-gray-600" />
                 </button>
               </div>
             </div>
@@ -255,7 +256,7 @@ export default function CustomerLedgerPage() {
               <p className="px-4 py-6 text-sm text-gray-500">Loading...</p>
             ) : rows.length === 0 ? (
               <div className="py-14 text-center text-gray-400">
-                <i className="ti ti-database-off text-[32px] mb-2 block" />
+                <Icon name="ti-database-off" className="text-[32px] mb-2 block" />
                 <p className="text-[13px]">No Records Found</p>
               </div>
             ) : (
@@ -296,7 +297,7 @@ export default function CustomerLedgerPage() {
                 ) : rows.length === 0 ? (
                   <tr>
                     <td colSpan={columns.length} className="text-center py-16 text-gray-400">
-                      <i className="ti ti-database-off text-[32px] mb-2 block" />
+                      <Icon name="ti-database-off" className="text-[32px] mb-2 block" />
                       <p className="text-[13px]">No Records Found</p>
                     </td>
                   </tr>

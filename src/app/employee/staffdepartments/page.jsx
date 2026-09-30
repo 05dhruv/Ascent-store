@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -79,7 +80,7 @@ function UserMultiSelect({ users, value, onChange }) {
         className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-[13px] text-gray-700 bg-white flex items-center justify-between gap-3"
       >
         <span className="truncate text-left">{labels}</span>
-        <i className={`ti ti-chevron-down text-[12px] text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <Icon name="ti-chevron-down" className={`text-[12px] text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="absolute z-20 mt-2 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-64 overflow-auto">
@@ -234,7 +235,7 @@ export default function EmployeeDepartmentsPage() {
           <Link href="/employee" className="text-blue-600 hover:underline font-medium">
             Employee
           </Link>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-blue-600 font-semibold">Employee Departments</span>
         </nav>
 
@@ -251,7 +252,7 @@ export default function EmployeeDepartmentsPage() {
             onClick={() => router.push('/employee/staffdepartments/create')}
             className="self-start flex items-center gap-1.5 px-4 py-2 bg-blue-700 text-white rounded-lg text-[12.5px] font-semibold hover:bg-blue-800 transition-colors shadow-sm flex-shrink-0"
           >
-            <i className="ti ti-plus text-[14px]" />
+            <Icon name="ti-plus" className="text-[14px]" />
             Create Employee Department
           </button>
         </div>
@@ -259,7 +260,7 @@ export default function EmployeeDepartmentsPage() {
         {/* Search — top right */}
         <div className="flex justify-end mb-4">
           <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 w-full sm:w-[280px] shadow-sm">
-            <i className="ti ti-search text-gray-400 text-[15px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[15px]" />
             <input
               type="text"
               placeholder="Search"
@@ -269,7 +270,7 @@ export default function EmployeeDepartmentsPage() {
             />
             {search && (
               <button onClick={() => setSearch('')}>
-                <i className="ti ti-x text-gray-400 text-[13px]" />
+                <Icon name="ti-x" className="text-gray-400 text-[13px]" />
               </button>
             )}
           </div>
@@ -300,7 +301,7 @@ export default function EmployeeDepartmentsPage() {
                 ) : paginated.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="text-center text-gray-400 py-16 text-[13px]">
-                      <i className="ti ti-building-off text-[32px] mb-2 block" />
+                      <Icon name="ti-building-off" className="text-[32px] mb-2 block" />
                       No departments found
                     </td>
                   </tr>
@@ -326,7 +327,7 @@ export default function EmployeeDepartmentsPage() {
                           }}
                           className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                         >
-                          <i className="ti ti-dots-vertical text-gray-400 text-[14px]" />
+                          <Icon name="ti-dots-vertical" className="text-gray-400 text-[14px]" />
                         </button>
                         {openMenu?.id === row.id && (
                           <div
@@ -346,7 +347,7 @@ export default function EmployeeDepartmentsPage() {
                                 });
                               }}
                             >
-                              <i className="ti ti-edit text-[13px] mr-2 text-blue-500" />
+                              <Icon name="ti-edit" className="text-[13px] mr-2 text-blue-500" />
                               Edit
                             </button>
                             <button
@@ -356,7 +357,7 @@ export default function EmployeeDepartmentsPage() {
                                 setDeleteTarget(row);
                               }}
                             >
-                              <i className="ti ti-trash text-[13px] mr-2" />
+                              <Icon name="ti-trash" className="text-[13px] mr-2" />
                               Delete
                             </button>
                           </div>
@@ -382,7 +383,7 @@ export default function EmployeeDepartmentsPage() {
                 {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
               <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
-                <i className="ti ti-chevron-down text-[11px]" />
+                <Icon name="ti-chevron-down" className="text-[11px]" />
               </span>
             </div>
             <span className="text-[12.5px] text-gray-400">
@@ -397,7 +398,7 @@ export default function EmployeeDepartmentsPage() {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <i className="ti ti-chevron-left text-gray-600 text-[14px]" />
+                <Icon name="ti-chevron-left" className="text-gray-600 text-[14px]" />
               </button>
             )}
             {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -421,7 +422,7 @@ export default function EmployeeDepartmentsPage() {
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <i className="ti ti-chevron-right text-gray-600 text-[14px]" />
+                <Icon name="ti-chevron-right" className="text-gray-600 text-[14px]" />
               </button>
             )}
           </div>
@@ -433,7 +434,7 @@ export default function EmployeeDepartmentsPage() {
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-[16px] font-bold text-gray-900">Edit Employee Department</h2>
                 <button onClick={closeEditors} className="p-1.5 rounded-lg hover:bg-gray-100">
-                  <i className="ti ti-x text-gray-500 text-[16px]" />
+                  <Icon name="ti-x" className="text-gray-500 text-[16px]" />
                 </button>
               </div>
 
@@ -494,7 +495,7 @@ export default function EmployeeDepartmentsPage() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[16px] font-bold text-gray-900">Delete Department</h2>
                 <button onClick={closeEditors} className="p-1.5 rounded-lg hover:bg-gray-100">
-                  <i className="ti ti-x text-gray-500 text-[16px]" />
+                  <Icon name="ti-x" className="text-gray-500 text-[16px]" />
                 </button>
               </div>
               <p className="text-[13px] text-gray-600">
