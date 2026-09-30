@@ -12,36 +12,17 @@ import {
   getFirstAccessibleHref,
 } from "@/lib/accessControl";
 
-const COLLAPSE_STORAGE_KEY = "ascent-sidebar-collapsed";
-
 export default function MainLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading } = useUser();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
   const accessibleMenuItems = useMemo(
     () => filterMenuItemsForUser(menuItems, user),
     [user],
   );
   const accessAllowed = !loading && user && canAccessPath(user, pathname);
   const hasAccessibleMenu = accessibleMenuItems.length > 0;
-
-  useEffect(() => {
-    try {
-      setCollapsed(localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1");
-    } catch {}
-  }, []);
-
-  const toggleCollapsed = () => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? "1" : "0");
-      } catch {}
-      return next;
-    });
-  };
 
   useEffect(() => {
     if (loading) return;
@@ -78,15 +59,12 @@ export default function MainLayout({ children }) {
     <div className="workspace-shell min-h-screen text-slate-900">
       <Topbar
         hasSidebar={hasAccessibleMenu}
-        sidebarCollapsed={collapsed}
         onMenuOpen={() => setMobileOpen(true)}
       />
 
       {hasAccessibleMenu && (
         <Sidebar
           items={accessibleMenuItems}
-          collapsed={collapsed}
-          onToggleCollapse={toggleCollapsed}
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
         />
@@ -96,13 +74,7 @@ export default function MainLayout({ children }) {
         className={`
           transition-[margin] duration-300
           mt-[56px]
-          ${
-            !hasAccessibleMenu
-              ? "lg:ml-0"
-              : collapsed
-                ? "lg:ml-[72px]"
-                : "lg:ml-[240px]"
-          }
+          ${!hasAccessibleMenu ? "lg:ml-0" : "lg:ml-[240px]"}
           min-h-[calc(100vh-56px)]
           p-3 sm:p-5 md:p-6 lg:p-7
           max-w-full overflow-x-clip pb-safe

@@ -75,7 +75,6 @@ function buildSearchItems(items = []) {
 export default function Topbar({
   onMenuOpen,
   hasSidebar = true,
-  sidebarCollapsed = false,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -476,9 +475,7 @@ export default function Topbar({
 
   return (
     <header
-      className={`workspace-topbar fixed top-0 right-0 left-0 h-[56px] z-50 flex items-center px-3 md:pr-5 transition-[left] duration-300 ${
-        !hasSidebar ? "" : sidebarCollapsed ? "lg:left-[72px]" : "lg:left-[240px]"
-      }`}
+      className={`workspace-topbar fixed top-0 right-0 left-0 h-[56px] z-50 flex items-center px-3 md:pr-5 transition-[left] duration-300 ${hasSidebar ? "lg:left-[240px]" : ""}`}
     >
       {/* Hamburger — below desktop, sidebar lives in the drawer */}
       {hasSidebar && (

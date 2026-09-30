@@ -1,7 +1,7 @@
 "use client";
 import Icon from "@/components/Icon";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -53,30 +53,13 @@ function useActiveHref(items, pathname, search) {
 
 export default function Sidebar({
   items = [],
-  collapsed = false,
-  onToggleCollapse,
   mobileOpen = false,
   onMobileClose,
 }) {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
   const [openLabel, setOpenLabel] = useState(null);
-  const [flyout, setFlyout] = useState(null);
-  const flyoutTimer = useRef(null);
-
-  const openFlyout = (next) => {
-    clearTimeout(flyoutTimer.current);
-    setFlyout(next);
-  };
-  const scheduleFlyoutClose = () => {
-    clearTimeout(flyoutTimer.current);
-    flyoutTimer.current = setTimeout(() => setFlyout(null), 140);
-  };
-
-  useEffect(() => () => clearTimeout(flyoutTimer.current), []);
-
   useEffect(() => {
-    setFlyout(null);
     setSearch(typeof window !== "undefined" ? window.location.search : "");
   }, [pathname]);
 
@@ -251,84 +234,12 @@ export default function Sidebar({
 
       {/* Desktop */}
       <aside
-        className={`fixed left-0 top-0 z-40 hidden h-screen flex-col ${SIDEBAR_BG} shadow-[4px_0_24px_rgba(11,34,57,0.18)] transition-[width] duration-300 lg:flex ${
-          collapsed ? "w-[72px]" : "w-[240px]"
-        }`}
+        className={`fixed left-0 top-0 z-40 hidden h-screen w-[240px] flex-col ${SIDEBAR_BG} shadow-[4px_0_24px_rgba(11,34,57,0.18)] lg:flex`}
         aria-label="Main navigation"
       >
-        {brand(collapsed)}
-
-        {collapsed ? (
-          <nav className="no-scrollbar flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-3 py-4">
-            {items.map((item) => {
-              const isActive = activeParent?.label === item.label;
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  aria-label={item.label}
-                  aria-current={isActive ? "page" : undefined}
-                  onMouseEnter={(event) => {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    openFlyout({ item, top: rect.top });
-                  }}
-                  onMouseLeave={scheduleFlyoutClose}
-                  className={`flex h-11 w-full items-center justify-center rounded-xl transition-all ${
-                    isActive
-                      ? "bg-orange-500 text-white shadow-[0_8px_18px_rgba(249,115,22,0.28)]"
-                      : "text-[#8FA7BB] hover:bg-white/[0.06] hover:text-white"
-                  }`}
-                >
-                  <Icon name={`ti ${item.icon} text-[20px]`} />
-                </Link>
-              );
-            })}
-          </nav>
-        ) : (
-          renderExpandedNav()
-        )}
-
-        <div className="border-t border-white/[0.06] p-3">
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[12px] font-medium text-[#8FA7BB] transition-colors hover:bg-white/[0.06] hover:text-white ${collapsed ? "justify-center" : ""}`}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <Icon name={`ti ${collapsed ? "ti-layout-sidebar-left-expand" : "ti-layout-sidebar-left-collapse"} text-[18px]`} />
-            {!collapsed && <span>Collapse</span>}
-          </button>
-        </div>
+        {brand(false)}
+        {renderExpandedNav()}
       </aside>
-
-      {/* Collapsed-rail flyout: label + children on hover */}
-      {collapsed && flyout?.item && (
-        <div
-          className="fixed left-[72px] z-[70] hidden pl-2 lg:block"
-          style={{ top: Math.max(8, flyout.top - 6) }}
-          onMouseEnter={() => openFlyout(flyout)}
-          onMouseLeave={scheduleFlyoutClose}
-        >
-          <div
-            className={`w-[230px] rounded-2xl border border-white/10 ${SIDEBAR_BG} p-2 shadow-[0_18px_40px_rgba(11,34,57,0.35)]`}
-          >
-            <Link
-              href={flyout.item.href}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-white hover:bg-white/[0.06]"
-            >
-              <Icon name={`ti ${flyout.item.icon} text-[16px] text-orange-400`} />
-              {flyout.item.label}
-            </Link>
-            {childrenOf(flyout.item).length > 0 && (
-              <div className="ml-4 mt-1 max-h-[60vh] overflow-y-auto border-l border-white/10 pl-3">
-                {renderChildren(flyout.item, {
-                  onNavigate: () => setFlyout(null),
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </>
   );
 }
