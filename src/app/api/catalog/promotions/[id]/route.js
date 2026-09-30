@@ -25,7 +25,7 @@ function safeNumber(v, fallback = null) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-async function runEnsurePromotionsColumns() {
+const ensurePromotionsColumns = makeSchemaEnsurer("promotions_columns", async () => {
   await query(
     `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS store_id BIGINT`,
   );
@@ -72,9 +72,7 @@ async function runEnsurePromotionsColumns() {
   await query(
     `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS requested_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL`,
   );
-}
-
-const ensurePromotionsColumns = makeSchemaEnsurer("promotions_columns_item", runEnsurePromotionsColumns);
+});
 
 export async function PUT(request, { params }) {
   try {

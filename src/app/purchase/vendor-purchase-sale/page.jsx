@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import MainLayout from "@/components/MainLayout";
-import { formatIndianDate } from "@/lib/dateUtils";
+import { formatIndianDate } from "@/lib/dateUtils";
+import Icon from "@/components/Icon";
 
 function money(value) {
   return `₹${Number(value || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -60,7 +61,7 @@ export default function VendorPurchaseSalePage() {
   };
 
   return <MainLayout>
-    <div className="mb-4 flex items-center gap-2 text-[12px] text-gray-500"><span className="text-blue-600">Purchase</span><i className="ti ti-chevron-right text-[11px] text-gray-400" /><span className="font-semibold text-gray-900">Vendor Purchase & Sale</span></div>
+    <div className="mb-4 flex items-center gap-2 text-[12px] text-gray-500"><span className="text-blue-600">Purchase</span><Icon name="ti-chevron-right" className="text-[11px] text-gray-400" /><span className="font-semibold text-gray-900">Vendor Purchase & Sale</span></div>
     <div className="mb-5 flex items-start justify-between gap-4"><div><h1 className="text-[28px] font-semibold leading-tight text-gray-900">Vendor Purchase & Sale</h1><p className="mt-1 text-[12.5px] text-gray-400">Vendor-wise confirmed purchase value and batch-traceable POS sale value.</p></div></div>
     <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search vendor" className="min-w-[260px] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm" /><button onClick={load} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Refresh</button></div>
     <div className="mb-5 grid gap-4 sm:grid-cols-3"><div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><p className="text-xs font-semibold uppercase text-blue-600">Total Purchase Amount</p><p className="mt-1 text-2xl font-bold text-blue-950">{money(totals.purchase)}</p></div><div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4"><p className="text-xs font-semibold uppercase text-emerald-600">Vendor-Traceable Sale Amount</p><p className="mt-1 text-2xl font-bold text-emerald-950">{money(totals.sale)}</p><p className="mt-1 text-[11px] text-emerald-700">Sales linked to vendor batches only</p></div><div className="rounded-xl border border-violet-100 bg-violet-50 p-4"><p className="text-xs font-semibold uppercase text-violet-600">Consolidated Sale Amount</p><p className="mt-1 text-2xl font-bold text-violet-950">{money(consolidatedSaleTotal)}</p><p className="mt-1 text-[11px] text-violet-700">All stores, valid POS bills, last 24 months</p></div></div>

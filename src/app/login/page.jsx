@@ -4,7 +4,8 @@ import AuthScreen from "@/components/AuthScreen";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, useEffect } from "react";
 import { getDefaultRouteForUser } from "@/lib/accessControl";
-import { fetchAuthEndpoint } from "@/lib/auth-endpoints";
+import { fetchAuthEndpoint } from "@/lib/auth-endpoints";
+import Icon from "@/components/Icon";
 
 const highlights = [
   {
@@ -238,7 +239,7 @@ function LoginPageContent() {
             Email
           </label>
           <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 transition-colors focus-within:border-blue-400 focus-within:bg-white">
-            <i className="ti ti-user text-[16px] text-gray-400" />
+            <Icon name="ti-user" className="text-[16px] text-gray-400" />
             <input
               id="login-email"
               type="email"
@@ -262,7 +263,7 @@ function LoginPageContent() {
             Password
           </label>
           <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 transition-colors focus-within:border-blue-400 focus-within:bg-white">
-            <i className="ti ti-lock text-[16px] text-gray-400" />
+            <Icon name="ti-lock" className="text-[16px] text-gray-400" />
             <input
               id="login-password"
               type={showPassword ? "text" : "password"}
@@ -282,9 +283,7 @@ function LoginPageContent() {
               aria-label={showPassword ? "Hide password" : "Show password"}
               title={showPassword ? "Hide password" : "Show password"}
             >
-              <i
-                className={`ti ${showPassword ? "ti-eye-off" : "ti-eye"} text-[17px]`}
-              />
+              <Icon name={showPassword ? "ti-eye-off" : "ti-eye"} className="text-[17px]" />
             </button>
           </div>
         </div>
@@ -293,7 +292,7 @@ function LoginPageContent() {
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] text-red-700 animate-in fade-in">
             <div className="flex items-start gap-2">
-              <i className="ti ti-alert-circle mt-0.5 flex-shrink-0 text-red-600" />
+              <Icon name="ti-alert-circle" className="mt-0.5 flex-shrink-0 text-red-600" />
               <span>{error}</span>
             </div>
           </div>

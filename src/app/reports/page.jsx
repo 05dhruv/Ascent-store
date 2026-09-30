@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 const PINNED = [
   {
@@ -217,7 +218,7 @@ function ReportCard({ item, iconKey }) {
       className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 transition-colors border-b border-r border-gray-100 last:border-b-0"
     >
       <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${bg}`}>
-        <i className={`ti ${icon} text-[15px] ${color}`} />
+        <Icon name={icon} className={`text-[15px] ${color}`} />
       </span>
       <span className="text-[13px] text-gray-700 font-medium leading-snug">{item.label}</span>
     </Link>
@@ -397,14 +398,14 @@ export default function ReportsHomePage() {
             onClick={() => setShowSchedule(true)}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 transition"
           >
-            <i className="ti ti-calendar-down text-[14px]" />
+            <Icon name="ti-calendar-down" className="text-[14px]" />
             Schedule reports
           </button>
           <button
             onClick={openPinnedExcel}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg bg-white text-xs text-gray-700 hover:bg-gray-50 transition"
           >
-            <i className="ti ti-external-link text-[14px]" />
+            <Icon name="ti-external-link" className="text-[14px]" />
             Open in Excel
           </button>
         </div>
@@ -516,7 +517,7 @@ export default function ReportsHomePage() {
                 className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
                 aria-label="Close schedule reports"
               >
-                <i className="ti ti-x text-[18px]" />
+                <Icon name="ti-x" className="text-[18px]" />
               </button>
             </div>
 
@@ -589,7 +590,7 @@ export default function ReportsHomePage() {
                 onClick={handleGenerateScheduledReport}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
               >
-                <i className="ti ti-download text-[16px]" />
+                <Icon name="ti-download" className="text-[16px]" />
                 Generate now
               </button>
               <button

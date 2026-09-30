@@ -61,7 +61,12 @@ export async function warmSchemas(extraEnsurers = []) {
       ...(g._schemaBootRegistry || []),
       ...(Array.isArray(extraEnsurers) ? extraEnsurers : []),
     ];
-    await Promise.allSettled(ensurers.map((fn) => fn()));
+    const results = await Promise.allSettled(ensurers.map((fn) => fn()));
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error("[schemaGuard] boot schema failed:", result.reason?.message || result.reason);
+      }
+    }
     g._schemasWarmed = true;
   })().finally(() => {
     g._schemasWarmPromise = null;

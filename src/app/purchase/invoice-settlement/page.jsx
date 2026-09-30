@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import MainLayout from "@/components/MainLayout";
 import { fetchLookup, normalizeVendors } from "@/lib/purchaseLookups";
-import { formatIndianDate } from "@/lib/dateUtils";
+import { formatIndianDate } from "@/lib/dateUtils";
+import Icon from "@/components/Icon";
 
 const tableHeaders = [
   "Invoice ID",
@@ -564,7 +565,7 @@ export default function InvoiceSettlementPage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4">
         <span className="text-blue-600">Purchase</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">Invoice Settlement</span>
       </div>
 
@@ -668,7 +669,7 @@ export default function InvoiceSettlementPage() {
       <div className="flex max-h-[calc(100dvh-320px)] min-h-[520px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
         <div className="flex flex-none items-center gap-3 px-4 py-3 border-b border-gray-200 justify-between flex-wrap bg-white">
           <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-[340px] bg-gray-50 rounded-lg px-3 py-2">
-            <i className="ti ti-search text-gray-400 text-[16px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[16px]" />
             <input
               type="text"
               placeholder="Search"
@@ -692,7 +693,7 @@ export default function InvoiceSettlementPage() {
               className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
               title="Download CSV"
             >
-              <i className="ti ti-download text-gray-500 text-[16px]" />
+              <Icon name="ti-download" className="text-gray-500 text-[16px]" />
             </button>
             <button
               type="button"
@@ -700,7 +701,7 @@ export default function InvoiceSettlementPage() {
               className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-semibold text-gray-700 hover:bg-gray-50"
               title="Show, hide, or compact table columns"
             >
-              <i className="ti ti-columns-3 text-[16px] text-gray-500" />
+              <Icon name="ti-columns-3" className="text-[16px] text-gray-500" />
               Columns
             </button>
           </div>

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import MainLayout from '@/components/MainLayout';
 import { fetchLookup, normalizeStores } from '@/lib/purchaseLookups';
 import { useUser } from '@/hooks/useUser';
-import { formatIndianDate, toDateInputValue } from '@/lib/dateUtils';
+import { formatIndianDate, toDateInputValue } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -654,7 +655,7 @@ export default function RemoteGrnPage() {
             <div>
               <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
                 <span className="text-blue-600">Purchase</span>
-                <i className="ti ti-chevron-right text-[11px]" />
+                <Icon name="ti-chevron-right" className="text-[11px]" />
                 <span className="text-slate-900">Remote GRN</span>
               </div>
               <h1 className="text-2xl font-black text-slate-950 sm:text-3xl">Remote GRN</h1>
@@ -749,7 +750,7 @@ export default function RemoteGrnPage() {
                       className="h-11 rounded-lg border border-red-200 bg-white px-4 text-sm font-black text-red-700 hover:bg-red-100"
                       title="Open mobile camera scanner"
                     >
-                      <i className="ti ti-camera text-base" />
+                      <Icon name="ti-camera" className="text-base" />
                       <span className="ml-2 sm:hidden">Camera</span>
                     </button>
                     <button
@@ -878,7 +879,7 @@ export default function RemoteGrnPage() {
                           <td className="whitespace-nowrap px-3 py-3 font-bold">{money(lineCost(item))}</td>
                           <td className="px-3 py-3">
                             <button type="button" onClick={() => removeItem(item.rowId)} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50">
-                              <i className="ti ti-trash text-[16px]" />
+                              <Icon name="ti-trash" className="text-[16px]" />
                             </button>
                           </td>
                         </tr>
@@ -903,7 +904,7 @@ export default function RemoteGrnPage() {
                           <p className="text-xs text-slate-500">{item.sku || item.barcode || item.scanCode || '-'}</p>
                         </div>
                         <button type="button" onClick={() => removeItem(item.rowId)} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50">
-                          <i className="ti ti-trash text-[16px]" />
+                          <Icon name="ti-trash" className="text-[16px]" />
                         </button>
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

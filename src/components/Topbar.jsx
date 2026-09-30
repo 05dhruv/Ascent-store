@@ -8,7 +8,8 @@ import { useUser } from "@/hooks/useUser";
 import {
   filterMenuItemsForUser,
   getPageTitleForMenu,
-} from "@/lib/accessControl";
+} from "@/lib/accessControl";
+import Icon from "@/components/Icon";
 
 function buildSearchItems(items = []) {
   const seen = new Set();
@@ -282,7 +283,9 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
 
   useEffect(() => {
     loadNotifications();
-    const intervalId = setInterval(loadNotifications, 90_000);
+    const intervalId = setInterval(() => {
+      if (document.visibilityState !== "hidden") loadNotifications();
+    }, 90_000);
     const onFocus = () => loadNotifications();
     window.addEventListener("focus", onFocus);
     return () => {
@@ -476,7 +479,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
         className="md:hidden p-2 rounded-xl hover:bg-indigo-50 transition-colors mr-2 flex-shrink-0"
         aria-label="Open menu"
       >
-        <i className="ti ti-menu-2 text-slate-700 text-[20px]" />
+        <Icon name="ti-menu-2" className="text-slate-700 text-[20px]" />
       </button>
 
       {/* Brand — hidden on mobile (shown in drawer instead) */}
@@ -544,7 +547,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
             className="md:hidden rounded-xl p-2 text-slate-500 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
             aria-label="Search pages"
           >
-            <i className="ti ti-search text-[20px]" />
+            <Icon name="ti-search" className="text-[20px]" />
           </button>
 
           <div
@@ -555,7 +558,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
             }`}
           >
             <div className="relative w-full md:w-[360px]">
-              <i className="ti ti-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[17px] text-slate-400" />
+              <Icon name="ti-search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[17px] text-slate-400" />
               <input
                 type="search"
                 value={searchQuery}
@@ -587,7 +590,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                       }`}
                     >
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                        <i className={`ti ${item.icon} text-[17px]`} />
+                        <Icon name={item.icon} className="text-[17px]" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[13px] font-bold text-slate-900">
@@ -598,7 +601,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                           {item.group ? ` / ${item.group}` : ""}
                         </span>
                       </span>
-                      <i className="ti ti-arrow-up-right text-[15px] text-slate-300" />
+                      <Icon name="ti-arrow-up-right" className="text-[15px] text-slate-300" />
                     </button>
                   ))
                 ) : (
@@ -626,7 +629,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
             className="relative rounded-xl p-2 text-slate-500 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
             aria-label="Notifications"
           >
-            <i className="ti ti-bell text-slate-500 text-[20px]" />
+            <Icon name="ti-bell" className="text-slate-500 text-[20px]" />
             {notificationCount > 0 && (
               <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] font-bold leading-4 text-white">
                 {notificationCount}
@@ -987,7 +990,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                 {loadingUser ? "" : roleLabel}
               </p>
             </div>
-            <i className="ti ti-chevron-down text-gray-400 text-[13px] hidden sm:block" />
+            <Icon name="ti-chevron-down" className="text-gray-400 text-[13px] hidden sm:block" />
           </button>
 
           {openProfile && (
@@ -1041,7 +1044,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                   }}
                   className="flex w-full items-center gap-2 px-4 py-2 text-left text-[14px] text-gray-700 hover:bg-gray-50"
                 >
-                  <i className="ti ti-lock text-[16px]" />
+                  <Icon name="ti-lock" className="text-[16px]" />
                   Change password
                 </button>
 
@@ -1049,7 +1052,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                   type="button"
                   className="flex w-full items-center gap-2 px-4 py-2 text-left text-[14px] text-gray-700 hover:bg-gray-50"
                 >
-                  <i className="ti ti-world text-[16px]" />
+                  <Icon name="ti-world" className="text-[16px]" />
                   Change language
                 </button>
 
@@ -1057,7 +1060,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                   type="button"
                   className="flex w-full items-center gap-2 px-4 py-2 text-left text-[14px] text-gray-700 hover:bg-gray-50"
                 >
-                  <i className="ti ti-help-circle text-[16px]" />
+                  <Icon name="ti-help-circle" className="text-[16px]" />
                   Help & support
                 </button>
               </div>
@@ -1068,7 +1071,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] text-red-600 hover:bg-red-50"
                 >
-                  <i className="ti ti-logout text-[16px]" />
+                  <Icon name="ti-logout" className="text-[16px]" />
                   Log out
                 </button>
               </div>
@@ -1095,7 +1098,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                   }}
                   className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
                 >
-                  <i className="ti ti-x text-[16px]" />
+                  <Icon name="ti-x" className="text-[16px]" />
                 </button>
               </div>
 

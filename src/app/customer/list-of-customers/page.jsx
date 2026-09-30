@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { validatePhoneNumber } from '@/lib/phoneValidator';
+import { validatePhoneNumber } from '@/lib/phoneValidator';
+import Icon from "@/components/Icon";
 
 const initialForm = {
   firstName: '',
@@ -113,7 +114,7 @@ function SelectField({ label, value, onChange, options, required = false }) {
           ))}
         </select>
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-          <i className="ti ti-chevron-down text-[12px]" />
+          <Icon name="ti-chevron-down" className="text-[12px]" />
         </span>
       </div>
     </div>
@@ -281,7 +282,7 @@ export default function ListOfCustomersPage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4 flex-wrap">
         <span className="text-blue-600">Customer</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">List Of Customers</span>
       </div>
 
@@ -294,7 +295,7 @@ export default function ListOfCustomersPage() {
           onClick={openCreateForm}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-700 transition-colors flex-shrink-0"
         >
-          <i className="ti ti-plus text-[16px]" />
+          <Icon name="ti-plus" className="text-[16px]" />
           Create Customer
         </button>
       </div>
@@ -302,7 +303,7 @@ export default function ListOfCustomersPage() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 justify-between flex-wrap">
           <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-[340px] bg-gray-50 rounded-lg px-3 py-2">
-            <i className="ti ti-search text-gray-400 text-[16px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[16px]" />
             <input
               type="text"
               placeholder="Search"
@@ -327,7 +328,7 @@ export default function ListOfCustomersPage() {
               className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
               title="Export CSV"
             >
-              <i className="ti ti-download text-gray-500 text-[16px]" />
+              <Icon name="ti-download" className="text-gray-500 text-[16px]" />
             </button>
           </div>
         </div>

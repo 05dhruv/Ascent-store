@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 const products = [
   { id: 1, name: 'AMUL COW GHEE 1 LTR TETRA (RS. 645)', brand: 'AMUL',    category: 'FMCG-FOOD', price: 645,  cost: 585, margin: 10,  stock: null, flags: ['No image'] },
@@ -45,9 +46,9 @@ export default function CatalogDashboard() {
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
         <span className="hover:text-blue-600 cursor-pointer">Home</span>
-        <i className="ti ti-chevron-right text-[12px]" />
+        <Icon name="ti-chevron-right" className="text-[12px]" />
         <span className="hover:text-blue-600 cursor-pointer">Catalog</span>
-        <i className="ti ti-chevron-right text-[12px]" />
+        <Icon name="ti-chevron-right" className="text-[12px]" />
         <span className="text-gray-900 font-medium">Catalog Dashboard</span>
       </div>
 
@@ -61,12 +62,12 @@ export default function CatalogDashboard() {
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-            <i className="ti ti-upload text-[16px]" />
+            <Icon name="ti-upload" className="text-[16px]" />
             Bulk operations
-            <i className="ti ti-chevron-down text-[12px]" />
+            <Icon name="ti-chevron-down" className="text-[12px]" />
           </button>
           <button className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">
-            <i className="ti ti-plus text-[16px]" />
+            <Icon name="ti-plus" className="text-[16px]" />
             New product
           </button>
         </div>
@@ -115,7 +116,7 @@ export default function CatalogDashboard() {
           </div>
           <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
             <div className="w-5 h-5 rounded bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <i className="ti ti-check text-white text-[11px]" />
+              <Icon name="ti-check" className="text-white text-[11px]" />
             </div>
             <div className="flex-1">
               <p className="text-[13px] font-semibold text-gray-800">
@@ -161,7 +162,7 @@ export default function CatalogDashboard() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-2 flex-1 bg-gray-50 rounded-lg px-3 py-2">
-            <i className="ti ti-search text-gray-400 text-[16px]" />
+            <Icon name="ti-search" className="text-gray-400 text-[16px]" />
             <input
               type="text"
               placeholder="Search by name, barcode, SKU, HSN..."
@@ -171,27 +172,27 @@ export default function CatalogDashboard() {
             />
           </div>
           <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-[12.5px] text-gray-600 hover:bg-gray-50 transition-colors">
-            <i className="ti ti-filter text-[14px] text-blue-500" />
+            <Icon name="ti-filter" className="text-[14px] text-blue-500" />
             Category
-            <i className="ti ti-chevron-down text-[11px]" />
+            <Icon name="ti-chevron-down" className="text-[11px]" />
           </button>
           <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-[12.5px] text-gray-600 hover:bg-gray-50 transition-colors">
-            <i className="ti ti-filter text-[14px] text-blue-500" />
+            <Icon name="ti-filter" className="text-[14px] text-blue-500" />
             Brand
-            <i className="ti ti-chevron-down text-[11px]" />
+            <Icon name="ti-chevron-down" className="text-[11px]" />
           </button>
           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
             <button
               onClick={() => setViewMode('table')}
               className={`p-2 transition-colors ${viewMode === 'table' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
             >
-              <i className="ti ti-table text-[16px]" />
+              <Icon name="ti-table" className="text-[16px]" />
             </button>
             <button
               onClick={() => setViewMode('grid')}
               className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
             >
-              <i className="ti ti-layout-grid text-[16px]" />
+              <Icon name="ti-layout-grid" className="text-[16px]" />
             </button>
           </div>
         </div>
@@ -236,7 +237,7 @@ export default function CatalogDashboard() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                        <i className="ti ti-photo-off text-gray-400 text-[14px]" />
+                        <Icon name="ti-photo-off" className="text-gray-400 text-[14px]" />
                       </div>
                       <div>
                         <p className="text-[13px] font-semibold text-gray-800 leading-tight">{product.name}</p>
@@ -272,7 +273,7 @@ export default function CatalogDashboard() {
                   </td>
                   <td className="px-4 py-3">
                     <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                      <i className="ti ti-dots text-gray-400 text-[14px]" />
+                      <Icon name="ti-dots" className="text-gray-400 text-[14px]" />
                     </button>
                   </td>
                 </tr>

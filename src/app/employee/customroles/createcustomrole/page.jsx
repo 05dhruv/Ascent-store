@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import MainLayout from "@/components/MainLayout";
+import MainLayout from "@/components/MainLayout";
+import Icon from "@/components/Icon";
 
 const PERMISSION_GROUPS = [
   {
@@ -390,7 +391,7 @@ function RoleForm() {
       <MainLayout>
         <div className="flex h-64 items-center justify-center">
           <div className="inline-flex items-center gap-2 text-gray-500">
-            <i className="ti ti-loader-2 animate-spin text-[24px] text-blue-600" />
+            <Icon name="ti-loader-2" className="animate-spin text-[24px] text-blue-600" />
             <span>Loading role details...</span>
           </div>
         </div>
@@ -440,7 +441,7 @@ function RoleForm() {
               disabled={saving}
               className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
             >
-              <i className={`ti ${editId ? "ti-check" : "ti-device-floppy"} text-[14px]`} />
+              <Icon name={editId ? "ti-check" : "ti-device-floppy"} className="text-[14px]" />
               {saving ? "Saving..." : editId ? "Update Role" : "Save Role"}
             </button>
           </div>
@@ -450,7 +451,7 @@ function RoleForm() {
         <div className="rounded-2xl border border-gray-200/80 bg-white p-5 shadow-xs sm:p-6">
           <div className="mb-4 flex items-center gap-2 border-b border-gray-100 pb-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <i className="ti ti-id-badge-2 text-[15px]" />
+              <Icon name="ti-id-badge-2" className="text-[15px]" />
             </div>
             <h2 className="text-sm font-bold text-gray-900">Role Details</h2>
           </div>
@@ -497,7 +498,7 @@ function RoleForm() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                  <i className="ti ti-key text-[15px]" />
+                  <Icon name="ti-key" className="text-[15px]" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -533,7 +534,7 @@ function RoleForm() {
             {/* Filter & Module Tabs */}
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 pt-2">
               <div className="relative w-full sm:w-64">
-                <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]" />
+                <Icon name="ti-search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[13px]" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -613,7 +614,7 @@ function RoleForm() {
                     <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-gray-600">
-                          <i className={`ti ${group.icon} text-[13px]`} />
+                          <Icon name={group.icon} className="text-[13px]" />
                         </div>
                         <div>
                           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">
@@ -716,7 +717,7 @@ export default function CreateCustomRolePage() {
     <Suspense fallback={
       <MainLayout>
         <div className="flex h-64 items-center justify-center">
-          <i className="ti ti-loader-2 animate-spin text-[24px] text-blue-600" />
+          <Icon name="ti-loader-2" className="animate-spin text-[24px] text-blue-600" />
         </div>
       </MainLayout>
     }>

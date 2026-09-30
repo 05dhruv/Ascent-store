@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+const MAX_RENDERED_OPTIONS = 200;
+
 export default function SearchableSelect({
   value,
   onChange,
@@ -160,7 +162,7 @@ export default function SearchableSelect({
               {placeholder}
             </button>
             {filteredOptions.length ? (
-              filteredOptions.map((option) => (
+              filteredOptions.slice(0, MAX_RENDERED_OPTIONS).map((option) => (
                 <button
                   key={option.value}
                   type="button"
@@ -181,6 +183,11 @@ export default function SearchableSelect({
             ) : (
               <div className="px-3 py-4 text-center text-xs text-gray-400">
                 No matching options
+              </div>
+            )}
+            {filteredOptions.length > MAX_RENDERED_OPTIONS && (
+              <div className="px-3 py-2 text-center text-xs text-gray-400">
+                Showing {MAX_RENDERED_OPTIONS} of {filteredOptions.length}. Type to narrow the list.
               </div>
             )}
           </div>

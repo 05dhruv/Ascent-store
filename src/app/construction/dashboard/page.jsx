@@ -2,12 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import ConstructionShell, {
-  ConstructionAlert,
-  ConstructionSection,
-  constructionBtnPrimary,
-  constructionInput,
-} from '@/components/construction/ConstructionShell';
+import MainLayout from '@/components/MainLayout';
+
+import Icon from "@/components/Icon";
 
 const links = [
   ['Material Receipt / GRN', '/inventory/stockin', 'ti-package-import'],
@@ -80,76 +77,24 @@ export default function ConstructionDashboard() {
           </div>
         </ConstructionAlert>
       )}
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(([label, value, note, icon]) => (
-          <div key={label} className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                {label}
-              </span>
-              <i className={`ti ${icon} text-xl text-blue-600`} />
-            </div>
-            <p className="mt-3 text-3xl font-black text-slate-900">
-              {loading ? '…' : value}
-            </p>
-            <p className="mt-1 text-xs text-slate-400">{note}</p>
-          </div>
-        ))}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map(([label, value, note, icon]) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span><Icon name={icon} className="text-xl text-amber-600" /></div>
+          <p className="mt-3 text-3xl font-black text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-400">{note}</p>
+        </div>)}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
-        <ConstructionSection
-          title="Active project portfolio"
-          action={
-            <Link href="/construction/projects" className="text-[12.5px] font-medium text-blue-700 hover:underline">
-              Manage projects
-            </Link>
-          }
-        >
-          <div className="space-y-2">
-            {(data?.projects || []).map((project) => (
-              <div
-                key={project.id}
-                className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3"
-              >
-                <div>
-                  <p className="font-semibold text-slate-900">{project.name}</p>
-                  <p className="text-xs text-slate-500">
-                    {project.project_code} · {project.client_name || 'No client'} ·{' '}
-                    {project.site_count} site(s)
-                  </p>
-                </div>
-                <span className="rounded-full bg-slate-200/80 px-3 py-1 text-[11px] font-semibold uppercase text-slate-700">
-                  {project.status}
-                </span>
-              </div>
-            ))}
-            {data && !data.projects?.length && (
-              <p className="py-8 text-center text-sm text-slate-400">
-                Create your first project and site to begin.
-              </p>
-            )}
-          </div>
-        </ConstructionSection>
-
-        <ConstructionSection title="Quick operations">
-          <div className="grid gap-2">
-            {links.map(([label, href, icon]) => (
-              <Link
-                key={label}
-                href={href}
-                className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 transition hover:border-blue-200 hover:bg-blue-50/50"
-              >
-                <span className="flex items-center gap-3 text-sm font-medium text-slate-700">
-                  <i className={`ti ${icon} text-lg text-blue-600`} />
-                  {label}
-                </span>
-                <i className="ti ti-chevron-right text-slate-400" />
-              </Link>
-            ))}
-          </div>
-        </ConstructionSection>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="mb-4 flex items-center justify-between"><h2 className="font-black text-slate-900">Active project portfolio</h2><Link href="/construction/projects" className="text-sm font-semibold text-amber-700">Manage projects</Link></div>
+          <div className="space-y-2">{(data?.projects || []).map((project) => <div key={project.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-4">
+            <div><p className="font-bold text-slate-900">{project.name}</p><p className="text-xs text-slate-500">{project.project_code} · {project.client_name || 'No client'} · {project.site_count} site(s)</p></div>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold uppercase text-amber-800">{project.status}</span>
+          </div>)}{data && !data.projects?.length && <p className="py-10 text-center text-sm text-slate-400">Create your first project and site to begin.</p>}</div>
+        </section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5"><h2 className="mb-4 font-black text-slate-900">Quick operations</h2>
+          <div className="grid gap-2">{links.map(([label, href, icon]) => <Link key={label} href={href} className="flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3 hover:border-amber-300 hover:bg-amber-50"><span className="flex items-center gap-3 text-sm font-semibold text-slate-700"><Icon name={icon} className="text-lg text-amber-600" />{label}</span><Icon name="ti-chevron-right" className="text-slate-400" /></Link>)}</div>
+        </section>
       </div>
 
       <ConstructionSection

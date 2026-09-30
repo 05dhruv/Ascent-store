@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@layer base {
+  svg.app-icon {
+    display: inline-block;
+    vertical-align: -0.125em;
+    flex-shrink: 0;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

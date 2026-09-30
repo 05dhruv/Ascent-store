@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Topbar from '@/components/Topbar';
-import { fetchInventoryProducts } from '@/lib/inventoryProducts';
+import { fetchInventoryProducts } from '@/lib/inventoryProducts';
+import Icon from "@/components/Icon";
 
 function formatCurrency(n) {
   return Number(n || 0).toLocaleString('en-IN', {
@@ -215,7 +216,7 @@ function LineItemsContent() {
       <div className="px-[22px] pb-[116px] pt-[16px]">
         <div className="mb-[44px] flex items-center gap-2 text-[14px] text-[#6f7785]">
           <span>Inventory</span>
-          <i className="ti ti-chevron-right text-[13px] text-[#9aa0aa]" />
+          <Icon name="ti-chevron-right" className="text-[13px] text-[#9aa0aa]" />
           <span className="font-semibold text-[#1f2937]">Stock out</span>
         </div>
 
@@ -246,7 +247,7 @@ function LineItemsContent() {
                     ))}
                   </datalist>
                   <span className="absolute right-10 top-[9px] h-6 border-l border-[#d5d8de]" />
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-[#c4c8cf]" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-[#c4c8cf]" />
                 </div>
               </div>
 
@@ -295,7 +296,7 @@ function LineItemsContent() {
 
           <main className="min-w-0">
             <div className="mb-[22px] flex h-[50px] items-center gap-3 rounded-[3px] border border-[#9d9d9d] bg-white px-3">
-              <i className="ti ti-search text-[25px] text-[#c6c8cf]" />
+              <Icon name="ti-search" className="text-[25px] text-[#c6c8cf]" />
               <input
                 type="text"
                 placeholder="Search"
@@ -312,7 +313,7 @@ function LineItemsContent() {
                   <p className="text-[15px] leading-[18px] text-[#616871]">Select desired products & proceed</p>
                 </div>
                 <div className="flex h-[31px] w-[263px] items-center gap-2 rounded-[3px] border border-[#aeb3ba] bg-white px-2 max-sm:hidden">
-                  <i className="ti ti-search text-[19px] text-[#c6c8cf]" />
+                  <Icon name="ti-search" className="text-[19px] text-[#c6c8cf]" />
                   <input
                     type="text"
                     placeholder="Search items in your cart"
@@ -388,7 +389,7 @@ function LineItemsContent() {
                               onClick={() => removeItem(item.product_id)}
                               className="rounded p-1.5 text-red-500 hover:bg-red-50"
                             >
-                              <i className="ti ti-trash text-[16px]" />
+                              <Icon name="ti-trash" className="text-[16px]" />
                             </button>
                           </td>
                         </tr>
@@ -410,7 +411,7 @@ function LineItemsContent() {
         className="fixed bottom-[115px] left-[27px] z-40 flex h-[29px] w-[29px] items-center justify-center rounded-[8px] border-2 border-[#B00000] bg-white text-[#B00000]"
         title="Back to stock out"
       >
-        <i className="ti ti-home text-[18px]" />
+        <Icon name="ti-home" className="text-[18px]" />
       </button>
 
       <footer className="fixed bottom-0 left-0 right-0 z-30 h-[91px] bg-white shadow-[0_-1px_0_rgba(0,0,0,0.03)]">
@@ -441,7 +442,7 @@ function LineItemsContent() {
               className="flex h-[52px] w-[52px] items-center justify-center rounded-[3px] border border-[#B00000] bg-white text-[#B00000]"
               title="Clear cart"
             >
-              <i className="ti ti-trash text-[24px]" />
+              <Icon name="ti-trash" className="text-[24px]" />
             </button>
           </div>
         </div>

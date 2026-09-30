@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/MainLayout';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import dynamic from 'next/dynamic';
+import Icon from "@/components/Icon";
+
+const CustomerLineChart = dynamic(() => import('@/components/charts/CustomerLineChart'), {
+  ssr: false,
+  loading: () => <div className="h-[280px]" />,
+});
 
 const emptyDashboard = {
   stats: {
@@ -80,7 +86,7 @@ export default function CustomerDashboardPage() {
       <div className="min-h-screen bg-[#f5f6fa]">
         <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-4">
           <Link href="/customer" className="hover:text-blue-600 transition-colors">Customer</Link>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-blue-600 font-semibold">Customers Dashboard</span>
         </nav>
 
@@ -110,48 +116,20 @@ export default function CustomerDashboardPage() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <div className="bg-white border border-gray-200 rounded-lg p-5">
             <p className="text-[13px] text-gray-600 font-medium mb-4">New Customers</p>
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={dashboard.charts.newCustomers || []}>
-                <XAxis
-                  dataKey="time"
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                  tickLine={false}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  domain={[0, maxCustomerChartValue]}
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
-                <Line type="monotone" dataKey="value" stroke="#94a3b8" strokeWidth={1.8} dot={{ fill: '#94a3b8', r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <CustomerLineChart
+              data={dashboard.charts.newCustomers || []}
+              stroke="#94a3b8"
+              maxValue={maxCustomerChartValue}
+            />
           </div>
 
           <div className="bg-white border border-gray-200 rounded-lg p-5">
             <p className="text-[13px] text-gray-600 font-medium mb-4">Active Customers</p>
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={dashboard.charts.activeCustomers || []}>
-                <XAxis
-                  dataKey="time"
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                  tickLine={false}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  domain={[0, maxCustomerChartValue]}
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }} />
-                <Line type="monotone" dataKey="value" stroke="#B00000" strokeWidth={1.8} dot={{ fill: '#B00000', r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <CustomerLineChart
+              data={dashboard.charts.activeCustomers || []}
+              stroke="#B00000"
+              maxValue={maxCustomerChartValue}
+            />
           </div>
         </div>
 

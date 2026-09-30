@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/MainLayout';
 import { extractStores } from '@/lib/clientResponse';
-import { formatIndianDate } from '@/lib/dateUtils';
+import { formatIndianDate } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 const columns = [
   { key: 'customerId', label: 'Customer ID' },
@@ -165,7 +166,7 @@ export default function CustomersSalesReportPage() {
       <div className="min-h-screen">
         <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-4 flex-wrap">
           <Link href="/customer/dashboard" className="hover:text-blue-600 transition-colors">Customer</Link>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-gray-900 font-semibold">Customers Sales Report</span>
         </nav>
 
@@ -179,7 +180,7 @@ export default function CustomersSalesReportPage() {
         <div className="flex justify-end mb-4">
           <div className="w-full max-w-[360px]">
             <div className="relative">
-              <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
+              <Icon name="ti-search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
               <input
                 type="text"
                 value={search}
@@ -234,7 +235,7 @@ export default function CustomersSalesReportPage() {
                       </option>
                     ))}
                   </select>
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
                 </div>
               </div>
 
@@ -255,7 +256,7 @@ export default function CustomersSalesReportPage() {
                   className="h-11 w-11 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
                   title="Download CSV"
                 >
-                  <i className="ti ti-download text-[16px]" />
+                  <Icon name="ti-download" className="text-[16px]" />
                 </button>
               </div>
             </div>

@@ -19,6 +19,8 @@ import {
   sortOptions,
   uniqueOptions,
 } from "@/lib/xlsxDropdowns";
+import { loadXlsx } from "@/lib/loadXlsx";
+import Icon from "@/components/Icon";
 
 async function fetchStores() {
   const res = await fetch("/api/stores?pageSize=1000&include_locations=all", {
@@ -729,7 +731,7 @@ export default function StockTransferPage() {
   const handleDownloadBulkTemplate = async () => {
     setBulkBusy(true);
     try {
-      const XLSX = await import("xlsx");
+      const XLSX = await loadXlsx();
       const locations = stores.length ? stores : await loadLocations();
       const locationOptions = sortOptions(
         uniqueOptions(locations.map(getLocationOption)),
@@ -1681,7 +1683,7 @@ export default function StockTransferPage() {
                 className="rounded-md p-1 text-gray-500 hover:bg-gray-100"
                 aria-label="Close"
               >
-                <i className="ti ti-x text-[24px]" />
+                <Icon name="ti-x" className="text-[24px]" />
               </button>
             </div>
 
@@ -2070,7 +2072,7 @@ function StockTransferPreviewDialog({
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
             aria-label="Close preview"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti-x" className="text-[18px]" />
           </button>
         </div>
 
@@ -2279,7 +2281,7 @@ function StockTransferEditDialog({
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
             aria-label="Close edit dialog"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti-x" className="text-[18px]" />
           </button>
         </div>
 
@@ -2415,7 +2417,7 @@ function BulkTransferResultDialog({ result, onClose }) {
           <span
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone.bg} ${tone.text}`}
           >
-            <i className={`ti ${tone.icon} text-[22px]`} />
+            <Icon name={tone.icon} className="text-[22px]" />
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-[16px] font-black text-slate-900">
@@ -2431,7 +2433,7 @@ function BulkTransferResultDialog({ result, onClose }) {
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
             aria-label="Close dialog"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti-x" className="text-[18px]" />
           </button>
         </div>
 
@@ -2521,7 +2523,7 @@ function RevertConfirmDialog({ row, busy, onCancel, onConfirm }) {
       >
         <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-700">
-            <i className="ti ti-rotate-2 text-[22px]" />
+            <Icon name="ti-rotate-2" className="text-[22px]" />
           </span>
           <div className="min-w-0 flex-1">
             <h2
@@ -2541,7 +2543,7 @@ function RevertConfirmDialog({ row, busy, onCancel, onConfirm }) {
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
             aria-label="Close dialog"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti-x" className="text-[18px]" />
           </button>
         </div>
 
@@ -2603,7 +2605,7 @@ function SelectBox({ value, onChange, placeholder, stores, loading }) {
         )}
       </select>
       <span className="absolute right-10 top-2 h-6 border-l border-gray-300" />
-      <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-gray-400" />
+      <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[20px] text-gray-400" />
     </div>
   );
 }
@@ -2806,7 +2808,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
         <div className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
           <div className="flex items-center gap-2 text-[13px]">
             <span className="text-slate-500">Material Movement</span>
-            <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+            <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
             <span className="font-semibold text-gray-900">
               Transfer to Site
             </span>
@@ -2817,7 +2819,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
             className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100"
             aria-label="Close line items"
           >
-            <i className="ti ti-x text-[18px]" />
+            <Icon name="ti-x" className="text-[18px]" />
           </button>
         </div>
 
@@ -2893,7 +2895,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
 
             <main className="flex min-w-0 flex-col">
               <div className="mb-4 flex flex-shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-                <i className="ti ti-search text-[16px] text-gray-400" />
+                <Icon name="ti-search" className="text-[16px] text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search"
@@ -2921,7 +2923,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
                       onChange={(e) => setCartFilter(e.target.value)}
                       className="min-w-0 flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
                     />
-                    <i className="ti ti-search text-[15px] text-gray-400" />
+                    <Icon name="ti-search" className="text-[15px] text-gray-400" />
                   </div>
                 </div>
 
@@ -3031,7 +3033,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
                                 }
                                 className="rounded p-1.5 text-red-500 hover:bg-red-50"
                               >
-                                <i className="ti ti-trash text-[16px]" />
+                                <Icon name="ti-trash" className="text-[16px]" />
                               </button>
                             </td>
                           </tr>
@@ -3072,7 +3074,7 @@ function TransferLineItemsWindow({ id, onClose, onConfirmed }) {
                 className="rounded-lg border border-gray-200 p-2.5 text-gray-600 transition-colors hover:bg-gray-50"
                 title="Clear cart"
               >
-                <i className="ti ti-trash text-[18px]" />
+                <Icon name="ti-trash" className="text-[18px]" />
               </button>
             </div>
           </div>

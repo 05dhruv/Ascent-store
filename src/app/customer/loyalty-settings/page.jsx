@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 function Field({ label, children, hint }) {
   return (
@@ -110,7 +111,7 @@ export default function LoyaltySettingsPage() {
           <div>
             <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-2 flex-wrap">
               <Link href="/customer/dashboard" className="hover:text-blue-600 transition-colors">Customer</Link>
-              <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+              <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
               <span className="text-blue-600 font-medium">Loyalty Settings</span>
             </nav>
             <h1 className="text-[18px] font-semibold text-gray-900">Loyalty Settings</h1>

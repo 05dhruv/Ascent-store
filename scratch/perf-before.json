@@ -1,0 +1,168 @@
+{
+  "label": "before",
+  "at": "2026-09-28T06:13:53.361Z",
+  "base": "http://localhost:3000",
+  "runs": 5,
+  "storeId": 1,
+  "counts": {
+    "products": 1,
+    "sales_bills": 0,
+    "sales_bill_items": 0,
+    "sales_bill_payments": 0,
+    "customers": 0,
+    "employees": 0,
+    "users": 1,
+    "user_stores": 0,
+    "inventory_batches": 3,
+    "stock_out": 0,
+    "stock_transfer": 4,
+    "purchase_orders": 0,
+    "stores": 2
+  },
+  "explains": [
+    {
+      "label": "auth: employee lookup",
+      "executionMs": 0.04,
+      "planningMs": 0.11,
+      "nodes": [
+        "Limit",
+        "Sort",
+        "Seq Scan on employees"
+      ]
+    },
+    {
+      "label": "invoice: seed scan",
+      "executionMs": 0.06,
+      "planningMs": 0.34,
+      "nodes": [
+        "Aggregate",
+        "Index Scan on sales_bills using sales_bills_bill_number_unique_idx"
+      ]
+    },
+    {
+      "label": "sales_bills: store + last 30 days",
+      "executionMs": 0.03,
+      "planningMs": 0.12,
+      "nodes": [
+        "Limit",
+        "Sort",
+        "Seq Scan on sales_bills"
+      ]
+    },
+    {
+      "label": "sales_bills: date range (analytics style)",
+      "executionMs": 0.03,
+      "planningMs": 0.12,
+      "nodes": [
+        "Aggregate",
+        "Seq Scan on sales_bills"
+      ]
+    },
+    {
+      "label": "products: barcode equality",
+      "executionMs": 0.03,
+      "planningMs": 0.05,
+      "nodes": [
+        "Seq Scan on products"
+      ]
+    },
+    {
+      "label": "sales_bill_items by bill",
+      "executionMs": 0.04,
+      "planningMs": 0.09,
+      "nodes": [
+        "Index Scan on sales_bill_items using idx_stock_level_sales_items_product"
+      ]
+    },
+    {
+      "label": "sales_bill_payments by bill",
+      "executionMs": 0.04,
+      "planningMs": 0.07,
+      "nodes": [
+        "Seq Scan on sales_bill_payments"
+      ]
+    },
+    {
+      "label": "stock_out by reference",
+      "executionMs": 0.03,
+      "planningMs": 0.09,
+      "nodes": [
+        "Seq Scan on stock_out"
+      ]
+    }
+  ],
+  "http": [
+    {
+      "label": "auth/me",
+      "url": "/api/auth/me",
+      "status": 200,
+      "bytes": 323,
+      "medianMs": 897.6,
+      "minMs": 860.9,
+      "maxMs": 913.3
+    },
+    {
+      "label": "catalog/products page 1",
+      "url": "/api/catalog/products?page=1&pageSize=50",
+      "status": 200,
+      "bytes": 1267,
+      "medianMs": 1712.4,
+      "minMs": 1494.8,
+      "maxMs": 2547.6
+    },
+    {
+      "label": "pos/barcode-lookup",
+      "url": "/api/pos/barcode-lookup?barcode=2900000000018&store_id=1",
+      "status": 200,
+      "bytes": 305,
+      "medianMs": 1196.2,
+      "minMs": 1170.6,
+      "maxMs": 1325.1
+    },
+    {
+      "label": "notifications/summary",
+      "url": "/api/notifications/summary",
+      "status": 200,
+      "bytes": 546,
+      "medianMs": 6477.8,
+      "minMs": 6404.3,
+      "maxMs": 6543.9
+    },
+    {
+      "label": "dashboard/analytics",
+      "url": "/api/dashboard/analytics",
+      "status": 200,
+      "bytes": 1501,
+      "medianMs": 4861.7,
+      "minMs": 4854,
+      "maxMs": 5085.1
+    },
+    {
+      "label": "customer/dashboard",
+      "url": "/api/customer/dashboard",
+      "status": 200,
+      "bytes": 1133,
+      "medianMs": 2313.1,
+      "minMs": 2296.9,
+      "maxMs": 2344.2
+    },
+    {
+      "label": "catalog/dashboard",
+      "url": "/api/catalog/dashboard",
+      "status": 200,
+      "bytes": 708,
+      "medianMs": 1240.3,
+      "minMs": 1218.1,
+      "maxMs": 1504.6
+    },
+    {
+      "label": "public/products",
+      "url": "/api/public/products",
+      "status": 400,
+      "bytes": 89,
+      "medianMs": 63,
+      "minMs": 31.9,
+      "maxMs": 79.6
+    }
+  ]
+}

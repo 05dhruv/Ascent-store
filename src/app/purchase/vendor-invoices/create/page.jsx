@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/MainLayout';
 import { fetchLookup, normalizeVendors } from '@/lib/purchaseLookups';
-import { addCalendarDays } from '@/lib/vendorCreditTerms';
+import { addCalendarDays } from '@/lib/vendorCreditTerms';
+import Icon from "@/components/Icon";
 
 async function createVendorInvoice(payload) {
   const res = await fetch('/api/vendor-invoices', {
@@ -83,7 +84,7 @@ export default function CreateVendorInvoicePage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4">
         <span className="text-blue-600">Purchase</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">Vendor Invoices</span>
       </div>
 
@@ -94,7 +95,7 @@ export default function CreateVendorInvoicePage() {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={() => router.back()} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-300 text-[13px] font-medium text-blue-600 hover:bg-blue-50 transition-colors">
-            <i className="ti ti-chevron-left text-[16px]" />
+            <Icon name="ti-chevron-left" className="text-[16px]" />
             Back
           </button>
           <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-700 transition-colors" disabled={saving}>

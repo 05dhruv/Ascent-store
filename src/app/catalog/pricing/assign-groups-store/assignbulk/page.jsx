@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
 import {
   applyTextFormatToColumns,
   excelText,
   sheetToJsonRows,
-} from "@/lib/xlsxDropdowns";
+} from "@/lib/xlsxDropdowns";
+import Icon from "@/components/Icon";
 
 const TEMPLATE_HEADERS = ["store_id", "group_id", "group_name"];
 const TEMPLATE_ROW_LIMIT = 5001;
@@ -88,6 +89,7 @@ export default function AssignGroupsBulk() {
         }
       } catch {}
     }
+    const XLSX = await loadXlsx();
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(rows);
     applyTextFormatToColumns(
@@ -105,6 +107,7 @@ export default function AssignGroupsBulk() {
     if (!f) return;
     setFileName(f.name || "");
     const data = await f.arrayBuffer();
+    const XLSX = await loadXlsx();
     const wb = XLSX.read(data, { cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const parsed = sheetToJsonRows(ws);
@@ -226,7 +229,7 @@ export default function AssignGroupsBulk() {
         <h3 className="font-semibold mb-3 text-gray-700">Upload Template</h3>
         <div className="group rounded-2xl border border-dashed border-amber-200 bg-gradient-to-br from-amber-50 via-white to-blue-50 p-8 text-center shadow-sm transition hover:border-amber-300 hover:shadow-md">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-amber-100">
-            <i className="ti ti-file-spreadsheet text-[22px] text-amber-600" />
+            <Icon name="ti-file-spreadsheet" className="text-[22px] text-amber-600" />
           </div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
             Excel Upload
@@ -239,7 +242,7 @@ export default function AssignGroupsBulk() {
             step.
           </p>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-700 hover:shadow-blue-500/35">
-            <i className="ti ti-upload text-[16px]" />
+            <Icon name="ti-upload" className="text-[16px]" />
             <span>Choose Excel File</span>
             <input
               ref={fileRef}

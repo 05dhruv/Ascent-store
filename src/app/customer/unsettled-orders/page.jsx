@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/MainLayout';
 import CustomerSearchModal from '@/components/CustomerSearchModal';
-import { extractStores } from '@/lib/clientResponse';
+import { extractStores } from '@/lib/clientResponse';
+import Icon from "@/components/Icon";
 
 const columns = [
   { key: 'orderId', label: 'Order ID' },
@@ -64,7 +65,7 @@ function SettleOrderModal({ open, rows, onClose, onSubmit, submitting }) {
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-[18px] font-semibold text-gray-900">Settle Selected Orders</h3>
           <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <i className="ti ti-x text-[20px]" />
+            <Icon name="ti-x" className="text-[20px]" />
           </button>
         </div>
 
@@ -329,7 +330,7 @@ export default function UnsettledOrdersPage() {
       <div className="min-h-screen">
         <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-4 flex-wrap">
           <Link href="/customer/dashboard" className="hover:text-blue-600 transition-colors">Customer</Link>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-blue-600 font-medium">Settle Customer Ledger</span>
         </nav>
 
@@ -370,7 +371,7 @@ export default function UnsettledOrdersPage() {
                       </option>
                     ))}
                   </select>
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
                 </div>
               </div>
 
@@ -387,7 +388,7 @@ export default function UnsettledOrdersPage() {
                     <option value="Online Order">Online Order</option>
                     <option value="all">All</option>
                   </select>
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
                 </div>
               </div>
 
@@ -408,7 +409,7 @@ export default function UnsettledOrdersPage() {
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-gray-100"
                     aria-label="Search customer"
                   >
-                    <i className="ti ti-search text-[15px] text-gray-500" />
+                    <Icon name="ti-search" className="text-[15px] text-gray-500" />
                   </button>
                 </div>
               </div>
@@ -427,7 +428,7 @@ export default function UnsettledOrdersPage() {
             <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
               <div className="w-full max-w-[340px]">
                 <div className="relative">
-                  <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
+                  <Icon name="ti-search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
                   <input
                     type="text"
                     value={search}

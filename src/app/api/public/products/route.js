@@ -1,7 +1,13 @@
+import { withPerfTiming } from "@/lib/perfTiming";
 import { query } from "@/lib/db";
 import { ensureCatalogExtrasSchema } from "@/lib/catalogExtrasSchema";
 import { ensureInventoryBatchSchema } from "@/lib/inventoryBatching";
 import { ensureStockTransferSchema } from "@/lib/stockTransferSchema";
+import {
+  absolutizeProductImageUrl,
+  getRequestOrigin,
+  productImageUrlSql,
+} from "@/lib/productImageUrl";
 import {
   failure,
   getPagination,
@@ -19,7 +25,7 @@ export function OPTIONS() {
   return optionsResponse();
 }
 
-export async function GET(request) {
+async function handleGET(request) {
   try {
     await ensureCatalogExtrasSchema();
     await ensureInventoryBatchSchema();
@@ -74,7 +80,7 @@ export async function GET(request) {
     const baseSql = `
       WITH ${PRODUCT_STOCK_CTE_SQL}
       SELECT
-        p.id, p.product_id, p.name, p.sku, p.barcode, p.image_url, p.unit,
+        p.id, p.product_id, p.name, p.sku, p.barcode, ${productImageUrlSql("p")} AS image_url, p.unit,
         p.category_id, p.sub_category_id, p.brand_id, p.department_id,
         c.name AS category_name,
         sc.name AS sub_category_name,
@@ -127,9 +133,13 @@ export async function GET(request) {
     );
 
     const total = Number(countResult.rows[0]?.total || 0);
+    const origin = getRequestOrigin(request);
     return success(
       {
-        records: result.rows.map(mapPublicProduct),
+        records: result.rows.map((row) => {
+          const product = mapPublicProduct(row);
+          return { ...product, image_url: absolutizeProductImageUrl(product.image_url, origin) };
+        }),
         page,
         pageSize,
         total,
@@ -142,3 +152,5 @@ export async function GET(request) {
     return failure("Failed to fetch products");
   }
 }
+
+export const GET = withPerfTiming("public/products", handleGET);

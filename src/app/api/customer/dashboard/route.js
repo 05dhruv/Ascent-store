@@ -1,3 +1,4 @@
+import { withPerfTiming } from "@/lib/perfTiming";
 import { requireAuth, requirePermission } from '@/lib/api-protection';
 import { successResponse, errorResponse } from '@/lib/api-response';
 import { query } from '@/lib/db';
@@ -24,7 +25,7 @@ function addStoreScope(user, params, alias = 'sb') {
   return ` AND ${alias}.store_id = ANY($${params.length}::int[])`;
 }
 
-export async function GET(request) {
+async function handleGET(request) {
   try {
     await ensureCustomersSchema();
     await ensureSalesBillingSchema();
@@ -37,7 +38,7 @@ export async function GET(request) {
 
     const salesParams = [];
     const salesStoreScope = addStoreScope(auth.user, salesParams);
-    const salesResult = await query(
+    const salesPromise = query(
       `SELECT COALESCE(SUM(sb.grand_total), 0) AS total_sales
        FROM sales_bills sb
        WHERE sb.status IN ('paid', 'completed')${salesStoreScope}`,
@@ -47,7 +48,7 @@ export async function GET(request) {
     const statsParams = [];
     const statsStoreScope = addStoreScope(auth.user, statsParams);
     const registeredStatsStoreScope = addStoreScope(auth.user, statsParams, 'c');
-    const statsResult = await query(
+    const statsPromise = query(
       `WITH registered_customers AS (
          SELECT
            CASE
@@ -94,7 +95,7 @@ export async function GET(request) {
     const newParams = [];
     const newStoreScope = addStoreScope(auth.user, newParams);
     const registeredNewStoreScope = addStoreScope(auth.user, newParams, 'c');
-    const newCustomersResult = await query(
+    const newCustomersPromise = query(
       `WITH first_seen AS (
          SELECT
            CASE
@@ -140,7 +141,7 @@ export async function GET(request) {
 
     const activeParams = [];
     const activeStoreScope = addStoreScope(auth.user, activeParams);
-    const activeCustomersResult = await query(
+    const activeCustomersPromise = query(
       `SELECT
          day::date AS date,
          TO_CHAR(day::date, 'DD Mon') AS label,
@@ -151,7 +152,8 @@ export async function GET(request) {
          END)::int AS value
        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') day
        LEFT JOIN sales_bills sb
-         ON sb.created_at::date = day::date
+         ON sb.created_at >= day::date
+        AND sb.created_at < day::date + 1
         AND sb.status IN ('paid', 'completed')${activeStoreScope}
        GROUP BY day
        ORDER BY day`,
@@ -160,7 +162,7 @@ export async function GET(request) {
 
     const topParams = [];
     const topStoreScope = addStoreScope(auth.user, topParams);
-    const topCustomersResult = await query(
+    const topCustomersPromise = query(
       `WITH billed AS (
          SELECT
            CASE
@@ -211,6 +213,9 @@ export async function GET(request) {
       topParams
     );
 
+    const [salesResult, statsResult, newCustomersResult, activeCustomersResult, topCustomersResult] =
+      await Promise.all([salesPromise, statsPromise, newCustomersPromise, activeCustomersPromise, topCustomersPromise]);
+
     const stats = statsResult.rows[0] || {};
     const totalSales = toNumber(salesResult.rows[0]?.total_sales);
 
@@ -249,3 +254,5 @@ export async function GET(request) {
     return errorResponse('Unable to load customer dashboard');
   }
 }
+
+export const GET = withPerfTiming("customer/dashboard", handleGET);

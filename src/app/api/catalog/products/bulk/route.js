@@ -6,6 +6,7 @@ import {
 } from "@/lib/api-response";
 import { auditLog, requireAuth, requirePermission } from "@/lib/api-protection";
 import { validatePriceSet } from "@/lib/priceIntegrity";
+import { isProductImageEndpointUrl } from "@/lib/productImageUrl";
 
 const FIELD_DEFINITIONS = {
   name: { column: "name", type: "text" },
@@ -420,6 +421,7 @@ async function patchFromRows(rows, { preview = false, userId = null } = {}) {
     for (const [field, definition] of Object.entries(FIELD_DEFINITIONS)) {
       if (!Object.prototype.hasOwnProperty.call(row, field)) continue;
       if (field !== "barcode" && isBlank(row[field])) continue;
+      if (field === "image_url" && isProductImageEndpointUrl(row[field], product.id)) continue;
 
       let normalized;
       try {

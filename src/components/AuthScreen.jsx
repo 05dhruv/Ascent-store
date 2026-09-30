@@ -1,4 +1,5 @@
-import Link from "next/link";
+import Link from "next/link";
+import Icon from "@/components/Icon";
 
 export default function AuthScreen({
   title,
@@ -47,7 +48,7 @@ export default function AuthScreen({
               <div className="space-y-3">
                 {leftPanelKicker && (
                   <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-medium text-red-50/80 backdrop-blur">
-                    <i className="ti ti-shield-lock text-[12px] text-green-300" />
+                    <Icon name="ti-shield-lock" className="text-[12px] text-green-300" />
                     {leftPanelKicker}
                   </div>
                 )}
@@ -74,7 +75,7 @@ export default function AuthScreen({
                       className="rounded-2xl border border-white/10 bg-white/5 p-3.5 shadow-[0_20px_50px_rgba(2,8,23,0.18)] backdrop-blur"
                     >
                       <div className="mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-green-300">
-                        <i className={`ti ${item.icon} text-[18px]`} />
+                        <Icon name={item.icon} className="text-[18px]" />
                       </div>
                       <p className="text-[12px] font-semibold leading-4 text-white">
                         {item.title}

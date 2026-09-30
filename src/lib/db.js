@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { getPerfStore, recordDbTime } from "./perfTiming.js";
 
 // Singleton pool — reuse across hot reloads in dev
 const globalForPg = globalThis;
@@ -93,7 +94,18 @@ function isPreSendFailure(err) {
  * @param {any[]}  params - Query parameters ($1, $2 …)
  * @param {object} opts   - { maxRetries?: number }
  */
-export async function query(text, params = [], { maxRetries = 3 } = {}) {
+export async function query(text, params = [], opts = {}) {
+  const perfStore = getPerfStore();
+  if (!perfStore) return queryWithRetry(text, params, opts);
+  const startedAt = performance.now();
+  try {
+    return await queryWithRetry(text, params, opts);
+  } finally {
+    recordDbTime(perfStore, startedAt);
+  }
+}
+
+async function queryWithRetry(text, params = [], { maxRetries = 3 } = {}) {
   let lastErr;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const start = Date.now();
@@ -136,7 +148,26 @@ export async function query(text, params = [], { maxRetries = 3 } = {}) {
  * Get a client for transactions
  */
 export async function getClient() {
-  return await pool.connect();
+  const client = await pool.connect();
+  const perfStore = getPerfStore();
+  if (!perfStore) return client;
+
+  const originalQuery = client.query;
+  const originalRelease = client.release;
+  client.query = function timedQuery(...args) {
+    const startedAt = performance.now();
+    const result = originalQuery.apply(this, args);
+    if (result && typeof result.finally === "function") {
+      return result.finally(() => recordDbTime(perfStore, startedAt));
+    }
+    return result;
+  };
+  client.release = function timedRelease(...args) {
+    client.query = originalQuery;
+    client.release = originalRelease;
+    return originalRelease.apply(this, args);
+  };
+  return client;
 }
 
 export default pool;

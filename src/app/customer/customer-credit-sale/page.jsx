@@ -2,7 +2,8 @@
 
 import MainLayout from '@/components/MainLayout';
 import { extractStores } from '@/lib/clientResponse';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Icon from "@/components/Icon";
 
 const columns = [
   { key: 'sno', label: 'S. No.' },
@@ -125,7 +126,7 @@ export default function CustomerCreditSalePage() {
       <div className="min-h-screen">
         <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-4 flex-wrap">
           <a href="/customer/dashboard" className="hover:text-blue-600 transition-colors">Customer</a>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-gray-900 font-semibold">Customer Credit Sale</span>
         </nav>
 
@@ -168,7 +169,7 @@ export default function CustomerCreditSalePage() {
               <div className="flex-1" />
               <div className="flex items-center gap-2">
                 <button onClick={() => fetchData({ nextPage: 1 })} className="px-4 py-2 bg-blue-700 text-white rounded-lg text-[13px]">Fetch</button>
-                <button onClick={exportCsv} className="p-2 rounded-lg hover:bg-gray-100" aria-label="Download CSV"><i className="ti ti-download text-gray-600" /></button>
+                <button onClick={exportCsv} className="p-2 rounded-lg hover:bg-gray-100" aria-label="Download CSV"><Icon name="ti-download" className="text-gray-600" /></button>
               </div>
             </div>
           </div>

@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import MainLayout from "@/components/MainLayout";
 import { toDateInputValue } from "@/lib/dateUtils";
-import { addCalendarDays, normalizeDateOnly } from "@/lib/vendorCreditTerms";
+import { addCalendarDays, normalizeDateOnly } from "@/lib/vendorCreditTerms";
+import Icon from "@/components/Icon";
 
 function formatCurrency(n) {
   return Number(n || 0).toLocaleString("en-IN", {
@@ -329,7 +330,7 @@ function LineItemsContent() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4">
         <span className="text-blue-600">Purchase</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">
           Purchase Order - line items
         </span>
@@ -458,7 +459,7 @@ function LineItemsContent() {
         <div className="flex-1 min-w-0">
           {!readOnly && (
             <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-200 px-3 py-2.5 mb-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-              <i className="ti ti-search text-gray-400 text-[16px]" />
+              <Icon name="ti-search" className="text-gray-400 text-[16px]" />
               <input
                 type="text"
                 placeholder="Search"
@@ -496,7 +497,7 @@ function LineItemsContent() {
                     onChange={(e) => setCartFilter(e.target.value)}
                     className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none placeholder:text-gray-400"
                   />
-                  <i className="ti ti-search text-gray-400 text-[15px]" />
+                  <Icon name="ti-search" className="text-gray-400 text-[15px]" />
                 </div>
               </div>
             </div>
@@ -613,7 +614,7 @@ function LineItemsContent() {
                               onClick={() => removeItem(item.variant_key)}
                               className="p-1.5 text-red-500 hover:bg-red-50 rounded"
                             >
-                              <i className="ti ti-trash text-[16px]" />
+                              <Icon name="ti-trash" className="text-[16px]" />
                             </button>
                           )}
                         </td>
@@ -659,7 +660,7 @@ function LineItemsContent() {
                 className="p-2.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
                 title="Clear cart"
               >
-                <i className="ti ti-trash text-[18px]" />
+                <Icon name="ti-trash" className="text-[18px]" />
               </button>
               <button
                 type="button"

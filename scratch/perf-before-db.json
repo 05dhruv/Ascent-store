@@ -1,0 +1,95 @@
+{
+  "label": "before-db",
+  "at": "2026-09-28T06:06:43.373Z",
+  "base": "http://localhost:3000",
+  "runs": 5,
+  "storeId": 1,
+  "counts": {
+    "products": 1,
+    "sales_bills": 0,
+    "sales_bill_items": 0,
+    "sales_bill_payments": 0,
+    "customers": 0,
+    "employees": 0,
+    "users": 1,
+    "user_stores": 0,
+    "inventory_batches": 3,
+    "stock_out": 0,
+    "stock_transfer": 4,
+    "purchase_orders": 0,
+    "stores": 2
+  },
+  "explains": [
+    {
+      "label": "auth: employee lookup",
+      "executionMs": 0.03,
+      "planningMs": 0.1,
+      "nodes": [
+        "Limit",
+        "Sort",
+        "Seq Scan on employees"
+      ]
+    },
+    {
+      "label": "invoice: seed scan",
+      "executionMs": 0.86,
+      "planningMs": 4.53,
+      "nodes": [
+        "Aggregate",
+        "Index Scan on sales_bills using sales_bills_bill_number_unique_idx"
+      ]
+    },
+    {
+      "label": "sales_bills: store + last 30 days",
+      "executionMs": 0.03,
+      "planningMs": 0.15,
+      "nodes": [
+        "Limit",
+        "Sort",
+        "Seq Scan on sales_bills"
+      ]
+    },
+    {
+      "label": "sales_bills: date range (analytics style)",
+      "executionMs": 0.04,
+      "planningMs": 0.12,
+      "nodes": [
+        "Aggregate",
+        "Seq Scan on sales_bills"
+      ]
+    },
+    {
+      "label": "products: barcode equality",
+      "executionMs": 0.04,
+      "planningMs": 0.08,
+      "nodes": [
+        "Seq Scan on products"
+      ]
+    },
+    {
+      "label": "sales_bill_items by bill",
+      "executionMs": 0.04,
+      "planningMs": 0.09,
+      "nodes": [
+        "Index Scan on sales_bill_items using idx_stock_level_sales_items_product"
+      ]
+    },
+    {
+      "label": "sales_bill_payments by bill",
+      "executionMs": 0.03,
+      "planningMs": 0.07,
+      "nodes": [
+        "Seq Scan on sales_bill_payments"
+      ]
+    },
+    {
+      "label": "stock_out by reference",
+      "executionMs": 0.04,
+      "planningMs": 0.09,
+      "nodes": [
+        "Seq Scan on stock_out"
+      ]
+    }
+  ],
+  "http": []
+}
