@@ -16,7 +16,7 @@
     "dexie": "^4.4.2",
     "dotenv": "^17.4.2",
     "jsonwebtoken": "^9.0.3",
-    "lucide-react": "^1.48.0",
+    "lucide-react": "^1.49.0",
     "next": "16.2.6",
     "nodemailer": "^6.10.1",
     "pg": "^8.20.0",
