@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import MainLayout from "@/components/MainLayout";
-
-const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+import ConstructionShell, {
+  ConstructionAlert,
+  ConstructionEmpty,
+  ConstructionField,
+  ConstructionSection,
+  ConstructionTable,
+  constructionBtnPrimary,
+  constructionInput,
+} from "@/components/construction/ConstructionShell";
 
 export default function SchedulePage() {
   const [records, setRecords] = useState([]);
@@ -58,125 +64,122 @@ export default function SchedulePage() {
   };
 
   return (
-    <MainLayout>
-      <div className="mx-auto max-w-6xl space-y-5 pb-10">
-        <header className="rounded-2xl bg-slate-900 p-5 text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
-            Scheduling
-          </p>
-          <h1 className="mt-1 text-2xl font-black">Activity schedule</h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Plan start/end, dependencies and baseline progress for work activities.
-          </p>
-        </header>
+    <ConstructionShell
+      title="Activity schedule"
+      subtitle="Plan start/end, dependencies and baseline progress for work activities."
+    >
+      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {message && (
+        <ConstructionAlert type="info">{message}</ConstructionAlert>
+      )}
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        )}
-        {message && (
-          <p className="text-sm font-semibold text-slate-700">{message}</p>
-        )}
-
+      <ConstructionSection
+        title="Save schedule"
+        description="Assign planned dates and optional dependency for an activity."
+      >
         <form
           onSubmit={save}
-          className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
         >
-          <select
-            className={input}
-            required
-            value={form.activityId}
-            onChange={(e) => setForm({ ...form, activityId: e.target.value })}
-          >
-            <option value="">Activity</option>
-            {activities.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.project_name} — {a.name}
-              </option>
-            ))}
-          </select>
-          <input
-            className={input}
-            type="date"
-            value={form.plannedStart}
-            onChange={(e) =>
-              setForm({ ...form, plannedStart: e.target.value })
-            }
-          />
-          <input
-            className={input}
-            type="date"
-            value={form.plannedEnd}
-            onChange={(e) => setForm({ ...form, plannedEnd: e.target.value })}
-          />
-          <select
-            className={input}
-            value={form.dependsOnActivityId}
-            onChange={(e) =>
-              setForm({ ...form, dependsOnActivityId: e.target.value })
-            }
-          >
-            <option value="">Depends on (optional)</option>
-            {activities.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-          <input
-            className={input}
-            placeholder="Baseline %"
-            value={form.baselineProgress}
-            onChange={(e) =>
-              setForm({ ...form, baselineProgress: e.target.value })
-            }
-          />
-          <button
-            disabled={busy}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950"
-          >
-            Save schedule
-          </button>
-        </form>
-
-        <div className="overflow-x-auto rounded-xl border bg-white">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Activity</th>
-                <th className="px-3 py-2">Start</th>
-                <th className="px-3 py-2">End</th>
-                <th className="px-3 py-2">Depends</th>
-                <th className="px-3 py-2">Baseline %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((row) => (
-                <tr key={row.id} className="border-t">
-                  <td className="px-3 py-2">
-                    {row.project_name} — {row.activity_name}
-                  </td>
-                  <td className="px-3 py-2">{row.planned_start || "—"}</td>
-                  <td className="px-3 py-2">{row.planned_end || "—"}</td>
-                  <td className="px-3 py-2">{row.depends_on_name || "—"}</td>
-                  <td className="px-3 py-2">{row.baseline_progress}</td>
-                </tr>
+          <ConstructionField label="Activity" required>
+            <select
+              className={constructionInput}
+              required
+              value={form.activityId}
+              onChange={(e) => setForm({ ...form, activityId: e.target.value })}
+            >
+              <option value="">Select activity</option>
+              {activities.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.project_name} — {a.name}
+                </option>
               ))}
-              {!records.length && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-3 py-8 text-center text-slate-400"
-                  >
-                    No schedule rows yet. Create activities under BOQ controls first.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </MainLayout>
+            </select>
+          </ConstructionField>
+          <ConstructionField label="Planned start">
+            <input
+              className={constructionInput}
+              type="date"
+              value={form.plannedStart}
+              onChange={(e) =>
+                setForm({ ...form, plannedStart: e.target.value })
+              }
+            />
+          </ConstructionField>
+          <ConstructionField label="Planned end">
+            <input
+              className={constructionInput}
+              type="date"
+              value={form.plannedEnd}
+              onChange={(e) => setForm({ ...form, plannedEnd: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Depends on">
+            <select
+              className={constructionInput}
+              value={form.dependsOnActivityId}
+              onChange={(e) =>
+                setForm({ ...form, dependsOnActivityId: e.target.value })
+              }
+            >
+              <option value="">Optional</option>
+              {activities.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </ConstructionField>
+          <ConstructionField label="Baseline %">
+            <input
+              className={constructionInput}
+              value={form.baselineProgress}
+              onChange={(e) =>
+                setForm({ ...form, baselineProgress: e.target.value })
+              }
+            />
+          </ConstructionField>
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={busy}
+              className={constructionBtnPrimary}
+            >
+              Save schedule
+            </button>
+          </div>
+        </form>
+      </ConstructionSection>
+
+      <ConstructionSection title="Schedule rows">
+        <ConstructionTable
+          headers={["Activity", "Start", "End", "Depends", "Baseline %"]}
+        >
+          {records.map((row) => (
+            <tr key={row.id} className="hover:bg-slate-50/80">
+              <td className="px-4 py-3 text-slate-700">
+                {row.project_name} — {row.activity_name}
+              </td>
+              <td className="px-4 py-3 text-slate-600">
+                {row.planned_start || "—"}
+              </td>
+              <td className="px-4 py-3 text-slate-600">
+                {row.planned_end || "—"}
+              </td>
+              <td className="px-4 py-3 text-slate-600">
+                {row.depends_on_name || "—"}
+              </td>
+              <td className="px-4 py-3">{row.baseline_progress}</td>
+            </tr>
+          ))}
+          {!records.length && (
+            <ConstructionEmpty
+              colSpan={5}
+              message="No schedule rows yet. Create activities under BOQ controls first."
+            />
+          )}
+        </ConstructionTable>
+      </ConstructionSection>
+    </ConstructionShell>
   );
 }

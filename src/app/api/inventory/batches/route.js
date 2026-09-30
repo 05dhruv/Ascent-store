@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { ensureStockInSchema } from '@/lib/stockInSchema';
 import { ensureInventoryBatchSchema } from '@/lib/inventoryBatching';
 import { appendStoreScope, requireAuth, requirePermission } from '@/lib/api-protection';
+import { clampPageSize } from '@/lib/pagination';
 
 function barcodeFromId(id) {
   const numeric = String(id || 0).replace(/\D/g, '');
@@ -45,6 +46,26 @@ export async function GET(request) {
       params.push(selectedStoreId);
       whereClauses.push(`ib.store_id = $${params.length}`);
     }
+    const search = String(searchParams.get('search') || '').trim();
+    if (search) {
+      params.push(`%${search}%`);
+      whereClauses.push(`(
+        ib.batch_no ILIKE $${params.length}
+        OR p.name ILIKE $${params.length}
+        OR p.sku ILIKE $${params.length}
+        OR s.name ILIKE $${params.length}
+        OR COALESCE(s.meta->>'locationType', 'Warehouse') ILIKE $${params.length}
+        OR (CASE
+          WHEN ib.available_qty <= 0 OR ib.status = 'depleted' THEN 'Depleted'
+          WHEN ib.expiry_date IS NOT NULL AND ib.expiry_date < CURRENT_DATE THEN 'Expired'
+          WHEN ib.expiry_date IS NOT NULL AND ib.expiry_date <= CURRENT_DATE + INTERVAL '30 days' THEN 'Expiring Soon'
+          ELSE 'Active'
+        END) ILIKE $${params.length}
+      )`);
+    }
+    const limit = clampPageSize(searchParams.get('limit'), { fallback: 500, max: 2000 });
+    params.push(limit);
+    const limitParam = `$${params.length}`;
     const storeWhere = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const res = await query(
@@ -79,9 +100,7 @@ export async function GET(request) {
       LEFT JOIN stores s ON s.id = ib.store_id
       ${storeWhere}
       ORDER BY ib.expiry_date ASC NULLS LAST, ib.created_at DESC
-      -- The Batches page has its own client-side pagination. Do not truncate
-      -- store data here, otherwise it disagrees with Store Wise Batch Report.
-      LIMIT 10000`,
+      LIMIT ${limitParam}`,
       params
     );
 

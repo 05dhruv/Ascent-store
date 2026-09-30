@@ -41,10 +41,6 @@ async function handleGET(req) {
       return errorResponse('Store is required', 400);
     }
 
-    if (store_id) {
-      await repairStockTransferSaleabilityPrices(store_id);
-    }
-
     let searchQuery = `
       SELECT 
         p.id,

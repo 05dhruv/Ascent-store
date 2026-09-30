@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { clampPageSize, LIST_MAX_PAGE_SIZE } from "@/lib/pagination";
 import { getClient, query } from '@/lib/db';
 import { ensureCustomersSchema } from '@/lib/customersSchema';
 import { ensureInvoiceSalesOrdersSchema } from '@/lib/invoiceSalesOrdersSchema';
@@ -188,7 +189,7 @@ export async function GET(request) {
     const url = new URL(request.url);
     const filters = {
       page: parsePositiveInteger(url.searchParams.get('page'), 1),
-      pageSize: parsePositiveInteger(url.searchParams.get('pageSize'), 10),
+      pageSize: clampPageSize(url.searchParams.get('pageSize'), { fallback: 10, max: LIST_MAX_PAGE_SIZE }),
       store: normalizeText(url.searchParams.get('store')),
       orderType: normalizeText(url.searchParams.get('orderType')),
       customerId: normalizeText(url.searchParams.get('customerId')),
@@ -357,7 +358,7 @@ export async function POST(request) {
 
     const refreshed = await listUnsettledRows({
       page: 1,
-      pageSize: parsePositiveInteger(body.pageSize, 10),
+      pageSize: clampPageSize(body.pageSize, { fallback: 10, max: LIST_MAX_PAGE_SIZE }),
       store: normalizeText(body.store),
       orderType: normalizeText(body.orderType),
       customerId: normalizeText(body.customerId),

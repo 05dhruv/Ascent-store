@@ -1,8 +1,11 @@
 import { query } from '../../../../../lib/db';
+import { requireAccess } from "@/lib/api-protection";
 import { successResponse, errorResponse, validationError } from '../../../../../lib/apiResponse';
 
 export async function GET(req) {
   try {
+    const auth = await requireAccess(req);
+    if (auth.error) return auth.error;
     const { searchParams } = new URL(req.url);
     const taxId = searchParams.get('tax_id');
     if (!taxId) return validationError({ tax_id: 'tax_id is required' });
@@ -20,6 +23,8 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    const auth = await requireAccess(req, "MANAGE_TAXES", "MANAGE_PRODUCTS");
+    if (auth.error) return auth.error;
     const body = await req.json();
     const { tax_id, product_ids } = body;
     if (!tax_id) return validationError({ tax_id: 'tax_id is required' });

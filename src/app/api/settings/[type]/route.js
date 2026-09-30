@@ -1,4 +1,5 @@
 import { successResponse, errorResponse, validationError, notFoundError } from '@/lib/api-response';
+import { clampPageSize, LOOKUP_MAX_PAGE_SIZE } from "@/lib/pagination";
 import { getClient, query } from '@/lib/db';
 import { ensureSettingsSchema, seedDefaultSettingsForType } from '@/lib/settingsSchema';
 import { requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
@@ -57,7 +58,7 @@ export async function GET(request, context) {
     const storeId = parsePositiveInt(searchParams.get('storeId') || searchParams.get('store_id'));
     const isActive = searchParams.get('isActive') ?? searchParams.get('is_active');
     const page = Math.max(1, parsePositiveInt(searchParams.get('page'), 1));
-    const pageSize = Math.max(1, parsePositiveInt(searchParams.get('pageSize'), 10));
+    const pageSize = clampPageSize(searchParams.get('pageSize'), { fallback: 10, max: LOOKUP_MAX_PAGE_SIZE });
     const offset = (page - 1) * pageSize;
 
     const params = [type];

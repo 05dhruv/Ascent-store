@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { clampPageSize, LOOKUP_MAX_PAGE_SIZE } from "@/lib/pagination";
 import { query } from '@/lib/db';
 import { ensureStockInSchema } from '@/lib/stockInSchema';
 import { ensureStockOutSchema } from '@/lib/stockOutSchema';
@@ -66,7 +67,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const search = String(searchParams.get('search') || '').trim();
     const includeInactive = searchParams.get('includeInactive') === 'true';
-    const pageSize = Math.min(Math.max(Number(searchParams.get('pageSize') || 200), 1), 10000);
+    const pageSize = clampPageSize(searchParams.get('pageSize'), { fallback: 200, max: LOOKUP_MAX_PAGE_SIZE });
     const params = [];
     const conditions = [];
 

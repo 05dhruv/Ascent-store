@@ -28,7 +28,8 @@ import {
   sortOptions,
   uniqueOptions,
 } from "@/lib/xlsxDropdowns";
-import { loadXlsx } from "@/lib/loadXlsx";
+import { loadXlsx } from "@/lib/loadXlsx";
+
 import Icon from "@/components/Icon";
 
 async function fetchStores() {

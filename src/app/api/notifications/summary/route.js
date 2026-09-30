@@ -40,7 +40,6 @@ async function handleGET(request) {
     if (auth.error) return auth.error;
     const user = auth.user;
     const origin = new URL(request.url).origin;
-    const cookie = request.headers.get("cookie") || "";
 
     const canReviewReturns = hasAnyPermission(user, [
       "APPROVE_STORE_BILL_EXCHANGE",
@@ -84,14 +83,14 @@ async function handleGET(request) {
         ? safeJson(
             getPasswordChangeRequests,
             `${origin}/api/auth/password-change-requests?status=pending`,
-            cookie,
+            request,
           )
         : Promise.resolve({}),
       canReviewPurchaseOrderEditRequests
         ? safeJson(
             getPurchaseOrderEditRequests,
             `${origin}/api/purchase-orders/edit-requests?status=pending`,
-            cookie,
+            request,
           )
         : Promise.resolve({}),
       safeJson(getPromotions, `${origin}/api/catalog/promotions?pageSize=50`, cookie),

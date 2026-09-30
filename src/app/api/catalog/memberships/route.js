@@ -1,4 +1,5 @@
 import { query, getClient } from '@/lib/db';
+import { requireAccess } from "@/lib/api-protection";
 import { successResponse, errorResponse, validationError } from '@/lib/apiResponse';
 import { ensureMembershipsSchema } from '@/lib/catalogExtrasSchema';
 
@@ -29,6 +30,8 @@ function formatStorePrice(row) {
 // ─── GET /api/catalog/memberships ────────────────────────────
 export async function GET(request) {
   try {
+    const auth = await requireAccess(request);
+    if (auth.error) return auth.error;
     await ensureMembershipsSchema();
 
     const { searchParams } = new URL(request.url);
@@ -135,6 +138,8 @@ export async function GET(request) {
 export async function POST(request) {
   let client;
   try {
+    const auth = await requireAccess(request, "MANAGE_CATALOG");
+    if (auth.error) return auth.error;
     await ensureMembershipsSchema();
 
     const body = await request.json();

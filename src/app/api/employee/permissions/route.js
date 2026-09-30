@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAccess } from "@/lib/api-protection";
 import { query } from '@/lib/db';
 import { ensurePermissionsSchema } from '@/lib/permissionsSchema';
 import { ensureEmployeesSchema } from '@/lib/employeesSchema';
@@ -16,8 +17,10 @@ function mapPermissionRow(row) {
   };
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const auth = await requireAccess(request, "TEAM_MANAGE", "ROLE_MANAGE", "MANAGE_ROLES", "MANAGE_USERS", "VIEW_USERS", "TEAM_VIEW");
+    if (auth.error) return auth.error;
     await ensurePermissionsSchema();
     await ensureEmployeesSchema();
 

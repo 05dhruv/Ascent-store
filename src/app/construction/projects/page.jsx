@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+
 import Icon from "@/components/Icon";
 
 const emptyForm = {

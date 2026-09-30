@@ -1,4 +1,7 @@
 import { query } from "@/lib/db";
+import { clampPageSize, LOOKUP_MAX_PAGE_SIZE } from "@/lib/pagination";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
+import { requireAccess } from "@/lib/api-protection";
 import {
   successResponse,
   errorResponse,
@@ -15,13 +18,17 @@ const ensureBrandExtras = makeSchemaEnsurer("brand_extras", async () => {
   );
 });
 
+const ensureBrandExtras = makeSchemaEnsurer("brands_extras_list", runEnsureBrandExtras);
+
 export async function GET(request) {
   try {
+    const auth = await requireAccess(request);
+    if (auth.error) return auth.error;
     await ensureBrandExtras();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1");
-    const pageSize = parseInt(searchParams.get("pageSize") || "10");
+    const pageSize = clampPageSize(searchParams.get("pageSize"), { fallback: 10, max: LOOKUP_MAX_PAGE_SIZE });
     const offset = (page - 1) * pageSize;
 
     const params = [];
@@ -76,6 +83,8 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const auth = await requireAccess(request, "MANAGE_CATALOG", "MATERIAL_CREATE", "MATERIAL_EDIT");
+    if (auth.error) return auth.error;
     await ensureBrandExtras();
     const body = await request.json();
     const { name } = body;

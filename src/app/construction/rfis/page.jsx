@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import MainLayout from "@/components/MainLayout";
-
-const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+import ConstructionShell, {
+  ConstructionAlert,
+  ConstructionEmpty,
+  ConstructionField,
+  ConstructionSection,
+  ConstructionTable,
+  constructionBtnPrimary,
+  constructionInput,
+} from "@/components/construction/ConstructionShell";
 
 export default function RfisPage() {
   const [records, setRecords] = useState([]);
@@ -80,125 +86,132 @@ export default function RfisPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="mx-auto max-w-6xl space-y-5 pb-10">
-        <header className="rounded-2xl bg-slate-900 p-5 text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
-            RFIs
-          </p>
-          <h1 className="mt-1 text-2xl font-black">Requests for information</h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Raise site questions and record answers.
-          </p>
-        </header>
+    <ConstructionShell
+      title="Requests for information"
+      subtitle="Raise site questions and record answers."
+    >
+      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {message && (
+        <ConstructionAlert type="info">{message}</ConstructionAlert>
+      )}
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        )}
-        {message && (
-          <p className="text-sm font-semibold text-slate-700">{message}</p>
-        )}
-
-        <form
-          onSubmit={create}
-          className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2"
-        >
-          <input
-            className={input}
-            placeholder="Project ID"
-            value={form.projectId}
-            onChange={(e) => setForm({ ...form, projectId: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="RFI number"
-            value={form.rfiNumber}
-            onChange={(e) => setForm({ ...form, rfiNumber: e.target.value })}
-          />
-          <input
-            className={`${input} sm:col-span-2`}
-            placeholder="Subject"
-            required
-            value={form.subject}
-            onChange={(e) => setForm({ ...form, subject: e.target.value })}
-          />
-          <textarea
-            className={`${input} sm:col-span-2`}
-            rows={3}
-            placeholder="Question"
-            required
-            value={form.question}
-            onChange={(e) => setForm({ ...form, question: e.target.value })}
-          />
+      <ConstructionSection
+        title="Raise RFI"
+        description="Open a new request for information on a project."
+      >
+        <form onSubmit={create} className="grid gap-3 sm:grid-cols-2">
+          <ConstructionField label="Project ID">
+            <input
+              className={constructionInput}
+              value={form.projectId}
+              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="RFI number">
+            <input
+              className={constructionInput}
+              value={form.rfiNumber}
+              onChange={(e) => setForm({ ...form, rfiNumber: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Subject" required className="sm:col-span-2">
+            <input
+              className={constructionInput}
+              required
+              value={form.subject}
+              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Question" required className="sm:col-span-2">
+            <textarea
+              className={constructionInput}
+              rows={3}
+              required
+              value={form.question}
+              onChange={(e) => setForm({ ...form, question: e.target.value })}
+            />
+          </ConstructionField>
           <button
+            type="submit"
             disabled={busy}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950"
+            className={constructionBtnPrimary}
           >
             Raise RFI
           </button>
         </form>
+      </ConstructionSection>
 
+      <ConstructionSection
+        title="Answer RFI"
+        description="Select an open RFI and record the response."
+      >
         <form
           onSubmit={submitAnswer}
-          className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-3"
+          className="grid gap-3 sm:grid-cols-3"
         >
-          <select
-            className={input}
-            required
-            value={answerId}
-            onChange={(e) => setAnswerId(e.target.value)}
-          >
-            <option value="">Select open RFI</option>
-            {records
-              .filter((r) => r.status === "open")
-              .map((r) => (
-                <option key={r.id} value={r.id}>
-                  #{r.id} {r.subject}
-                </option>
-              ))}
-          </select>
-          <input
-            className={input}
-            placeholder="Answer"
-            required
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-          />
-          <button
-            disabled={busy}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white"
-          >
-            Save answer
-          </button>
+          <ConstructionField label="Open RFI" required>
+            <select
+              className={constructionInput}
+              required
+              value={answerId}
+              onChange={(e) => setAnswerId(e.target.value)}
+            >
+              <option value="">Select open RFI</option>
+              {records
+                .filter((r) => r.status === "open")
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    #{r.id} {r.subject}
+                  </option>
+                ))}
+            </select>
+          </ConstructionField>
+          <ConstructionField label="Answer" required>
+            <input
+              className={constructionInput}
+              required
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+            />
+          </ConstructionField>
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={busy}
+              className={constructionBtnPrimary}
+            >
+              Save answer
+            </button>
+          </div>
         </form>
+      </ConstructionSection>
 
-        <div className="space-y-3">
+      <ConstructionSection title="All RFIs">
+        <ConstructionTable
+          headers={["RFI", "Subject", "Status", "Question", "Answer"]}
+        >
           {records.map((row) => (
-            <div key={row.id} className="rounded-xl border bg-white p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-bold text-slate-900">
-                  {row.rfi_number ? `${row.rfi_number} · ` : ""}
-                  {row.subject}
-                </p>
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold uppercase text-amber-800">
-                  {row.status}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-slate-600">{row.question}</p>
-              {row.answer && (
-                <p className="mt-2 text-sm text-emerald-800">
-                  Answer: {row.answer}
-                </p>
-              )}
-            </div>
+            <tr key={row.id} className="hover:bg-slate-50/80">
+              <td className="px-4 py-3 text-slate-700">
+                {row.rfi_number || `#${row.id}`}
+              </td>
+              <td className="px-4 py-3 font-medium text-slate-900">
+                {row.subject}
+              </td>
+              <td className="px-4 py-3 uppercase text-slate-600">{row.status}</td>
+              <td className="px-4 py-3 text-slate-600 max-w-xs truncate">
+                {row.question}
+              </td>
+              <td className="px-4 py-3 text-slate-600 max-w-xs truncate">
+                {row.answer || "—"}
+              </td>
+            </tr>
           ))}
           {!records.length && (
-            <p className="py-8 text-center text-sm text-slate-400">No RFIs yet.</p>
+            <ConstructionEmpty colSpan={5} message="No RFIs yet." />
           )}
-        </div>
-      </div>
-    </MainLayout>
+        </ConstructionTable>
+      </ConstructionSection>
+    </ConstructionShell>
   );
 }

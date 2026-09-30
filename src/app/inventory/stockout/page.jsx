@@ -947,19 +947,29 @@ function StockOutLineItemsWindow({ id, initialDraft, onClose, onConfirmed }) {
     other_charges: '',
     remarks: '',
     reason: '',
+    activityId: '',
+    costCodeId: '',
+    projectId: '',
+    siteId: '',
   });
   const [confirming, setConfirming] = useState(false);
+  const [activities, setActivities] = useState([]);
+  const [projects, setProjects] = useState([]);
 
   useEffect(() => {
     Promise.all([
       fetchStockOutDetails(id),
       fetch('/api/vendors').then((res) => res.json()).catch(() => []),
       fetch('/api/catalog/brands?pageSize=300').then((res) => res.json()).catch(() => null),
+      fetch('/api/construction/controls', { cache: 'no-store' }).then((res) => res.json()).catch(() => null),
+      fetch('/api/construction/projects', { cache: 'no-store' }).then((res) => res.json()).catch(() => null),
     ])
-      .then(([draftData, vendorData, brandData]) => {
+      .then(([draftData, vendorData, brandData, controlsData, projectsData]) => {
         setDraft((current) => ({ ...(current || {}), ...draftData }));
         setVendors(Array.isArray(vendorData) ? vendorData : []);
         setBrands(brandData?.success ? (brandData.data?.records || []) : []);
+        setActivities(Array.isArray(controlsData?.data?.activities) ? controlsData.data.activities : []);
+        setProjects(Array.isArray(projectsData?.data?.records) ? projectsData.data.records : []);
         if (draftData && !draftData.error) {
           setForm({
             vendor: draftData.vendor_name || '',
@@ -970,6 +980,10 @@ function StockOutLineItemsWindow({ id, initialDraft, onClose, onConfirmed }) {
             other_charges: draftData.other_charges ?? '',
             remarks: draftData.remarks || '',
             reason: draftData.reason || '',
+            activityId: '',
+            costCodeId: '',
+            projectId: '',
+            siteId: '',
           });
         }
       })
@@ -1094,6 +1108,11 @@ function StockOutLineItemsWindow({ id, initialDraft, onClose, onConfirmed }) {
     if ((draft?.method === 'damage_dump' || draft?.method === 'return_vendor' || draft?.method === 'return_warehouse') && !form.reason.trim()) {
       return alert('Enter reason');
     }
+    const requiresActivity =
+      draft?.method === 'stock_out' || draft?.method === 'damage_dump' || !draft?.method;
+    if (requiresActivity && !Number(form.activityId)) {
+      return alert('Select a work activity before issuing material to site.');
+    }
     if (!validateCart()) return;
 
     setConfirming(true);
@@ -1105,6 +1124,32 @@ function StockOutLineItemsWindow({ id, initialDraft, onClose, onConfirmed }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to confirm stock out');
+
+      if (requiresActivity && Number(form.activityId)) {
+        const totalQty = cart.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+        const linkRes = await fetch('/api/construction/activity-issue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stockOutId: data.id || id,
+            activityId: Number(form.activityId),
+            costCodeId: Number(form.costCodeId) || null,
+            projectId: Number(form.projectId) || null,
+            siteId: Number(form.siteId) || null,
+            qty: totalQty,
+            notes: form.remarks || form.reason || null,
+          }),
+        });
+        if (!linkRes.ok) {
+          const linkData = await linkRes.json().catch(() => ({}));
+          console.warn('[stockout activity-issue]', linkData);
+          alert(
+            linkData.message ||
+              linkData.error ||
+              'Stock out saved, but work-activity link failed. Link it from Construction controls.',
+          );
+        }
+      }
       onConfirmed();
     } catch (err) {
       console.error(err);
@@ -1243,6 +1288,64 @@ function StockOutLineItemsWindow({ id, initialDraft, onClose, onConfirmed }) {
                   className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-700 outline-none placeholder:text-gray-400 focus:border-blue-400"
                 />
               </Field>
+              {(draft?.method === 'stock_out' || draft?.method === 'damage_dump' || !draft?.method) && (
+                <div className="mt-4 space-y-3 rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
+                  <p className="text-[12px] font-semibold text-indigo-800">
+                    Work activity (required for site issue)
+                  </p>
+                  <Field label="Project">
+                    <select
+                      value={form.projectId}
+                      onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px]"
+                    >
+                      <option value="">Optional project filter</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name || p.project_code || p.id}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Work activity *">
+                    <select
+                      value={form.activityId}
+                      onChange={(e) => {
+                        const activity = activities.find(
+                          (a) => String(a.id) === String(e.target.value),
+                        );
+                        setForm({
+                          ...form,
+                          activityId: e.target.value,
+                          costCodeId: activity?.cost_code_id
+                            ? String(activity.cost_code_id)
+                            : form.costCodeId,
+                          projectId: activity?.project_id
+                            ? String(activity.project_id)
+                            : form.projectId,
+                          siteId: activity?.site_id
+                            ? String(activity.site_id)
+                            : form.siteId,
+                        });
+                      }}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px]"
+                    >
+                      <option value="">Select activity</option>
+                      {activities
+                        .filter(
+                          (a) =>
+                            !form.projectId ||
+                            String(a.project_id) === String(form.projectId),
+                        )
+                        .map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name || a.activity_name || `Activity #${a.id}`}
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
+                </div>
+              )}
             </div>
           </aside>
 

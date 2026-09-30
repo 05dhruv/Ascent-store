@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import MainLayout from "@/components/MainLayout";
-
-const input = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
+import ConstructionShell, {
+  ConstructionAlert,
+  ConstructionEmpty,
+  ConstructionField,
+  ConstructionSection,
+  ConstructionTable,
+  constructionBtnPrimary,
+  constructionInput,
+} from "@/components/construction/ConstructionShell";
 
 export default function EquipmentPage() {
   const [equipment, setEquipment] = useState([]);
@@ -62,143 +68,158 @@ export default function EquipmentPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="mx-auto max-w-6xl space-y-5 pb-10">
-        <header className="rounded-2xl bg-slate-900 p-5 text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-amber-400">
-            Equipment
-          </p>
-          <h1 className="mt-1 text-2xl font-black">Plant & equipment</h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Register assets and log daily usage hours.
-          </p>
-        </header>
+    <ConstructionShell
+      title="Plant & equipment"
+      subtitle="Register assets and log daily usage hours."
+    >
+      {error && <ConstructionAlert>{error}</ConstructionAlert>}
+      {message && (
+        <ConstructionAlert type="info">{message}</ConstructionAlert>
+      )}
 
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        )}
-        {message && (
-          <p className="text-sm font-semibold text-slate-700">{message}</p>
-        )}
-
+      <ConstructionSection
+        title="Add equipment"
+        description="Register a plant or equipment asset."
+      >
         <form
-          className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-4"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
           onSubmit={(e) => {
             e.preventDefault();
             post({ type: "equipment", ...form });
           }}
         >
-          <input
-            className={input}
-            placeholder="Asset code"
-            required
-            value={form.assetCode}
-            onChange={(e) => setForm({ ...form, assetCode: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Name"
-            required
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <input
-            className={input}
-            placeholder="Category"
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-          />
-          <button
-            disabled={busy}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-slate-950"
-          >
-            Add equipment
-          </button>
+          <ConstructionField label="Asset code" required>
+            <input
+              className={constructionInput}
+              required
+              value={form.assetCode}
+              onChange={(e) => setForm({ ...form, assetCode: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Name" required>
+            <input
+              className={constructionInput}
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </ConstructionField>
+          <ConstructionField label="Category">
+            <input
+              className={constructionInput}
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+            />
+          </ConstructionField>
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={busy}
+              className={constructionBtnPrimary}
+            >
+              Add equipment
+            </button>
+          </div>
         </form>
+      </ConstructionSection>
 
+      <ConstructionSection
+        title="Log usage"
+        description="Record hours used and operator for an asset."
+      >
         <form
-          className="grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-4"
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
           onSubmit={(e) => {
             e.preventDefault();
             post({ type: "log", ...logForm });
           }}
         >
-          <select
-            className={input}
-            required
-            value={logForm.equipmentId}
-            onChange={(e) =>
-              setLogForm({ ...logForm, equipmentId: e.target.value })
-            }
-          >
-            <option value="">Equipment</option>
-            {equipment.map((eq) => (
-              <option key={eq.id} value={eq.id}>
-                {eq.asset_code} — {eq.name}
-              </option>
-            ))}
-          </select>
-          <input
-            className={input}
-            placeholder="Hours used"
-            value={logForm.hoursUsed}
-            onChange={(e) =>
-              setLogForm({ ...logForm, hoursUsed: e.target.value })
-            }
-          />
-          <input
-            className={input}
-            placeholder="Operator"
-            value={logForm.operatorName}
-            onChange={(e) =>
-              setLogForm({ ...logForm, operatorName: e.target.value })
-            }
-          />
-          <button
-            disabled={busy}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white"
-          >
-            Log usage
-          </button>
-        </form>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border bg-white p-4">
-            <h2 className="mb-3 font-black">Assets</h2>
-            <ul className="space-y-2 text-sm">
+          <ConstructionField label="Equipment" required>
+            <select
+              className={constructionInput}
+              required
+              value={logForm.equipmentId}
+              onChange={(e) =>
+                setLogForm({ ...logForm, equipmentId: e.target.value })
+              }
+            >
+              <option value="">Select equipment</option>
               {equipment.map((eq) => (
-                <li key={eq.id} className="rounded-lg bg-slate-50 px-3 py-2">
-                  <span className="font-semibold">
-                    {eq.asset_code} — {eq.name}
-                  </span>
-                  <span className="ml-2 text-xs uppercase text-slate-500">
-                    {eq.status}
-                  </span>
-                </li>
+                <option key={eq.id} value={eq.id}>
+                  {eq.asset_code} — {eq.name}
+                </option>
               ))}
-              {!equipment.length && (
-                <li className="text-slate-400">No equipment yet.</li>
-              )}
-            </ul>
+            </select>
+          </ConstructionField>
+          <ConstructionField label="Hours used">
+            <input
+              className={constructionInput}
+              value={logForm.hoursUsed}
+              onChange={(e) =>
+                setLogForm({ ...logForm, hoursUsed: e.target.value })
+              }
+            />
+          </ConstructionField>
+          <ConstructionField label="Operator">
+            <input
+              className={constructionInput}
+              value={logForm.operatorName}
+              onChange={(e) =>
+                setLogForm({ ...logForm, operatorName: e.target.value })
+              }
+            />
+          </ConstructionField>
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={busy}
+              className={constructionBtnPrimary}
+            >
+              Log usage
+            </button>
           </div>
-          <div className="rounded-xl border bg-white p-4">
-            <h2 className="mb-3 font-black">Usage logs</h2>
-            <ul className="space-y-2 text-sm">
-              {logs.map((l) => (
-                <li key={l.id} className="rounded-lg bg-slate-50 px-3 py-2">
-                  {l.log_date} · {l.asset_code} · {l.hours_used}h
-                  {l.operator_name ? ` · ${l.operator_name}` : ""}
-                </li>
-              ))}
-              {!logs.length && (
-                <li className="text-slate-400">No logs yet.</li>
-              )}
-            </ul>
-          </div>
-        </div>
-      </div>
-    </MainLayout>
+        </form>
+      </ConstructionSection>
+
+      <ConstructionSection title="Assets">
+        <ConstructionTable headers={["Asset", "Name", "Category", "Status"]}>
+          {equipment.map((eq) => (
+            <tr key={eq.id} className="hover:bg-slate-50/80">
+              <td className="px-4 py-3 font-medium text-slate-900">
+                {eq.asset_code}
+              </td>
+              <td className="px-4 py-3 text-slate-700">{eq.name}</td>
+              <td className="px-4 py-3 text-slate-600">{eq.category || "—"}</td>
+              <td className="px-4 py-3 uppercase text-slate-600">
+                {eq.status || "—"}
+              </td>
+            </tr>
+          ))}
+          {!equipment.length && (
+            <ConstructionEmpty colSpan={4} message="No equipment yet." />
+          )}
+        </ConstructionTable>
+      </ConstructionSection>
+
+      <ConstructionSection title="Usage logs">
+        <ConstructionTable
+          headers={["Date", "Asset", "Hours", "Operator"]}
+        >
+          {logs.map((l) => (
+            <tr key={l.id} className="hover:bg-slate-50/80">
+              <td className="px-4 py-3 text-slate-700">{l.log_date || "—"}</td>
+              <td className="px-4 py-3 text-slate-700">{l.asset_code || "—"}</td>
+              <td className="px-4 py-3">{l.hours_used ?? "—"}</td>
+              <td className="px-4 py-3 text-slate-600">
+                {l.operator_name || "—"}
+              </td>
+            </tr>
+          ))}
+          {!logs.length && (
+            <ConstructionEmpty colSpan={4} message="No logs yet." />
+          )}
+        </ConstructionTable>
+      </ConstructionSection>
+    </ConstructionShell>
   );
 }

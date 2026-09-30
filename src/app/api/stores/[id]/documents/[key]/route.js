@@ -1,4 +1,5 @@
 import { errorResponse, successResponse } from "@/lib/api-response";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 import { query } from "@/lib/db";
 import { requireAuth, requirePermission, requireStore } from "@/lib/api-protection";
 import { ensureStoresSchema } from "@/lib/storesSchema";
@@ -152,6 +153,8 @@ async function saveDocument(storeId, key, document) {
 
   return updated.rows[0];
 }
+
+const ensureDocumentUploadChunksSchema = makeSchemaEnsurer("store_document_upload_chunks", runEnsureDocumentUploadChunksSchema);
 
 export async function POST(request, { params }) {
   try {

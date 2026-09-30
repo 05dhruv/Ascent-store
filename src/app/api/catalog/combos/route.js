@@ -1,4 +1,5 @@
 import { query, getClient } from '@/lib/db';
+import { requireAccess } from "@/lib/api-protection";
 import { successResponse, errorResponse, validationError } from '@/lib/apiResponse';
 import { ensureCombosSchema } from '@/lib/catalogExtrasSchema';
 
@@ -11,6 +12,8 @@ function toNum(v, fallback = 0) {
 // ─── GET /api/catalog/combos ─────────────────────────────────
 export async function GET(request) {
   try {
+    const auth = await requireAccess(request);
+    if (auth.error) return auth.error;
     await ensureCombosSchema();
 
     const { searchParams } = new URL(request.url);
@@ -98,6 +101,8 @@ export async function GET(request) {
 export async function POST(request) {
   let client;
   try {
+    const auth = await requireAccess(request, "MANAGE_CATALOG");
+    if (auth.error) return auth.error;
     await ensureCombosSchema();
 
     const body = await request.json();

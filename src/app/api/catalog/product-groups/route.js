@@ -1,4 +1,6 @@
 import { query } from "@/lib/db";
+import { clampPageSize, LOOKUP_MAX_PAGE_SIZE } from "@/lib/pagination";
+import { requireAccess } from "@/lib/api-protection";
 import {
   successResponse,
   errorResponse,
@@ -9,10 +11,12 @@ import {
 // ─── GET /api/catalog/product-groups ───────────────────────────────
 export async function GET(request) {
   try {
+    const auth = await requireAccess(request);
+    if (auth.error) return auth.error;
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1");
-    const pageSize = parseInt(searchParams.get("pageSize") || "10");
+    const pageSize = clampPageSize(searchParams.get("pageSize"), { fallback: 10, max: LOOKUP_MAX_PAGE_SIZE });
     const offset = (page - 1) * pageSize;
 
     const params = [];
@@ -63,6 +67,8 @@ export async function GET(request) {
 // ─── POST /api/catalog/product-groups ──────────────────────────────
 export async function POST(request) {
   try {
+    const auth = await requireAccess(request, "MANAGE_CATALOG");
+    if (auth.error) return auth.error;
     const body = await request.json();
     const { name } = body;
 

@@ -9,8 +9,13 @@ const tableHeaders = ['S. No.', 'Material', 'Code', 'Location', 'Batch / Lot No.
 
 const formatDate = (value) => formatIndianDate(value, '-');
 
-async function fetchBatches(storeId = '') {
-  const response = await fetch(`/api/inventory/batches${storeId ? `?store_id=${encodeURIComponent(storeId)}` : ''}`);
+const BATCH_LIMIT = 500;
+
+async function fetchBatches(storeId = '', search = '') {
+  const params = new URLSearchParams({ limit: String(BATCH_LIMIT) });
+  if (storeId) params.set('store_id', storeId);
+  if (search) params.set('search', search);
+  const response = await fetch(`/api/inventory/batches?${params.toString()}`);
   if (!response.ok) throw new Error('Failed to load batches');
   return response.json();
 }
@@ -22,14 +27,22 @@ export default function BatchesPage() {
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState('');
+  const [serverSearch, setServerSearch] = useState('');
 
   useEffect(() => {
+    const timer = setTimeout(() => setServerSearch(search.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    fetchBatches(storeId)
-      .then((data) => setRecords(Array.isArray(data) ? data : []))
-      .catch(() => setRecords([]))
-      .finally(() => setLoading(false));
-  }, [storeId]);
+    fetchBatches(storeId, serverSearch)
+      .then((data) => { if (!cancelled) setRecords(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!cancelled) setRecords([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [storeId, serverSearch]);
 
   useEffect(() => {
     fetch('/api/stores?include_locations=all')
@@ -65,7 +78,9 @@ export default function BatchesPage() {
     <InventoryShell
       breadcrumb={[{ label: 'Material Movement' }, { label: 'Batch & Serial Trace' }]}
       title="Batch & Serial Trace"
-      subtitle="View material lot, batch and serial details by warehouse or site. Prices are maintained on the material master."
+      subtitle={records.length >= BATCH_LIMIT
+        ? `Showing the first ${BATCH_LIMIT} batches (earliest expiry first). Search or pick a location to narrow down.`
+        : 'View material lot, batch and serial details by warehouse or site. Prices are maintained on the material master.'}
       actions={[{ label: 'Receive Material', primary: true, onClick: () => router.push('/inventory/stockin') }]}
       searchPlaceholder="Search material, code, batch or location"
       searchValue={search}

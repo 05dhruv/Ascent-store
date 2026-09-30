@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth-enhanced';
 
 // Routes that don't require authentication
 const publicRoutes = ['/login', '/sales-order/pos'];
@@ -34,14 +35,28 @@ function unauthorizedApiResponse() {
   );
 }
 
+function getRequestToken(request) {
+  const cookieToken =
+    request.cookies.get('access_token')?.value ||
+    request.cookies.get('auth_token')?.value ||
+    request.cookies.get('token')?.value;
+  if (cookieToken) return cookieToken;
+  const authHeader = request.headers.get('authorization') || '';
+  return authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+}
+
+function hasValidToken(request) {
+  const token = getRequestToken(request);
+  if (!token) return false;
+  const payload = verifyToken(token);
+  return Boolean(payload && payload.type !== 'refresh');
+}
+
 export function proxy(request) {
   const pathname = request.nextUrl.pathname;
-  const token = request.cookies.get('access_token')?.value || 
-                request.cookies.get('auth_token')?.value || 
-                request.cookies.get('token')?.value;
 
   if (pathname.startsWith('/api/')) {
-    if (isPublicApi(pathname) || token) {
+    if (isPublicApi(pathname) || hasValidToken(request)) {
       return NextResponse.next();
     }
 
@@ -53,8 +68,7 @@ export function proxy(request) {
     return NextResponse.next();
   }
 
-  // Redirect to login if no token and route is protected
-  if (!token && !publicRoutes.includes(pathname)) {
+  if (!hasValidToken(request)) {
     // preserve original path so we can return after login
     const fullPath = pathname + (request.nextUrl.search || '');
     const loginUrl = new URL('/login', request.url);

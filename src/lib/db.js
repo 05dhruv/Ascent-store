@@ -8,6 +8,8 @@ if (!globalForPg._pgPool) {
   const poolMax = Number(process.env.PG_POOL_MAX || 20);
   const idleTimeoutMs = Number(process.env.PG_IDLE_TIMEOUT_MS || 30000);
   const connectTimeoutMs = Number(process.env.PG_CONNECT_TIMEOUT_MS || 25000);
+  const statementTimeoutMs = Number(process.env.PG_STATEMENT_TIMEOUT_MS ?? 60000);
+  const idleTxTimeoutMs = Number(process.env.PG_IDLE_TX_TIMEOUT_MS ?? 60000);
   const databaseUrl =
     process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
   const useSsl =
@@ -33,6 +35,14 @@ if (!globalForPg._pgPool) {
     connectionTimeoutMillis: Number.isFinite(connectTimeoutMs)
       ? connectTimeoutMs
       : 10000,
+    // 0 disables. Stops one runaway query / leaked transaction from pinning
+    // a pool connection (and its row locks) forever.
+    ...(Number.isFinite(statementTimeoutMs) && statementTimeoutMs > 0
+      ? { statement_timeout: statementTimeoutMs }
+      : {}),
+    ...(Number.isFinite(idleTxTimeoutMs) && idleTxTimeoutMs > 0
+      ? { idle_in_transaction_session_timeout: idleTxTimeoutMs }
+      : {}),
   });
 
   globalForPg._pgPool.on("error", (err) => {
@@ -44,9 +54,41 @@ const pool = globalForPg._pgPool;
 const shouldLogQueries =
   process.env.NODE_ENV !== "production" || process.env.DEBUG_SQL === "true";
 
+const CONNECTION_FAILURE_CODES = new Set([
+  "57P01",
+  "57P02",
+  "57P03",
+  "08000",
+  "08001",
+  "08003",
+  "08006",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "EPIPE",
+]);
+
+// The statement may already have committed when the socket drops mid-flight,
+// so only statements that are safe to run twice are retried in that case.
+function isIdempotentStatement(text) {
+  const sql = String(text || "").replace(/^\s*(--[^\n]*\n\s*)*/, "").trim();
+  if (/\bIF\s+NOT\s+EXISTS\b/i.test(sql) && /^(CREATE|ALTER)\b/i.test(sql)) return true;
+  if (!/^(SELECT|WITH|SHOW|EXPLAIN)\b/i.test(sql)) return false;
+  return !/\b(INSERT|UPDATE|DELETE|MERGE|nextval|setval)\b/i.test(sql);
+}
+
+// Failures that happen before the statement reaches the server.
+function isPreSendFailure(err) {
+  return (
+    err.code === "ECONNREFUSED" ||
+    /timeout exceeded when trying to connect/i.test(err.message || "")
+  );
+}
+
 /**
- * Run a query with automatic retry on deadlock / serialization failure.
- * DDL statements that use IF NOT EXISTS are idempotent, so retrying is safe.
+ * Run a query with automatic retry.
+ * Deadlock/serialization failures roll the statement back, so they are always
+ * retried; mid-flight connection drops are retried only for idempotent SQL.
  *
  * @param {string} text   - SQL query
  * @param {any[]}  params - Query parameters ($1, $2 …)
@@ -76,26 +118,16 @@ async function queryWithRetry(text, params = [], { maxRetries = 3 } = {}) {
       return res;
     } catch (err) {
       lastErr = err;
-      // Retry on deadlock (40P01) or serialization failure (40001) — both are transient
       const connectionFailure =
-        [
-          "57P01",
-          "57P02",
-          "57P03",
-          "08000",
-          "08001",
-          "08003",
-          "08006",
-          "ECONNRESET",
-          "ECONNREFUSED",
-          "ETIMEDOUT",
-          "EPIPE",
-        ].includes(err.code) ||
+        CONNECTION_FAILURE_CODES.has(err.code) ||
         /connection (?:terminated|timeout|timed out|reset)|socket hang up/i.test(
           err.message || "",
         );
       const isRetryable =
-        err.code === "40P01" || err.code === "40001" || connectionFailure;
+        err.code === "40P01" ||
+        err.code === "40001" ||
+        isPreSendFailure(err) ||
+        (connectionFailure && isIdempotentStatement(text));
       if (isRetryable && attempt < maxRetries) {
         const delayMs = 80 * Math.pow(2, attempt); // 80ms → 160ms → 320ms
         console.warn(

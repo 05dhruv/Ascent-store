@@ -1,5 +1,6 @@
 import { withPerfTiming } from "@/lib/perfTiming";
 import { getClient, query } from "@/lib/db";
+import { clampPageSize, LIST_MAX_PAGE_SIZE } from "@/lib/pagination";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { verifyToken } from "@/lib/auth-enhanced";
 import { ensureSalesBillingSchema } from "@/lib/salesBillingSchema";
@@ -21,7 +22,6 @@ import {
   getInventoryIssueStrategy,
 } from "@/lib/inventoryBatching";
 import { ensureSettingsSchema } from "@/lib/settingsSchema";
-import { repairStockTransferSaleabilityPrices } from "@/lib/stockTransferSaleabilityRepair";
 import {
   createDiscountCartFingerprint,
   ensurePosDiscountApprovalSchema,
@@ -1187,7 +1187,7 @@ async function handleGET(req) {
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
-    const pageSize = parseInt(searchParams.get("pageSize") || "48", 10);
+    const pageSize = clampPageSize(searchParams.get("pageSize"), { fallback: 48, max: LIST_MAX_PAGE_SIZE });
     const search = searchParams.get("search") || "";
     const requestedStoreId = Number(searchParams.get("store_id") || 0) || null;
     const requestedDeviceUid = String(
@@ -1298,10 +1298,6 @@ async function handleGET(req) {
         stores: storesRes.rows,
         selectedStoreId: effectiveStoreId,
       });
-    }
-
-    if (effectiveStoreId) {
-      await repairStockTransferSaleabilityPrices(effectiveStoreId);
     }
 
     const getBillScope = () => {

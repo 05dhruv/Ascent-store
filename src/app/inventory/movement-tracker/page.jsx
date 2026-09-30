@@ -53,6 +53,8 @@ export default function MovementTracker() {
   const [form, setForm] = useState({}),
     [lines, setLines] = useState([]),
     [notice, setNotice] = useState("");
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [scanCode, setScanCode] = useState("");
   async function load() {
     setLoading(true);
     setError("");
@@ -81,6 +83,15 @@ export default function MovementTracker() {
       if (!r.ok) throw new Error(json.error);
       setDetail(json);
       setForm({});
+      setScanCode("");
+      setQrDataUrl("");
+      fetch(`/api/construction/transfer-qr?transferId=${id}`)
+        .then((res) => res.json())
+        .then((qr) => {
+          if (qr?.data?.qrDataUrl) setQrDataUrl(qr.data.qrDataUrl);
+          else if (qr?.qrDataUrl) setQrDataUrl(qr.qrDataUrl);
+        })
+        .catch(() => {});
       setLines(
         json.items.map((x) => ({
           ...x,
@@ -457,6 +468,20 @@ export default function MovementTracker() {
                       {detail.transfer.source_name} to{" "}
                       {detail.transfer.destination_name}
                     </p>
+                    {qrDataUrl && (
+                      <div className="mt-3 flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={qrDataUrl}
+                          alt="Transfer QR"
+                          className="h-20 w-20 rounded border border-slate-200 bg-white p-1"
+                        />
+                        <p className="max-w-xs text-xs text-slate-500">
+                          Scan to confirm transfer #{detail.transfer.id}. Paste
+                          the code below or open this receipt on site.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <button
                     className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"
@@ -637,6 +662,55 @@ export default function MovementTracker() {
                       )}
                       {detail.canReceive && receiving && (
                         <>
+                          <div className="flex w-full flex-wrap items-end gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-3">
+                            <label className="min-w-[200px] flex-1 text-sm">
+                              Scan transfer code
+                              <input
+                                className={input}
+                                placeholder="Scan QR or type transfer id"
+                                value={scanCode}
+                                onChange={(e) => setScanCode(e.target.value)}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              className={button}
+                              onClick={() => {
+                                const expected = String(
+                                  detail.transfer.id || "",
+                                );
+                                const txn = String(
+                                  detail.transfer.transaction_id || "",
+                                );
+                                let code = String(scanCode || "").trim();
+                                try {
+                                  const parsed = JSON.parse(code);
+                                  if (parsed?.transferId != null) {
+                                    code = String(parsed.transferId);
+                                  } else if (parsed?.transferNumber) {
+                                    code = String(parsed.transferNumber);
+                                  }
+                                } catch {
+                                  /* plain id / txn */
+                                }
+                                const ok =
+                                  !scanCode.trim() ||
+                                  code === expected ||
+                                  code === txn ||
+                                  code.includes(expected);
+                                if (!ok) {
+                                  setError(
+                                    "Scanned code does not match this transfer.",
+                                  );
+                                  return;
+                                }
+                                action("receive");
+                              }}
+                            >
+                              Confirm scan & receive
+                            </button>
+                          </div>
                           {hasEnteredExcess && (
                             <select
                               aria-label="Approved excess"
