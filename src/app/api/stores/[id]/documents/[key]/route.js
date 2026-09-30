@@ -1,4 +1,5 @@
 import { errorResponse, successResponse } from "@/lib/api-response";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 import { query } from "@/lib/db";
 import { requireAuth, requirePermission, requireStore } from "@/lib/api-protection";
 import { ensureStoresSchema } from "@/lib/storesSchema";
@@ -11,7 +12,7 @@ import {
 
 const MAX_CHUNK_CHARS = 250_000;
 
-async function ensureDocumentUploadChunksSchema() {
+async function runEnsureDocumentUploadChunksSchema() {
   await query(`
     CREATE TABLE IF NOT EXISTS store_document_upload_chunks (
       store_id INTEGER NOT NULL,
@@ -147,6 +148,8 @@ async function saveDocument(storeId, key, document) {
 
   return updated.rows[0];
 }
+
+const ensureDocumentUploadChunksSchema = makeSchemaEnsurer("store_document_upload_chunks", runEnsureDocumentUploadChunksSchema);
 
 export async function POST(request, { params }) {
   try {

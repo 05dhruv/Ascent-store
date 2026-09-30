@@ -1,8 +1,11 @@
 import { query } from '@/lib/db';
+import { requireAccess } from "@/lib/api-protection";
 import { successResponse, errorResponse } from '@/lib/apiResponse';
 
 export async function POST(req) {
   try {
+    const auth = await requireAccess(req, "MANAGE_CATALOG");
+    if (auth.error) return auth.error;
     const body = await req.json();
     const rows = body.rows || [];
 

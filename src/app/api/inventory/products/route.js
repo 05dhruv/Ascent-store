@@ -3,7 +3,6 @@ import { successResponse, errorResponse } from "@/lib/api-response";
 import { ensureCatalogExtrasSchema } from "@/lib/catalogExtrasSchema";
 import { ensureStoresSchema } from "@/lib/storesSchema";
 import { ensureInventoryBatchSchema } from "@/lib/inventoryBatching";
-import { repairStockTransferSaleabilityPrices } from "@/lib/stockTransferSaleabilityRepair";
 import {
   appendStoreScope,
   getAssignedStoreIds,
@@ -234,14 +233,6 @@ export async function GET(request) {
 
     const storeCheck = requireStore(auth.user, storeId);
     if (storeCheck.error) return storeCheck.error;
-    // Saleability repair is an admin/job concern — skip on inventory list GET.
-    if (
-      searchParams.get("repair_saleability") === "true" ||
-      process.env.ENABLE_SALEABILITY_REPAIR_ON_READ === "true"
-    ) {
-      await repairStockTransferSaleabilityPrices(storeId);
-    }
-
     if (storeOnlyViewer) {
       const location = await query(`SELECT meta FROM stores WHERE id = $1`, [
         storeId,

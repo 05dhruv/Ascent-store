@@ -1,6 +1,13 @@
+import { NextRequest } from "next/server";
 import { query } from "@/lib/db";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { requireAuth } from "@/lib/api-protection";
+import { GET as getReturns } from "@/app/api/pos/returns/route";
+import { GET as getLowStock } from "@/app/api/notifications/low-stock/route";
+import { GET as getProcurement } from "@/app/api/notifications/procurement/route";
+import { GET as getPasswordRequests } from "@/app/api/auth/password-change-requests/route";
+import { GET as getPoEditRequests } from "@/app/api/purchase-orders/edit-requests/route";
+import { GET as getPromotions } from "@/app/api/catalog/promotions/route";
 
 const PREVIEW_LIMIT = 10;
 
@@ -12,12 +19,13 @@ function hasAnyPermission(user, permissions) {
   return permissions.some((p) => list.includes(p));
 }
 
-async function safeJson(url, cookieHeader) {
+// Invoke sibling route handlers in-process (same auth/scoping rules, no
+// extra HTTP round-trip through the proxy per notification source).
+async function safeJson(handler, url, request) {
   try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-    });
+    const response = await handler(
+      new NextRequest(url, { headers: request.headers }),
+    );
     return await response.json().catch(() => ({}));
   } catch {
     return {};
@@ -30,7 +38,6 @@ export async function GET(request) {
     if (auth.error) return auth.error;
     const user = auth.user;
     const origin = new URL(request.url).origin;
-    const cookie = request.headers.get("cookie") || "";
 
     const canReviewReturns = hasAnyPermission(user, [
       "APPROVE_STORE_BILL_EXCHANGE",
@@ -65,24 +72,26 @@ export async function GET(request) {
       promotionsJson,
       requisitionsResult,
     ] = await Promise.all([
-      safeJson(returnsUrl, cookie),
-      safeJson(`${origin}/api/notifications/low-stock`, cookie),
+      safeJson(getReturns, returnsUrl, request),
+      safeJson(getLowStock, `${origin}/api/notifications/low-stock`, request),
       canReviewProcurement
-        ? safeJson(`${origin}/api/notifications/procurement`, cookie)
+        ? safeJson(getProcurement, `${origin}/api/notifications/procurement`, request)
         : Promise.resolve({}),
       canReviewPasswordRequests
         ? safeJson(
+            getPasswordRequests,
             `${origin}/api/auth/password-change-requests?status=pending`,
-            cookie,
+            request,
           )
         : Promise.resolve({}),
       canReviewPurchaseOrderEditRequests
         ? safeJson(
+            getPoEditRequests,
             `${origin}/api/purchase-orders/edit-requests?status=pending`,
-            cookie,
+            request,
           )
         : Promise.resolve({}),
-      safeJson(`${origin}/api/catalog/promotions?pageSize=50`, cookie),
+      safeJson(getPromotions, `${origin}/api/catalog/promotions?pageSize=50`, request),
       canReviewRequisitions
         ? query(
             `SELECT sr.id, sr.transaction_id, sr.destination_id, sr.source_id,

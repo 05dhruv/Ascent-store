@@ -3,6 +3,7 @@ import {
   errorResponse,
   validationError,
 } from "@/lib/api-response";
+import { clampPageSize, LOOKUP_MAX_PAGE_SIZE } from "@/lib/pagination";
 import { query } from "@/lib/db";
 import { ensureStoresSchema } from "@/lib/storesSchema";
 import {
@@ -107,7 +108,7 @@ export async function GET(request) {
     // If pagination/search params present, return paginated shape expected by stores list page
     if (pageParam || pageSizeParam || searchParam) {
       const page = Math.max(1, Number(pageParam) || 1);
-      const pageSize = Math.max(1, Number(pageSizeParam) || 10);
+      const pageSize = clampPageSize(pageSizeParam, { fallback: 10, max: LOOKUP_MAX_PAGE_SIZE });
 
       const where = [];
       const params = [];

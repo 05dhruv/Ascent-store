@@ -2,6 +2,22 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { ensureStockInSchema } from "@/lib/stockInSchema";
 import { requireAuth, requirePermission } from "@/lib/api-protection";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
+
+// Expressions must match the WHERE clause below exactly for the planner to use them.
+const ensureLookupIndexes = makeSchemaEnsurer("products_lookup_expr_indexes", async () => {
+  const indexes = [
+    ["idx_products_lookup_product_id", `LOWER(TRIM(REGEXP_REPLACE(COALESCE(product_id::text, ''), '^''+', '')))`],
+    ["idx_products_lookup_sku", `LOWER(TRIM(REGEXP_REPLACE(COALESCE(sku, ''), '^''+', '')))`],
+    ["idx_products_lookup_barcode", `LOWER(TRIM(REGEXP_REPLACE(COALESCE(barcode, ''), '^''+', '')))`],
+    ["idx_products_lookup_name_compact", `LOWER(REGEXP_REPLACE(COALESCE(name, ''), '[^a-zA-Z0-9]+', '', 'g'))`],
+  ];
+  for (const [name, expr] of indexes) {
+    await query(`CREATE INDEX CONCURRENTLY IF NOT EXISTS ${name} ON products ((${expr}))`).catch(
+      (err) => console.warn(`[stock-in product lookup] index ${name} skipped:`, err.message),
+    );
+  }
+});
 
 function uniqueText(values, { compact = false } = {}) {
   return Array.from(
@@ -49,6 +65,7 @@ export async function POST(request) {
       return NextResponse.json({ records: [] });
     }
 
+    await ensureLookupIndexes();
     const result = await query(
       `SELECT p.id, p.product_id AS "productId", p.name AS "productName",
               COALESCE(p.barcode, '') AS barcode, COALESCE(p.sku, '') AS sku,

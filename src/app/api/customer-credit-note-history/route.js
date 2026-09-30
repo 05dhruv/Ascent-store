@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { clampPageSize, LIST_MAX_PAGE_SIZE } from "@/lib/pagination";
 import { query } from '@/lib/db';
 import { ensureCustomersSchema } from '@/lib/customersSchema';
 import { ensureInvoiceSalesOrdersSchema } from '@/lib/invoiceSalesOrdersSchema';
@@ -78,7 +79,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const page = parsePositiveInteger(searchParams.get('page'), 1);
-    const pageSize = parsePositiveInteger(searchParams.get('pageSize'), 10);
+    const pageSize = clampPageSize(searchParams.get('pageSize'), { fallback: 10, max: LIST_MAX_PAGE_SIZE });
     const dateFrom = normalizeDate(searchParams.get('dateFrom'));
     const dateTo = normalizeDate(searchParams.get('dateTo'));
     const store = normalizeText(searchParams.get('store'));

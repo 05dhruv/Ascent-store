@@ -1,7 +1,25 @@
 import { query } from '@/lib/db';
+import { clampPageSize, LOOKUP_MAX_PAGE_SIZE } from "@/lib/pagination";
 import { successResponse, errorResponse, notFound, validationError } from '@/lib/apiResponse';
 import { ensureCatalogExtrasSchema } from '@/lib/catalogExtrasSchema';
 import { getAssignedStoreIds, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
+import { makeSchemaEnsurer } from '@/lib/schemaGuard';
+
+const ensureChargesColumns = makeSchemaEnsurer('charges_extended_columns', async () => {
+  for (const sql of [
+    `ALTER TABLE charges ADD COLUMN IF NOT EXISTS tax_id BIGINT REFERENCES taxes(id) ON DELETE SET NULL`,
+    `ALTER TABLE charges ADD COLUMN IF NOT EXISTS store_id BIGINT REFERENCES stores(id) ON DELETE SET NULL`,
+    `ALTER TABLE charges ADD COLUMN IF NOT EXISTS department_id BIGINT REFERENCES departments(id) ON DELETE SET NULL`,
+    `ALTER TABLE charges ADD COLUMN IF NOT EXISTS charge_applied_on VARCHAR(50) NOT NULL DEFAULT 'Product'`,
+    `ALTER TABLE charges ADD COLUMN IF NOT EXISTS apply_on_order_delivery BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE charges ADD COLUMN IF NOT EXISTS max_order_value NUMERIC`,
+    `ALTER TABLE charges ADD COLUMN IF NOT EXISTS apply_only_online_orders BOOLEAN NOT NULL DEFAULT false`,
+    `ALTER TABLE charges ADD COLUMN IF NOT EXISTS order_type VARCHAR(50) DEFAULT 'Any'`,
+    `ALTER TABLE charges ADD COLUMN IF NOT EXISTS channel VARCHAR(50) DEFAULT 'Both'`,
+  ]) {
+    await query(sql);
+  }
+});
 
 // ─── GET /api/catalog/charges ───────────────────────────────
 export async function GET(request) {
@@ -11,32 +29,11 @@ export async function GET(request) {
     if (auth.error) return auth.error;
     const permissionCheck = requirePermission(auth.user, 'VIEW_PRODUCTS', 'MANAGE_PRODUCTS');
     if (permissionCheck.error) return permissionCheck.error;
-    // Ensure charges table has extended columns (in case schema migrations ran earlier)
-    try {
-      const ensureColumn = async (colName, sql) => {
-        const res = await query(`SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'charges' AND column_name = $1`, [colName]);
-        const has = parseInt(res.rows[0].count) > 0;
-        if (!has) await query(sql);
-      };
-
-      await ensureColumn('tax_id', `ALTER TABLE charges ADD COLUMN IF NOT EXISTS tax_id BIGINT REFERENCES taxes(id) ON DELETE SET NULL`);
-      await ensureColumn('store_id', `ALTER TABLE charges ADD COLUMN IF NOT EXISTS store_id BIGINT REFERENCES stores(id) ON DELETE SET NULL`);
-      await ensureColumn('department_id', `ALTER TABLE charges ADD COLUMN IF NOT EXISTS department_id BIGINT REFERENCES departments(id) ON DELETE SET NULL`);
-
-      // Add application-specific columns that may be missing
-      await ensureColumn('charge_applied_on', `ALTER TABLE charges ADD COLUMN IF NOT EXISTS charge_applied_on VARCHAR(50) NOT NULL DEFAULT 'Product'`);
-      await ensureColumn('apply_on_order_delivery', `ALTER TABLE charges ADD COLUMN IF NOT EXISTS apply_on_order_delivery BOOLEAN NOT NULL DEFAULT false`);
-      await ensureColumn('max_order_value', `ALTER TABLE charges ADD COLUMN IF NOT EXISTS max_order_value NUMERIC`);
-      await ensureColumn('apply_only_online_orders', `ALTER TABLE charges ADD COLUMN IF NOT EXISTS apply_only_online_orders BOOLEAN NOT NULL DEFAULT false`);
-      await ensureColumn('order_type', `ALTER TABLE charges ADD COLUMN IF NOT EXISTS order_type VARCHAR(50) DEFAULT 'Any'`);
-      await ensureColumn('channel', `ALTER TABLE charges ADD COLUMN IF NOT EXISTS channel VARCHAR(50) DEFAULT 'Both'`);
-    } catch (e) {
-      // ignore migration/race errors so API returns a controllable error instead of crashing
-    }
+    await ensureChargesColumns().catch(() => {});
     const { searchParams } = new URL(request.url);
     const search   = searchParams.get('search')   || '';
     const page     = parseInt(searchParams.get('page')     || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const pageSize = clampPageSize(searchParams.get("pageSize"), { fallback: 10, max: LOOKUP_MAX_PAGE_SIZE });
     const offset   = (page - 1) * pageSize;
 
     const filters = [];

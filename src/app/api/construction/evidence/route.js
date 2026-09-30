@@ -2,7 +2,13 @@ import { query } from "@/lib/db";
 import { requireAuth, requirePermission } from "@/lib/api-protection";
 import { errorResponse, successResponse, validationError } from "@/lib/api-response";
 import { ensureConstructionOpsSchema } from "@/lib/constructionOpsSchema";
-import { saveDataUrl, saveUploadBuffer } from "@/lib/uploadStorage";
+import {
+  MAX_UPLOAD_BYTES,
+  UploadError,
+  isSafeFileUrl,
+  saveDataUrl,
+  saveUploadBuffer,
+} from "@/lib/uploadStorage";
 
 function authInventory(request, write = false) {
   return requireAuth(request).then(async (auth) => {
@@ -71,10 +77,14 @@ export async function POST(request) {
         typeof file === "object" &&
         typeof file.arrayBuffer === "function"
       ) {
+        if (Number(file.size || 0) > MAX_UPLOAD_BYTES) {
+          throw new UploadError(
+            `File too large (max ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)} MB)`,
+          );
+        }
         const buffer = Buffer.from(await file.arrayBuffer());
         const saved = await saveUploadBuffer(buffer, {
           originalName: file.name || "upload",
-          mimeType: file.type || "application/octet-stream",
           prefix: "evidence",
         });
         fileUrl = saved.fileUrl;
@@ -137,8 +147,16 @@ export async function POST(request) {
         },
       ]);
     }
-    if (!fileUrl.startsWith("/") && !fileUrl.startsWith("http")) {
+    if (!fileUrl.startsWith("/") && !/^[a-z][a-z0-9+.-]*:/i.test(fileUrl)) {
       fileUrl = `/uploads/${fileUrl.replace(/^public\/uploads\//, "")}`;
+    }
+    if (!isSafeFileUrl(fileUrl)) {
+      return validationError([
+        { field: "fileUrl", message: "fileUrl must be an /uploads/ path or http(s) link" },
+      ]);
+    }
+    if (signatureData && !isSafeFileUrl(signatureData)) {
+      signatureData = null;
     }
 
     const result = await query(
@@ -161,6 +179,9 @@ export async function POST(request) {
       201,
     );
   } catch (error) {
+    if (error instanceof UploadError) {
+      return errorResponse(error.message, error.status);
+    }
     console.error("[construction evidence POST]", error);
     return errorResponse(error.message || "Evidence could not be saved");
   }

@@ -1,8 +1,6 @@
 import { query } from '@/lib/db';
 import { successResponse, errorResponse } from '@/lib/api-response';
 import { getAssignedStoreIds, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
-import { repairStockTransferSaleabilityPrices } from '@/lib/stockTransferSaleabilityRepair';
-
 function getBatchVariantNumberSql(key, fallbackSql = '0') {
   return `
     CASE
@@ -37,10 +35,6 @@ export async function GET(req) {
       if (storeCheck.error) return storeCheck.error;
     } else if (auth.user.role !== 'super_admin') {
       return errorResponse('Store is required', 400);
-    }
-
-    if (store_id) {
-      await repairStockTransferSaleabilityPrices(store_id);
     }
 
     let searchQuery = `

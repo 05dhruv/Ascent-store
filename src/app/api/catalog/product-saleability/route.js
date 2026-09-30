@@ -1,4 +1,5 @@
 import { query } from '@/lib/db';
+import { clampPageSize, LOOKUP_MAX_PAGE_SIZE } from "@/lib/pagination";
 import { successResponse, errorResponse, validationError } from '@/lib/api-response';
 import { ensureCatalogExtrasSchema } from '@/lib/catalogExtrasSchema';
 import { appendStoreScope, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
@@ -15,7 +16,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const pageSize = clampPageSize(searchParams.get("pageSize"), { fallback: 10, max: LOOKUP_MAX_PAGE_SIZE });
     const offset = (page - 1) * pageSize;
     const params = [];
     const filters = [];

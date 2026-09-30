@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { clampPageSize, LIST_MAX_PAGE_SIZE } from "@/lib/pagination";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { extractAuthUser, requirePermission } from "@/lib/api-protection";
 import { ensureSalesReturnsSchema } from "@/lib/salesReturnsSchema";
@@ -321,7 +322,7 @@ export async function GET(req) {
     const status = searchParams.get("status");
     const scope = searchParams.get("scope");
     const limit = Math.min(
-      Math.max(parseInt(searchParams.get("pageSize") || "100", 10), 1),
+      clampPageSize(searchParams.get("pageSize"), { fallback: 100, max: LIST_MAX_PAGE_SIZE }),
       200,
     );
 

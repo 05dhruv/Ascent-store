@@ -170,6 +170,20 @@ export async function requireAuth(request) {
 }
 
 /**
+ * requireAuth + optional requirePermission (OR semantics) in one call.
+ * With no permissions, any authenticated user passes.
+ */
+export async function requireAccess(request, ...permissions) {
+  const auth = await requireAuth(request);
+  if (auth.error) return auth;
+  if (permissions.length) {
+    const permissionCheck = requirePermission(auth.user, ...permissions);
+    if (permissionCheck.error) return { error: permissionCheck.error, user: null };
+  }
+  return auth;
+}
+
+/**
  * MIDDLEWARE: Require specific role(s)
  * 
  * Usage:

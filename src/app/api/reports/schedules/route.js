@@ -1,8 +1,9 @@
 import { successResponse, errorResponse, validationError } from '@/lib/api-response';
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 import { query } from '@/lib/db';
 import { requireAuth, requireRole } from '@/lib/api-protection';
 
-async function ensureReportSchedulesSchema() {
+async function runEnsureReportSchedulesSchema() {
   await query(`
     CREATE TABLE IF NOT EXISTS report_schedules (
       id BIGSERIAL PRIMARY KEY,
@@ -20,6 +21,8 @@ async function ensureReportSchedulesSchema() {
       ON report_schedules(user_id, is_active, created_at DESC);
   `);
 }
+
+const ensureReportSchedulesSchema = makeSchemaEnsurer("report_schedules_route", runEnsureReportSchedulesSchema);
 
 export async function GET(request) {
   try {

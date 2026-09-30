@@ -11,8 +11,6 @@ import { NextResponse } from 'next/server';
 import { query }        from '@/lib/db';
 import { ensureSettingsSchema } from '@/lib/settingsSchema';
 import { requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
-import { repairStockTransferSaleabilityPrices } from '@/lib/stockTransferSaleabilityRepair';
-
 const DEFAULT_PAYMENT_MODES = [
   { id: 1, name: 'Cash', code: 'cash' },
   { id: 2, name: 'UPI', code: 'upi' },
@@ -89,8 +87,6 @@ export async function GET(request) {
   if (storeCheck.error) return storeCheck.error;
 
   // ── Products (with store-specific pricing when storeId provided) ─────────
-  await repairStockTransferSaleabilityPrices(storeId);
-
   const productsResult = await query(
     `SELECT
        p.id,

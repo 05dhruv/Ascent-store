@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { makeSchemaEnsurer } from "@/lib/schemaGuard";
 import {
   successResponse,
   errorResponse,
@@ -37,7 +38,7 @@ function getIndiaDateString() {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-async function ensurePromotionsColumns() {
+async function runEnsurePromotionsColumns() {
   // Idempotent column additions in case global schema migration didn't run yet
   await query(
     `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS store_id BIGINT`,
@@ -86,6 +87,8 @@ async function ensurePromotionsColumns() {
     `ALTER TABLE promotions ADD COLUMN IF NOT EXISTS requested_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL`,
   );
 }
+
+const ensurePromotionsColumns = makeSchemaEnsurer("promotions_columns_list", runEnsurePromotionsColumns);
 
 export async function GET(request) {
   try {
