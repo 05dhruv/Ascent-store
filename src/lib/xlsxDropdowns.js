@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import { getLoadedXlsx, loadXlsx } from "./loadXlsx";
 
 export const OPTIONS_SHEET_NAME = "Options";
 
@@ -313,6 +313,7 @@ export function isBlankSpreadsheetRow(row) {
 }
 
 export function sheetToJsonRows(worksheet, options = {}) {
+  const XLSX = getLoadedXlsx();
   const rows = XLSX.utils.sheet_to_json(worksheet, {
     defval: "",
     raw: false,
@@ -366,6 +367,7 @@ export function applyTextFormatToColumns(
   columnHeaders,
   rowLimit = 5001,
 ) {
+  const XLSX = getLoadedXlsx();
   const textHeaders = new Set(columnHeaders);
   const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:A1");
   headers.forEach((header, columnIndex) => {
@@ -386,6 +388,7 @@ export function applyTextFormatToColumns(
 }
 
 export function buildOptionsSheet(optionGroups) {
+  const XLSX = getLoadedXlsx();
   const maxRows = Math.max(
     1,
     ...optionGroups.map((group) => group.values.length + 1),
@@ -423,7 +426,7 @@ export function prefixMatchOptionFormula(optionGroups, key, inputCell) {
   const index = optionGroups.findIndex((group) => group.key === key);
   if (index < 0 || !optionGroups[index].values.length) return "";
 
-  const column = XLSX.utils.encode_col(index);
+  const column = getLoadedXlsx().utils.encode_col(index);
   const firstCell = `'${OPTIONS_SHEET_NAME}'!$${column}$2`;
   const optionRange = `'${OPTIONS_SHEET_NAME}'!$${column}$2:$${column}$${optionGroups[index].values.length + 1}`;
   const fallback = optionFormula(optionGroups, key);
@@ -439,6 +442,7 @@ function makeExcelName(value) {
 }
 
 export function addOptionNamedRanges(workbook, optionGroups) {
+  const XLSX = getLoadedXlsx();
   workbook.Workbook = workbook.Workbook || {};
   workbook.Workbook.Names = Array.isArray(workbook.Workbook.Names)
     ? workbook.Workbook.Names
@@ -474,6 +478,7 @@ export async function saveWorkbookWithValidations(
   worksheetPath = "xl/worksheets/sheet1.xml",
   options = {},
 ) {
+  const XLSX = await loadXlsx();
   const buffer = XLSX.write(workbook, {
     bookType: "xlsx",
     type: "array",

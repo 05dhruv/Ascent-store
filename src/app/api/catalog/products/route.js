@@ -1,3 +1,4 @@
+import { withPerfTiming } from "@/lib/perfTiming";
 import { query, getClient } from "@/lib/db";
 import {
   successResponse,
@@ -13,6 +14,7 @@ import {
 } from "@/lib/inventoryBatching";
 import { ensureProductDiscountSchema } from "@/lib/productDiscountSchema";
 import { ensureProductImageSchema } from "@/lib/productImageSchema";
+import { productImageUrlSql } from "@/lib/productImageUrl";
 import { ensureProductDimensionsSchema } from "@/lib/productDimensionsSchema";
 import {
   getAssignedStoreIds,
@@ -177,7 +179,7 @@ async function validateBarcodeAvailability(
 }
 
 // ─── GET /api/catalog/products ───────────────────────────────
-export async function GET(request) {
+async function handleGET(request) {
   try {
     await Promise.allSettled([
       ensureStockInSchema(),
@@ -339,10 +341,9 @@ export async function GET(request) {
 
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    const countResult = returnAll
+    const countPromise = returnAll
       ? null
-      : await query(`SELECT COUNT(*) FROM products p ${where}`, params);
-    const total = returnAll ? 0 : parseInt(countResult.rows[0].count);
+      : query(`SELECT COUNT(*) FROM products p ${where}`, params);
 
     const paginationSql = returnAll ? "" : `LIMIT $${i} OFFSET $${i + 1}`;
     const queryParams = returnAll ? params : [...params, pageSize, offset];
@@ -352,8 +353,15 @@ export async function GET(request) {
           AND ps_store.store_id = ${requestedStoreId || 0}
           AND ps_store.is_active = TRUE`;
 
-    const result = await query(
-      `SELECT
+    const resultPromise = query(
+      `WITH page_products AS MATERIALIZED (
+         SELECT p.id
+         FROM products p
+         ${where}
+         ORDER BY p.id DESC
+         ${paginationSql}
+       )
+       SELECT
         p.id, p.product_id, p.name, p.barcode, p.sku,
         COALESCE(p.category_id, b.category_id) AS category_id,
         p.sub_category_id, p.brand_id, p.manufacturer_id,
@@ -363,7 +371,7 @@ export async function GET(request) {
         COALESCE(NULLIF(latest_store_batch.cost_price, 0), NULLIF(batch_agg.min_cost_price, 0), NULLIF(batch_agg.stock_cost / NULLIF(batch_agg.qty, 0), 0), NULLIF(ps_store.franchise_cost, 0), p.cost_price, 0) AS cost_price,
         p.unit,
         p.length, p.width, p.height, p.dimension_unit, p.dimensions, p.weight_per_unit,
-        p.is_active, p.is_service, p.image_url, p.allow_discount_on_pos, p.include_tax,
+        p.is_active, p.is_service, ${productImageUrlSql("p")} AS image_url, p.allow_discount_on_pos, p.include_tax,
         p.stock_item_type, p.inventory_method, p.hsn_code, p.charge_id,
         p.created_at, p.updated_at,
         COALESCE(c.name, bc.name) AS category_name,
@@ -395,7 +403,8 @@ export async function GET(request) {
             THEN 'store_assignment'
           ELSE 'product_master'
         END AS price_source
-       FROM products p
+       FROM page_products pp
+       JOIN products p ON p.id = pp.id
        LEFT JOIN categories     c   ON p.category_id     = c.id
        LEFT JOIN sub_categories sc  ON p.sub_category_id = sc.id
        LEFT JOIN brands         b   ON p.brand_id        = b.id
@@ -418,9 +427,8 @@ export async function GET(request) {
                   ib.created_at DESC NULLS LAST, ib.id DESC
          LIMIT 1
        ) latest_store_batch ON TRUE
-       LEFT JOIN (
-         SELECT product_id,
-                SUM(available_qty) AS qty,
+       LEFT JOIN LATERAL (
+         SELECT SUM(available_qty) AS qty,
                 SUM(available_qty * cost_price) AS stock_cost,
                 COUNT(*)::INT AS active_batch_count,
                 MIN(cost_price) AS min_cost_price,
@@ -431,17 +439,18 @@ export async function GET(request) {
                 MAX(NULLIF(meta->>'mrp', '')::numeric) AS max_mrp,
                 MAX(NULLIF(meta->>'unit', '')) AS batch_unit
          FROM inventory_batches
-         WHERE status = 'active'
+         WHERE product_id = p.id
+           AND status = 'active'
            ${stockStoreFilter}
            ${storeCostOnly ? "AND store_id IN (SELECT id FROM stores WHERE LOWER(COALESCE(meta->>'locationType', 'Store')) = 'store')" : ""}
            AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
-         GROUP BY product_id
-       ) batch_agg ON batch_agg.product_id = p.id
-       ${where}
-       ORDER BY p.id DESC
-       ${paginationSql}`,
+       ) batch_agg ON TRUE
+       ORDER BY p.id DESC`,
       queryParams,
     );
+
+    const [countResult, result] = await Promise.all([countPromise, resultPromise]);
+    const total = returnAll ? 0 : parseInt(countResult.rows[0].count);
 
     return successResponse({
       records: result.rows
@@ -700,3 +709,5 @@ export async function POST(request) {
     return errorResponse(err.message);
   }
 }
+
+export const GET = withPerfTiming("catalog/products", handleGET);

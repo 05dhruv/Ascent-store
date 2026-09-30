@@ -14,6 +14,7 @@ import {
   optionFormula,
   saveWorkbookWithValidations,
 } from "@/lib/xlsxDropdowns";
+import { loadXlsx } from "@/lib/loadXlsx";
 
 const BULK_ASSIGN_HEADERS = [
   "Product ID",
@@ -312,7 +313,7 @@ export default function AssignProductsToStorePage() {
       if (!products.length)
         throw new Error("No products found for the selected brands");
 
-      const XLSX = await import("xlsx");
+      const XLSX = await loadXlsx();
       const exportRows = products.map((product) => ({
         "Product ID": String(product.id || ""),
         "Product Code": String(product.product_id || ""),

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import MainLayout from '@/components/MainLayout';
 import CustomerSearchModal from '@/components/CustomerSearchModal';
-import { extractStores } from '@/lib/clientResponse';
+import { extractStores } from '@/lib/clientResponse';
+import Icon from "@/components/Icon";
 
 const columns = [
   { key: 'customerId', label: 'Customer ID' },
@@ -55,7 +56,7 @@ function AddMoneyModal({ open, customer, onClose, onSubmit, submitting, onPickCu
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-[18px] font-semibold text-gray-900">Add Money</h3>
           <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <i className="ti ti-x text-[20px]" />
+            <Icon name="ti-x" className="text-[20px]" />
           </button>
         </div>
 
@@ -265,7 +266,7 @@ export default function CustomerAdvancePaymentPage() {
       <div className="min-h-screen">
         <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-4 flex-wrap">
           <Link href="/customer/dashboard" className="hover:text-blue-600 transition-colors">Customer</Link>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-blue-600 font-medium">Customer Advance Payment</span>
         </nav>
 
@@ -290,7 +291,7 @@ export default function CustomerAdvancePaymentPage() {
         <div className="flex justify-end mb-4">
           <div className="w-full max-w-[340px]">
             <div className="relative">
-              <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
+              <Icon name="ti-search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
               <input
                 type="text"
                 value={search}
@@ -324,7 +325,7 @@ export default function CustomerAdvancePaymentPage() {
                       <option key={storeOption.id} value={String(storeOption.id)}>{storeOption.name}</option>
                     ))}
                   </select>
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
                 </div>
               </div>
 
@@ -341,7 +342,7 @@ export default function CustomerAdvancePaymentPage() {
                     <option value="COMPANY">COMPANY</option>
                     <option value="WHOLESALE">WHOLESALE</option>
                   </select>
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
                 </div>
               </div>
 
@@ -362,7 +363,7 @@ export default function CustomerAdvancePaymentPage() {
                   className="h-10 w-10 inline-flex items-center justify-center rounded border border-gray-200 text-gray-600 hover:bg-gray-50"
                   title="Download CSV"
                 >
-                  <i className="ti ti-download text-[15px]" />
+                  <Icon name="ti-download" className="text-[15px]" />
                 </button>
               </div>
             </div>

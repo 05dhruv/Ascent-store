@@ -18,6 +18,103 @@ function isSystemSuperAdmin(user) {
 }
 
 
+const EMPLOYEE_LOOKUP_SQL = `
+  SELECT role_name, permissions
+    FROM employees
+   WHERE user_id = $1
+      OR LOWER(email_address) = LOWER($2)
+      OR LOWER(username) = LOWER($3)
+   ORDER BY updated_at DESC, id DESC
+   LIMIT 1`;
+
+/**
+ * Loads the user, their most recent employee profile and active store
+ * assignments. One round trip normally; falls back to separate queries
+ * (where employee/store failures are non-fatal) if the combined one errors,
+ * e.g. when the employees table does not exist yet.
+ *
+ * Returns null when the user is missing or inactive. `employee` is null when
+ * there is no profile; `storeIds` is null when stores could not be loaded.
+ */
+async function loadAuthContext(userId) {
+  try {
+    const result = await query(
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.is_active,
+              emp.role_name AS employee_role_name,
+              emp.permissions AS employee_permissions,
+              emp.found AS has_employee,
+              stores.store_ids
+         FROM users u
+         LEFT JOIN LATERAL (
+           SELECT e.role_name, e.permissions, TRUE AS found
+             FROM employees e
+            WHERE e.user_id = u.id
+               OR LOWER(e.email_address) = LOWER(COALESCE(u.email, ''))
+               OR LOWER(e.username) = LOWER(COALESCE(u.name, ''))
+            ORDER BY e.updated_at DESC, e.id DESC
+            LIMIT 1
+         ) emp ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(ARRAY_AGG(us.store_id ORDER BY us.store_id), '{}') AS store_ids
+             FROM user_stores us
+            WHERE us.user_id = u.id AND us.is_active = TRUE
+         ) stores ON TRUE
+        WHERE u.id = $1 AND u.is_active = TRUE`,
+      [userId]
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      dbUser: {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        role: row.role,
+        is_active: row.is_active,
+      },
+      employee: row.has_employee
+        ? { role_name: row.employee_role_name, permissions: row.employee_permissions }
+        : null,
+      storeIds: (row.store_ids || []).map(Number),
+    };
+  } catch {
+    return loadAuthContextSequential(userId);
+  }
+}
+
+async function loadAuthContextSequential(userId) {
+  const userResult = await query(
+    `SELECT id, name, email, phone, role, is_active
+     FROM users
+     WHERE id = $1 AND is_active = TRUE`,
+    [userId]
+  );
+  if (userResult.rows.length === 0) return null;
+  const dbUser = userResult.rows[0];
+
+  let employee = null;
+  try {
+    const employeeResult = await query(EMPLOYEE_LOOKUP_SQL, [
+      dbUser.id,
+      dbUser.email || '',
+      dbUser.name || '',
+    ]);
+    employee = employeeResult.rows[0] || null;
+  } catch {}
+
+  let storeIds = null;
+  try {
+    const storeResult = await query(
+      `SELECT store_id FROM user_stores WHERE user_id = $1 AND is_active = TRUE ORDER BY store_id`,
+      [dbUser.id]
+    );
+    storeIds = storeResult.rows.map((row) => Number(row.store_id));
+  } catch {}
+
+  return { dbUser, employee, storeIds };
+}
+
 /**
  * Extract and verify JWT token from request
  * Returns { user, token, error }
@@ -64,61 +161,29 @@ export async function extractAuthUser(request) {
       return { user: null, token: null, error: 'Invalid or expired token' };
     }
 
-    // Fetch full user from database
-    const userResult = await query(
-      `SELECT id, name, email, phone, role, is_active
-       FROM users
-       WHERE id = $1 AND is_active = TRUE`,
-      [payload.sub]
-    );
-
-    if (userResult.rows.length === 0) {
+    const authContext = await loadAuthContext(payload.sub);
+    if (!authContext) {
       return { user: null, token: null, error: 'User not found or inactive' };
     }
 
-    const dbUser = userResult.rows[0];
+    const { dbUser, employee, storeIds } = authContext;
     let permissions = Array.isArray(payload.permissions) ? payload.permissions : [];
     let employeeRoleName = null;
     let employeePermissions = null;
     let hasEmployeeProfile = false;
 
-    try {
-      const employeeResult = await query(
-        `SELECT role_name, permissions
-         FROM employees
-         WHERE user_id = $1
-            OR LOWER(email_address) = LOWER($2)
-            OR LOWER(username) = LOWER($3)
-         ORDER BY updated_at DESC, id DESC
-         LIMIT 1`,
-        [dbUser.id, dbUser.email || '', dbUser.name || '']
-      );
-
-      if (employeeResult.rows.length > 0) {
-        hasEmployeeProfile = true;
-        employeeRoleName = employeeResult.rows[0]?.role_name || null;
-        employeePermissions = Array.isArray(employeeResult.rows[0]?.permissions)
-          ? employeeResult.rows[0].permissions
-          : [];
-      }
-
-      if (employeePermissions !== null) {
-        permissions = employeePermissions;
-      }
-    } catch {}
+    if (employee) {
+      hasEmployeeProfile = true;
+      employeeRoleName = employee.role_name || null;
+      employeePermissions = Array.isArray(employee.permissions) ? employee.permissions : [];
+      permissions = employeePermissions;
+    }
 
     if (SUPER_ADMIN_FULL_ACCESS && dbUser.role === 'super_admin' && !permissions.includes('*')) {
       permissions = ['*'];
     }
 
-    let assignedStores = payload.assigned_stores || [];
-    try {
-      const storeResult = await query(
-        `SELECT store_id FROM user_stores WHERE user_id = $1 AND is_active = TRUE ORDER BY store_id`,
-        [dbUser.id]
-      );
-      assignedStores = storeResult.rows.map((row) => Number(row.store_id));
-    } catch {}
+    const assignedStores = storeIds ?? (payload.assigned_stores || []);
 
     const effectiveRole =
       !SUPER_ADMIN_FULL_ACCESS && hasEmployeeProfile && dbUser.role === 'super_admin'

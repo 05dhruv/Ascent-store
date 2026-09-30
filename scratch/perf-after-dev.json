@@ -1,0 +1,167 @@
+{
+  "label": "after-dev",
+  "at": "2026-09-28T06:55:38.096Z",
+  "base": "http://localhost:3000",
+  "runs": 5,
+  "storeId": 1,
+  "counts": {
+    "products": 1,
+    "sales_bills": 0,
+    "sales_bill_items": 0,
+    "sales_bill_payments": 0,
+    "customers": 0,
+    "employees": 0,
+    "users": 1,
+    "user_stores": 0,
+    "inventory_batches": 3,
+    "stock_out": 0,
+    "stock_transfer": 4,
+    "purchase_orders": 0,
+    "stores": 2
+  },
+  "explains": [
+    {
+      "label": "auth: employee lookup",
+      "executionMs": 0.04,
+      "planningMs": 0.13,
+      "nodes": [
+        "Limit",
+        "Sort",
+        "Seq Scan on employees"
+      ]
+    },
+    {
+      "label": "invoice: seed scan",
+      "executionMs": 0.04,
+      "planningMs": 0.34,
+      "nodes": [
+        "Aggregate",
+        "Index Scan on sales_bills using idx_sales_bills_store_created"
+      ]
+    },
+    {
+      "label": "sales_bills: store + last 30 days",
+      "executionMs": 0.03,
+      "planningMs": 0.16,
+      "nodes": [
+        "Limit",
+        "Index Scan on sales_bills using idx_sales_bills_store_created"
+      ]
+    },
+    {
+      "label": "sales_bills: date range (analytics style)",
+      "executionMs": 0.04,
+      "planningMs": 0.13,
+      "nodes": [
+        "Aggregate",
+        "Seq Scan on sales_bills"
+      ]
+    },
+    {
+      "label": "products: barcode equality",
+      "executionMs": 0.04,
+      "planningMs": 0.08,
+      "nodes": [
+        "Seq Scan on products"
+      ]
+    },
+    {
+      "label": "sales_bill_items by bill",
+      "executionMs": 0.03,
+      "planningMs": 0.09,
+      "nodes": [
+        "Index Scan on sales_bill_items using idx_stock_level_sales_items_product"
+      ]
+    },
+    {
+      "label": "sales_bill_payments by bill",
+      "executionMs": 0.03,
+      "planningMs": 0.08,
+      "nodes": [
+        "Index Scan on sales_bill_payments using idx_sales_bill_payments_bill"
+      ]
+    },
+    {
+      "label": "stock_out by reference",
+      "executionMs": 0.03,
+      "planningMs": 0.1,
+      "nodes": [
+        "Index Scan on stock_out using idx_stock_out_reference"
+      ]
+    }
+  ],
+  "http": [
+    {
+      "label": "auth/me",
+      "url": "/api/auth/me",
+      "status": 200,
+      "bytes": 323,
+      "medianMs": 623.8,
+      "minMs": 606.4,
+      "maxMs": 634
+    },
+    {
+      "label": "catalog/products page 1",
+      "url": "/api/catalog/products?page=1&pageSize=50",
+      "status": 200,
+      "bytes": 1267,
+      "medianMs": 909.9,
+      "minMs": 902.1,
+      "maxMs": 966.3
+    },
+    {
+      "label": "pos/barcode-lookup",
+      "url": "/api/pos/barcode-lookup?barcode=2900000000018&store_id=1",
+      "status": 200,
+      "bytes": 305,
+      "medianMs": 609.5,
+      "minMs": 604.9,
+      "maxMs": 626.7
+    },
+    {
+      "label": "notifications/summary",
+      "url": "/api/notifications/summary",
+      "status": 200,
+      "bytes": 546,
+      "medianMs": 1230.9,
+      "minMs": 1204.2,
+      "maxMs": 1584.1
+    },
+    {
+      "label": "dashboard/analytics",
+      "url": "/api/dashboard/analytics",
+      "status": 200,
+      "bytes": 1501,
+      "medianMs": 1196.5,
+      "minMs": 1186.3,
+      "maxMs": 1306.1
+    },
+    {
+      "label": "customer/dashboard",
+      "url": "/api/customer/dashboard",
+      "status": 200,
+      "bytes": 1133,
+      "medianMs": 637,
+      "minMs": 633.3,
+      "maxMs": 652.8
+    },
+    {
+      "label": "catalog/dashboard",
+      "url": "/api/catalog/dashboard",
+      "status": 200,
+      "bytes": 708,
+      "medianMs": 624.4,
+      "minMs": 617.6,
+      "maxMs": 656.6
+    },
+    {
+      "label": "public/products",
+      "url": "/api/public/products?store_id=1",
+      "status": 200,
+      "bytes": 590,
+      "medianMs": 623.6,
+      "minMs": 610.3,
+      "maxMs": 985
+    }
+  ]
+}

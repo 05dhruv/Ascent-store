@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/useUser';
 import { fetchAuthEndpoint } from '@/lib/auth-endpoints';
-import { formatIndianDateTime } from '@/lib/dateUtils';
+import { formatIndianDateTime } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 const checklistItems = [
   { label: 'Add your first products',  desc: 'Use AI import or add manually', href: '/catalog/products' },
@@ -148,7 +149,7 @@ export default function HomePage() {
           href="/sales/pos"
           className="self-start flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-indigo-700 flex-shrink-0"
         >
-          <i className="ti ti-bolt text-[15px]" />
+          <Icon name="ti-bolt" className="text-[15px]" />
           Open POS
         </Link>
         </div>
@@ -163,7 +164,7 @@ export default function HomePage() {
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 md:px-5 md:py-4 hover:border-indigo-200 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)] transition-all cursor-pointer"
           >
             <div className="mb-2 flex items-center gap-1.5 text-slate-500">
-              <i className={`ti ${s.icon} text-[15px]`} />
+              <Icon name={s.icon} className="text-[15px]" />
               <span className="text-[11.5px] md:text-[12px] font-medium">{s.label}</span>
             </div>
             <div className="flex items-baseline gap-1.5">
@@ -189,7 +190,7 @@ export default function HomePage() {
       {promotionAlerts.length > 0 && (
         <div className="mb-5 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4">
           <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-bold text-indigo-900"><i className="ti ti-speakerphone" /> Promotion Alerts</div>
+            <div className="flex items-center gap-2 text-sm font-bold text-indigo-900"><Icon name="ti-speakerphone" /> Promotion Alerts</div>
             <Link href="/catalog/promos/promotions" className="text-xs font-semibold text-indigo-700 hover:underline">View promotions</Link>
           </div>
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -216,7 +217,7 @@ export default function HomePage() {
               href="/sales/pos"
               className="flex items-center gap-1 text-[12.5px] md:text-[13px] font-medium text-indigo-600 hover:underline"
             >
-              Open billing <i className="ti ti-arrow-right text-[12px]" />
+              Open billing <Icon name="ti-arrow-right" className="text-[12px]" />
             </Link>
           </div>
 
@@ -264,7 +265,7 @@ export default function HomePage() {
                 ].map((kpi) => (
                   <div key={kpi.label} className={`${kpi.bg} rounded-2xl p-3`}>
                     <div className="flex items-center gap-1.5 mb-1">
-                      <i className={`ti ${kpi.icon} text-[13px] ${kpi.color}`} />
+                      <Icon name={kpi.icon} className={`text-[13px] ${kpi.color}`} />
                       <span className="text-[10.5px] text-slate-500 font-medium">{kpi.label}</span>
                     </div>
                     <p className={`text-[16px] md:text-[18px] font-bold ${kpi.color} leading-none`}>{kpi.value}</p>
@@ -298,7 +299,7 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="mb-5 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-100 py-8">
-                  <i className="ti ti-chart-bar text-[32px] text-slate-200 mb-2" />
+                  <Icon name="ti-chart-bar" className="text-[32px] text-slate-200 mb-2" />
                   <p className="text-[12px] text-slate-400">Chart populates after your first sale</p>
                 </div>
               )}
@@ -315,7 +316,7 @@ export default function HomePage() {
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                            <i className="ti ti-receipt text-[13px] text-indigo-600" />
+                            <Icon name="ti-receipt" className="text-[13px] text-indigo-600" />
                           </div>
                           <div>
                             <p className="text-[12px] font-semibold text-slate-800">
@@ -395,7 +396,7 @@ export default function HomePage() {
                   <div className="flex items-start gap-3">
                     <div className={`w-5 h-5 rounded-full border-[2px] flex items-center justify-center flex-shrink-0 mt-0.5 ${isCompleted ? 'bg-green-100 border-green-400' : 'border-orange-400'}`}>
                       {isCompleted ? (
-                        <i className="ti ti-check text-[12px] text-green-600" />
+                        <Icon name="ti-check" className="text-[12px] text-green-600" />
                       ) : (
                         <div className="w-2 h-2 rounded-full bg-orange-400" />
                       )}
@@ -409,7 +410,7 @@ export default function HomePage() {
                     href={item.href}
                     className="flex flex-shrink-0 items-center gap-1 text-[12px] font-semibold text-indigo-600 hover:underline"
                   >
-                    Open <i className="ti ti-arrow-right text-[12px]" />
+                    Open <Icon name="ti-arrow-right" className="text-[12px]" />
                   </Link>
                 </div>
               );

@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import MainLayout from '@/components/MainLayout';
+import MainLayout from '@/components/MainLayout';
+import Icon from "@/components/Icon";
 
 const SETTING_CARDS = [
   {
@@ -123,7 +124,7 @@ export default function SettingsPage() {
               </p>
               <p className="text-[12px] text-gray-400 mt-0.5 leading-snug">{card.desc}</p>
             </div>
-            <i className="ti ti-chevron-right text-gray-300 text-[18px] group-hover:text-blue-400 transition-colors flex-shrink-0 ml-3" />
+            <Icon name="ti-chevron-right" className="text-gray-300 text-[18px] group-hover:text-blue-400 transition-colors flex-shrink-0 ml-3" />
           </Link>
         ))}
       </div>

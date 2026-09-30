@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { validatePhoneNumber } from '@/lib/phoneValidator';
+import { validatePhoneNumber } from '@/lib/phoneValidator';
+import Icon from "@/components/Icon";
 
 const initialForm = {
   name: '',
@@ -144,7 +145,7 @@ function UserPicker({ users, value, onChange }) {
         className="mt-2 flex w-full items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2 text-left text-[13px] text-gray-700"
       >
         <span className="truncate">{label}</span>
-        <i className={`ti ti-chevron-down text-[12px] text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <Icon name="ti-chevron-down" className={`text-[12px] text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="absolute z-20 mt-2 max-h-64 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">

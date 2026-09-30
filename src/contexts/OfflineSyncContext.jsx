@@ -19,10 +19,10 @@ import {
 import { usePathname } from 'next/navigation';
 import { useUser }              from '@/hooks/useUser';
 import { useNetworkStatus }     from '@/hooks/useNetworkStatus';
-import { getPendingCount } from '@/lib/localDb';
-import { prefetchOfflineData, syncPendingBills } from '@/lib/syncEngine';
 
 const OfflineSyncContext = createContext(null);
+const loadLocalDb = () => import('@/lib/localDb');
+const loadSyncEngine = () => import('@/lib/syncEngine');
 
 function isOfflinePosEnabled() {
   if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_OFFLINE_POS === 'true') {
@@ -31,13 +31,11 @@ function isOfflinePosEnabled() {
   return false;
 }
 
+const POS_ROUTES = ['/sales/pos', '/sales-order/pos'];
+
 function isPosRoute(pathname) {
   if (!pathname) return false;
-  return (
-    pathname.startsWith('/sales/pos') ||
-    pathname.startsWith('/sales-order') ||
-    pathname.includes('/pos')
-  );
+  return POS_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 }
 
 export function OfflineSyncProvider({ children }) {
@@ -64,6 +62,7 @@ export function OfflineSyncProvider({ children }) {
       return;
     }
     try {
+      const { getPendingCount } = await loadLocalDb();
       const count = await getPendingCount();
       setPendingCount(count);
     } catch {
@@ -79,6 +78,7 @@ export function OfflineSyncProvider({ children }) {
     setSyncError(null);
 
     try {
+      const { syncPendingBills } = await loadSyncEngine();
       const result = await syncPendingBills();
       setLastSyncTime(new Date().toISOString());
       await refreshPendingCount();
@@ -113,7 +113,9 @@ export function OfflineSyncProvider({ children }) {
     const storeId = user.assigned_stores?.[0];
     if (!storeId) return;
 
-    prefetchOfflineData(storeId).catch(() => {});
+    loadSyncEngine()
+      .then(({ prefetchOfflineData }) => prefetchOfflineData(storeId))
+      .catch(() => {});
   }, [user, isOnline, offlineActive]);
 
   useEffect(() => {

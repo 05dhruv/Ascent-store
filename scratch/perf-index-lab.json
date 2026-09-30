@@ -1,0 +1,129 @@
+{
+  "at": "2026-09-28T06:10:06.579Z",
+  "N_BILLS": 200000,
+  "N_PRODUCTS": 50000,
+  "results": [
+    {
+      "name": "auth: employees OR/LOWER lookup",
+      "before": {
+        "ms": 0.59,
+        "plan": "Limit > Sort > Seq Scan on lab_employees"
+      },
+      "after": {
+        "ms": 0.09,
+        "plan": "Limit > Sort > Bitmap Heap Scan on lab_employees > BitmapOr > Bitmap Index Scan using lab_employees_user_id_key > Bitmap Index Scan using lab_emp_lower_email > Bitmap Index Scan using lab_emp_lower_username"
+      },
+      "indexes": [
+        "CREATE INDEX lab_emp_lower_email ON lab_employees (LOWER(email_address))",
+        "CREATE INDEX lab_emp_lower_username ON lab_employees (LOWER(username))"
+      ]
+    },
+    {
+      "name": "invoice: seed MAX(bill_number) scan per store",
+      "before": {
+        "ms": 84.42,
+        "plan": "Aggregate > Bitmap Heap Scan on lab_bills > Bitmap Index Scan using lab_bills_bill_number_key"
+      },
+      "after": null,
+      "indexes": []
+    },
+    {
+      "name": "POS bill tracker: store + today, ORDER BY created_at DESC",
+      "before": {
+        "ms": 20.77,
+        "plan": "Limit > Sort > Seq Scan on lab_bills"
+      },
+      "after": {
+        "ms": 0.15,
+        "plan": "Limit > Sort > Bitmap Heap Scan on lab_bills > Bitmap Index Scan using lab_bills_store_created"
+      },
+      "indexes": [
+        "CREATE INDEX lab_bills_store_created ON lab_bills (store_id, created_at DESC)"
+      ]
+    },
+    {
+      "name": "analytics: 30-day totals, all stores",
+      "before": {
+        "ms": 63.5,
+        "plan": "Aggregate > Sort > Seq Scan on lab_bills"
+      },
+      "after": {
+        "ms": 14.9,
+        "plan": "Aggregate > Sort > Bitmap Heap Scan on lab_bills > Bitmap Index Scan using lab_bills_created"
+      },
+      "indexes": [
+        "CREATE INDEX lab_bills_created ON lab_bills (created_at)"
+      ]
+    },
+    {
+      "name": "counter closing: bills by session_id",
+      "before": {
+        "ms": 21.68,
+        "plan": "Aggregate > Seq Scan on lab_bills"
+      },
+      "after": {
+        "ms": 0.07,
+        "plan": "Aggregate > Index Scan on lab_bills using lab_bills_session"
+      },
+      "indexes": [
+        "CREATE INDEX lab_bills_session ON lab_bills (session_id)"
+      ]
+    },
+    {
+      "name": "POS scan: products.barcode = $1",
+      "before": {
+        "ms": 3.73,
+        "plan": "Seq Scan on lab_products"
+      },
+      "after": {
+        "ms": 0.04,
+        "plan": "Index Scan on lab_products using lab_products_barcode"
+      },
+      "indexes": [
+        "CREATE INDEX lab_products_barcode ON lab_products (barcode)"
+      ]
+    },
+    {
+      "name": "bill detail: sales_bill_items by sales_bill_id",
+      "before": {
+        "ms": 35.84,
+        "plan": "Seq Scan on lab_items"
+      },
+      "after": {
+        "ms": 0.06,
+        "plan": "Index Scan on lab_items using lab_items_bill_product"
+      },
+      "indexes": [
+        "CREATE INDEX lab_items_bill_product ON lab_items (sales_bill_id, product_id)"
+      ]
+    },
+    {
+      "name": "bill detail: sales_bill_payments by sales_bill_id",
+      "before": {
+        "ms": 12.59,
+        "plan": "Seq Scan on lab_payments"
+      },
+      "after": {
+        "ms": 0.04,
+        "plan": "Index Scan on lab_payments using lab_payments_bill"
+      },
+      "indexes": [
+        "CREATE INDEX lab_payments_bill ON lab_payments (sales_bill_id)"
+      ]
+    },
+    {
+      "name": "analytics COGS: LATERAL stock_out by reference, last 1 day",
+      "before": {
+        "ms": 20442.13,
+        "plan": "Aggregate > Nested Loop > Bitmap Heap Scan on lab_bills > Bitmap Index Scan using lab_bills_created > Index Only Scan on lab_items using lab_items_bill_product > Seq Scan on lab_stock_out > Index Scan on lab_stock_out_items using lab_soi_stock_out"
+      },
+      "after": {
+        "ms": 21.46,
+        "plan": "Aggregate > Nested Loop > Bitmap Heap Scan on lab_bills > Bitmap Index Scan using lab_bills_created > Index Only Scan on lab_items using lab_items_bill_product > Index Scan on lab_stock_out using lab_stock_out_ref > Index Scan on lab_stock_out_items using lab_soi_stock_out"
+      },
+      "indexes": [
+        "CREATE INDEX lab_stock_out_ref ON lab_stock_out (reference_type, reference_id)"
+      ]
+    }
+  ]
+}

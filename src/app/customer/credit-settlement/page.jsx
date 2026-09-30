@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MainLayout from '@/components/MainLayout';
 import { extractStores } from '@/lib/clientResponse';
-import { formatIndianDate } from '@/lib/dateUtils';
+import { formatIndianDate } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 const columns = [
   { key: 'sNo', label: 'S. No.' },
@@ -159,7 +160,7 @@ export default function CreditSettlementPage() {
       <div className="min-h-screen">
         <nav className="flex items-center gap-1.5 text-[12.5px] text-gray-500 mb-4 flex-wrap">
           <a href="/customer/dashboard" className="hover:text-blue-600 transition-colors">Customer</a>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-gray-900 font-semibold">Credit Settlement</span>
         </nav>
 
@@ -205,7 +206,7 @@ export default function CreditSettlementPage() {
                       </option>
                     ))}
                   </select>
-                  <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
+                  <Icon name="ti-chevron-down" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[14px]" />
                 </div>
               </div>
 
@@ -235,7 +236,7 @@ export default function CreditSettlementPage() {
                     placeholder="Search"
                     className="h-11 w-full border border-gray-200 rounded-lg pl-9 pr-3 text-[13px] text-gray-700 bg-white outline-none focus:border-blue-400"
                   />
-                  <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[15px]" />
+                  <Icon name="ti-search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[15px]" />
                 </div>
               </div>
 
@@ -245,7 +246,7 @@ export default function CreditSettlementPage() {
                 className="h-11 w-11 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 justify-self-start xl:justify-self-end"
                 title="Download CSV"
               >
-                <i className="ti ti-download text-[16px]" />
+                <Icon name="ti-download" className="text-[16px]" />
               </button>
             </div>
 

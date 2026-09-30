@@ -1,4 +1,5 @@
-﻿import { cookies } from 'next/headers';
+import { withPerfTiming } from "@/lib/perfTiming";
+import { cookies } from 'next/headers';
 import { successResponse, errorResponse } from '@/lib/api-response';
 import { verifyToken } from '@/lib/auth-enhanced';
 import { query } from '@/lib/db';
@@ -6,7 +7,7 @@ import { ensureUsersTable } from '@/lib/userAuth';
 
 const SUPER_ADMIN_FULL_ACCESS = process.env.SUPER_ADMIN_FULL_ACCESS !== 'false';
 
-export async function GET() {
+async function handleGET() {
   try {
     await ensureUsersTable();
 
@@ -52,8 +53,9 @@ export async function GET() {
     let employeeRoleName = null;
     let employeePermissions = null;
     let hasEmployeeProfile = false;
-    try {
-      const employeeResult = await query(
+
+    const [employeeResult, storesResult] = await Promise.all([
+      query(
         `SELECT role_name, permissions
          FROM employees
          WHERE user_id = $1
@@ -62,24 +64,24 @@ export async function GET() {
          ORDER BY updated_at DESC, id DESC
          LIMIT 1`,
         [dbUser.id, dbUser.email || '', dbUser.name || '']
-      );
-      if (employeeResult.rows.length > 0) {
-        hasEmployeeProfile = true;
-        employeeRoleName = employeeResult.rows[0]?.role_name || null;
-        employeePermissions = Array.isArray(employeeResult.rows[0]?.permissions)
-          ? employeeResult.rows[0].permissions
-          : [];
-      }
-    } catch {}
+      ).catch(() => null),
+      query(
+        `SELECT us.store_id, s.name AS store_name
+         FROM user_stores us
+         LEFT JOIN stores s ON s.id = us.store_id
+         WHERE us.user_id = $1 AND us.is_active = TRUE
+         ORDER BY s.name ASC, us.store_id ASC`,
+        [dbUser.id]
+      ),
+    ]);
 
-    const storesResult = await query(
-      `SELECT us.store_id, s.name AS store_name
-       FROM user_stores us
-       LEFT JOIN stores s ON s.id = us.store_id
-       WHERE us.user_id = $1 AND us.is_active = TRUE
-       ORDER BY s.name ASC, us.store_id ASC`,
-      [dbUser.id]
-    );
+    if (employeeResult?.rows.length > 0) {
+      hasEmployeeProfile = true;
+      employeeRoleName = employeeResult.rows[0]?.role_name || null;
+      employeePermissions = Array.isArray(employeeResult.rows[0]?.permissions)
+        ? employeeResult.rows[0].permissions
+        : [];
+    }
 
     // Super admins keep full access by default, even if an employee profile has no permissions.
     const isSuperAdmin = (dbUser.role === 'super_admin');
@@ -116,3 +118,5 @@ export async function GET() {
     return errorResponse(err.message || 'Unable to fetch current user');
   }
 }
+
+export const GET = withPerfTiming("auth/me", handleGET);

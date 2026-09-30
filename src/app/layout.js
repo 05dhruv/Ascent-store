@@ -37,10 +37,6 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="icon" href="/ascent-sync-icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/ascent-sync-icon.svg" />
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
-        />
       </head>
       <body>
         <RootClientWrapper>{children}</RootClientWrapper>

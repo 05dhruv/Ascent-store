@@ -8,16 +8,14 @@ import {
   validationError,
 } from "@/lib/api-response";
 
-async function runEnsureBrandExtras() {
+const ensureBrandExtras = makeSchemaEnsurer("brand_extras", async () => {
   await query(
     `ALTER TABLE brands ADD COLUMN IF NOT EXISTS category_id BIGINT REFERENCES categories(id) ON DELETE SET NULL`,
   );
   await query(
     `ALTER TABLE brands ADD COLUMN IF NOT EXISTS margin NUMERIC(7,2) NOT NULL DEFAULT 0`,
   );
-}
-
-const ensureBrandExtras = makeSchemaEnsurer("brands_extras_list", runEnsureBrandExtras);
+});
 
 export async function GET(request) {
   try {

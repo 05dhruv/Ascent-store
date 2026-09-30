@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+const MAX_RENDERED_OPTIONS = 200;
+
 export default function SearchableMultiSelect({
   values = [],
   onChange,
@@ -229,7 +231,7 @@ export default function SearchableMultiSelect({
             </div>
             <div className="max-h-72 overflow-auto py-1" role="listbox">
               {filteredOptions.length ? (
-                filteredOptions.map((option) => {
+                filteredOptions.slice(0, MAX_RENDERED_OPTIONS).map((option) => {
                   const checked = selectedValues.has(option.value);
                   return (
                     <button
@@ -260,6 +262,11 @@ export default function SearchableMultiSelect({
               ) : (
                 <div className="px-3 py-4 text-center text-xs text-gray-400">
                   No matching brands
+                </div>
+              )}
+              {filteredOptions.length > MAX_RENDERED_OPTIONS && (
+                <div className="px-3 py-2 text-center text-xs text-gray-400">
+                  Showing {MAX_RENDERED_OPTIONS} of {filteredOptions.length}. Type to narrow the list.
                 </div>
               )}
             </div>

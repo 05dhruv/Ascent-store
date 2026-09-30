@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/MainLayout";
 import { formatIndianDate } from "@/lib/dateUtils";
-import { fetchCatalogProductPage } from "@/lib/productPagination";
+import { fetchCatalogProductPage } from "@/lib/productPagination";
+import Icon from "@/components/Icon";
 
 function money(value) {
   return `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -63,7 +64,7 @@ function PageShell({ title, description, children }) {
     <MainLayout>
       <div className="mb-4 flex items-center gap-2 text-[12px] text-gray-500">
         <span className="text-blue-600">Purchase</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">{title}</span>
       </div>
       <div className="mb-5">
@@ -81,7 +82,7 @@ function Toolbar({ search, setSearch, children }) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex min-w-[260px] max-w-[360px] flex-1 items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
-        <i className="ti ti-search text-[16px] text-gray-400" />
+        <Icon name="ti-search" className="text-[16px] text-gray-400" />
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}

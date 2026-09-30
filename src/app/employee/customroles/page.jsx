@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import MainLayout from "@/components/MainLayout";
+import MainLayout from "@/components/MainLayout";
+import Icon from "@/components/Icon";
 
 export default function RolesListPage() {
   const router = useRouter();
@@ -76,7 +77,7 @@ export default function RolesListPage() {
           <Link href="/employee" className="text-blue-600 hover:underline font-medium">
             Employee
           </Link>
-          <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+          <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
           <span className="text-blue-600 font-semibold">Roles & Permissions</span>
         </nav>
 
@@ -92,7 +93,7 @@ export default function RolesListPage() {
             href="/employee/customroles/createcustomrole"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-[13px] font-semibold text-white shadow-sm hover:bg-blue-800 transition-colors"
           >
-            <i className="ti ti-plus text-[15px]" />
+            <Icon name="ti-plus" className="text-[15px]" />
             Create Role
           </Link>
         </div>
@@ -100,7 +101,7 @@ export default function RolesListPage() {
         {/* Search & Stats Bar */}
         <div className="mb-5 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm">
           <div className="relative w-full sm:w-80">
-            <i className="ti ti-search absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[15px]" />
+            <Icon name="ti-search" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-[15px]" />
             <input
               type="text"
               value={searchQuery}
@@ -119,7 +120,7 @@ export default function RolesListPage() {
               className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition"
               title="Refresh"
             >
-              <i className="ti ti-refresh text-[15px]" />
+              <Icon name="ti-refresh" className="text-[15px]" />
             </button>
           </div>
         </div>
@@ -143,7 +144,7 @@ export default function RolesListPage() {
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-gray-400">
                       <div className="inline-flex items-center gap-2">
-                        <i className="ti ti-loader-2 animate-spin text-[20px] text-blue-600" />
+                        <Icon name="ti-loader-2" className="animate-spin text-[20px] text-blue-600" />
                         <span>Loading roles...</span>
                       </div>
                     </td>
@@ -152,7 +153,7 @@ export default function RolesListPage() {
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-gray-500">
                       <div className="flex flex-col items-center justify-center gap-2">
-                        <i className="ti ti-shield-lock text-[32px] text-gray-300" />
+                        <Icon name="ti-shield-lock" className="text-[32px] text-gray-300" />
                         <p className="text-[14px] font-medium text-gray-700">No roles found</p>
                         <p className="text-xs text-gray-400">
                           {searchQuery
@@ -164,7 +165,7 @@ export default function RolesListPage() {
                             href="/employee/customroles/createcustomrole"
                             className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
                           >
-                            <i className="ti ti-plus" />
+                            <Icon name="ti-plus" />
                             Create New Role
                           </Link>
                         )}
@@ -184,7 +185,7 @@ export default function RolesListPage() {
                         <td className="py-4 px-4 whitespace-nowrap">
                           <div className="flex items-center gap-2.5">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                              <i className="ti ti-shield-check text-[16px]" />
+                              <Icon name="ti-shield-check" className="text-[16px]" />
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
@@ -250,7 +251,7 @@ export default function RolesListPage() {
                               className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                               title="Edit Role"
                             >
-                              <i className="ti ti-edit text-[16px]" />
+                              <Icon name="ti-edit" className="text-[16px]" />
                             </button>
                             {!isSuperAdmin && (
                               <button
@@ -258,7 +259,7 @@ export default function RolesListPage() {
                                 className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                                 title="Delete Role"
                               >
-                                <i className="ti ti-trash text-[16px]" />
+                                <Icon name="ti-trash" className="text-[16px]" />
                               </button>
                             )}
                           </div>
@@ -283,7 +284,7 @@ export default function RolesListPage() {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-150 border border-gray-100">
               <div className="flex items-center gap-3 mb-4 text-red-600">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100/80">
-                  <i className="ti ti-alert-triangle text-[22px]" />
+                  <Icon name="ti-alert-triangle" className="text-[22px]" />
                 </div>
                 <div>
                   <h2 className="text-[17px] font-bold text-gray-900">Delete Role?</h2>

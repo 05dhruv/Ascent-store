@@ -1,6 +1,10 @@
+import { withPerfTiming } from "@/lib/perfTiming";
 import { query } from '@/lib/db';
 import { successResponse, errorResponse } from '@/lib/api-response';
 import { getAssignedStoreIds, requireAuth, requirePermission, requireStore } from '@/lib/api-protection';
+import { repairStockTransferSaleabilityPrices } from '@/lib/stockTransferSaleabilityRepair';
+import { productImageUrlSql } from '@/lib/productImageUrl';
+
 function getBatchVariantNumberSql(key, fallbackSql = '0') {
   return `
     CASE
@@ -11,7 +15,7 @@ function getBatchVariantNumberSql(key, fallbackSql = '0') {
   `.trim();
 }
 
-export async function GET(req) {
+async function handleGET(req) {
   try {
     const auth = await requireAuth(req);
     if (auth.error) return auth.error;
@@ -63,7 +67,7 @@ export async function GET(req) {
         c.name as category,
         b.name as brand,
         COALESCE(t.rate, 0) as tax_rate,
-        p.image_url
+        ${productImageUrlSql('p')} AS image_url
       FROM products p
       LEFT JOIN product_saleability ps ON ps.product_id = p.id AND ps.store_id = ${store_id ? '$1' : 'NULL'} AND ps.is_active = TRUE
       LEFT JOIN categories c ON p.category_id = c.id
@@ -183,3 +187,5 @@ export async function GET(req) {
     return errorResponse(err.message);
   }
 }
+
+export const GET = withPerfTiming("pos/barcode-lookup", handleGET);

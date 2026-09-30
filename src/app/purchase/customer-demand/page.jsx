@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/MainLayout";
 import { fetchLookup, normalizeStores } from "@/lib/purchaseLookups";
-import { formatIndianDateTime } from "@/lib/dateUtils";
+import { formatIndianDateTime } from "@/lib/dateUtils";
+import Icon from "@/components/Icon";
 
 async function fetchDemands(filters) {
   const params = new URLSearchParams();
@@ -109,7 +110,7 @@ export default function CustomerDemandPage() {
     <MainLayout>
       <div className="mb-4 flex items-center gap-2 text-[12px] text-gray-500">
         <span className="text-blue-600">Purchase</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">Customer Demand</span>
       </div>
 

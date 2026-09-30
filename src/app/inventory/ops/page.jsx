@@ -4,18 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/MainLayout';
 import { formatIndianDate } from '@/lib/dateUtils';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  Line,
-  LineChart,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import Icon from "@/components/Icon";
+
+const StockReorderChart = dynamic(() => import('@/components/charts/StockReorderChart'), {
+  ssr: false,
+  loading: () => <div className="h-full" />,
+});
 
 const tabs = [
   { key: 'overview', label: 'Overview', icon: 'ti-layout-grid' },
@@ -355,7 +350,7 @@ export default function InventoryOpsPage() {
     <MainLayout>
       <div className="flex items-center gap-2 text-[12px] text-gray-500 mb-4">
         <span className="text-blue-600">Home</span>
-        <i className="ti ti-chevron-right text-[11px] text-gray-400" />
+        <Icon name="ti-chevron-right" className="text-[11px] text-gray-400" />
         <span className="font-semibold text-gray-900">Inventory</span>
       </div>
 
@@ -375,7 +370,7 @@ export default function InventoryOpsPage() {
             onClick={() => router.push('/inventory/stockin')}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-300 text-[13px] font-medium text-blue-600 hover:bg-blue-50 transition-colors"
           >
-            <i className="ti ti-upload text-[16px]" />
+            <Icon name="ti-upload" className="text-[16px]" />
             Import stock
           </button>
           <button
@@ -383,7 +378,7 @@ export default function InventoryOpsPage() {
             onClick={handleExport}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-300 text-[13px] font-medium text-blue-600 hover:bg-blue-50 transition-colors"
           >
-            <i className="ti ti-download text-[16px]" />
+            <Icon name="ti-download" className="text-[16px]" />
             Export
           </button>
           <button
@@ -391,7 +386,7 @@ export default function InventoryOpsPage() {
             onClick={() => router.push('/inventory/stockin')}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gray-900 text-[13px] font-medium text-white hover:bg-gray-800 transition-colors"
           >
-            <i className="ti ti-plus text-[16px]" />
+            <Icon name="ti-plus" className="text-[16px]" />
             Stock In
           </button>
         </div>
@@ -417,7 +412,7 @@ export default function InventoryOpsPage() {
                   : 'text-gray-500 border-b-transparent hover:text-gray-700'
               }`}
             >
-              <i className={`ti ${tab.icon} text-[16px]`} />
+              <Icon name={tab.icon} className="text-[16px]" />
               {tab.label}
             </button>
           );
@@ -461,7 +456,7 @@ function OverviewContent({ stats, recentMovements, stockoutForecast, stockoutGra
                 <span className="text-[28px] font-bold text-gray-900">{stat.value}</span>
               )}
               {stat.status === 'warning' && (
-                <i className="ti ti-alert-triangle text-orange-500 text-[18px]" />
+                <Icon name="ti-alert-triangle" className="text-orange-500 text-[18px]" />
               )}
             </div>
             <p className={`text-[11.5px] mt-2 ${stat.status === 'warning' ? 'text-orange-600' : 'text-gray-400'}`}>
@@ -479,7 +474,7 @@ function OverviewContent({ stats, recentMovements, stockoutForecast, stockoutGra
               <p className="text-[12px] text-gray-500 mt-0.5">Latest confirmed stock-in, stock-out and transfer activity</p>
             </div>
             <button type="button" onClick={onViewAll} className="text-[12px] font-medium text-blue-600 hover:underline">
-              View all <i className="ti ti-arrow-right text-[12px] inline ml-1" />
+              View all <Icon name="ti-arrow-right" className="text-[12px] inline ml-1" />
             </button>
           </div>
           <div className="space-y-3">
@@ -523,16 +518,7 @@ function OverviewContent({ stats, recentMovements, stockoutForecast, stockoutGra
                   </div>
                 </div>
                 <div className="h-[240px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={stockoutGraphData} margin={{ top: 8, right: 20, left: 0, bottom: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="shortName" tick={{ fontSize: 12 }} interval={0} height={60} angle={-15} textAnchor="end" />
-                      <YAxis />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="currentStock" stroke="#B00000" strokeWidth={2.5} dot={{ r: 3 }} name="Current stock" />
-                      <Line type="monotone" dataKey="reorderLevel" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} name="Reorder level" />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <StockReorderChart data={stockoutGraphData} />
                 </div>
               </div>
             </div>
@@ -598,7 +584,7 @@ function InventoryListPanel({ title, headers, rows, loading, emptyMessage, searc
           <p className="text-[12px] text-gray-400 mt-0.5">Confirmed inventory transactions</p>
         </div>
         <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-[340px] bg-gray-50 rounded-lg px-3 py-2">
-          <i className="ti ti-search text-gray-400 text-[16px]" />
+          <Icon name="ti-search" className="text-gray-400 text-[16px]" />
           <input
             type="text"
             placeholder="Search"

@@ -40,7 +40,7 @@ export default function SmartImage({
       width={width}
       height={height}
       className={className}
-      unoptimized={unoptimized || url.includes("localhost")}
+      unoptimized={unoptimized || url.includes("localhost") || url.includes("/api/public/products/")}
     />
   );
 }

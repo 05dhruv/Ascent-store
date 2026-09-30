@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MainLayout from '@/components/MainLayout';
-import { formatIndianDateTime } from '@/lib/dateUtils';
+import { formatIndianDateTime } from '@/lib/dateUtils';
+import Icon from "@/components/Icon";
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -207,7 +208,7 @@ export default function MarginApprovalsPage() {
             <div>
               <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
                 <span className="text-blue-600">Purchase</span>
-                <i className="ti ti-chevron-right text-[11px]" />
+                <Icon name="ti-chevron-right" className="text-[11px]" />
                 <span className="text-slate-900">Margin Approvals</span>
               </div>
               <h1 className="text-2xl font-black text-slate-950 sm:text-3xl">Margin Approvals</h1>
@@ -275,11 +276,11 @@ export default function MarginApprovalsPage() {
                     className="px-2 text-slate-400 hover:text-slate-700"
                     aria-label="Clear search"
                   >
-                    <i className="ti ti-x text-[16px]" />
+                    <Icon name="ti-x" className="text-[16px]" />
                   </button>
                 )}
                 <button type="submit" className="px-3 text-slate-500 hover:text-blue-700" aria-label="Search">
-                  <i className="ti ti-search text-[18px]" />
+                  <Icon name="ti-search" className="text-[18px]" />
                 </button>
               </form>
             </div>
@@ -304,7 +305,7 @@ export default function MarginApprovalsPage() {
                     >
                       <div className="flex flex-1 items-start gap-3 min-w-0">
                         <span className="mt-1 text-slate-400 transition-transform">
-                          <i className={`ti ${isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'} text-base font-bold`} />
+                          <Icon name={isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'} className="text-base font-bold" />
                         </span>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
