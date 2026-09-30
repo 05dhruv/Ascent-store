@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -209,7 +211,7 @@ export default function ManageCreditAdvancedConfigsPage() {
             <h2 className="text-blue-700 font-semibold text-[22px] mb-5">Basic Information</h2>
 
             <div className="max-w-[430px]">
-              <label className="block text-[13px] text-gray-800 mb-2">Region <span className="text-red-500">*</span></label>
+              <label className="block text-[13px] text-gray-800 mb-2">Region <RequiredMark /></label>
               <div className="relative">
                 <select
                   value={region}

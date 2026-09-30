@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/components/ui/Button";
+
 import { useEffect, useState } from "react";
 import ConstructionShell, {
   ConstructionAlert,
@@ -7,8 +9,6 @@ import ConstructionShell, {
   ConstructionField,
   ConstructionSection,
   ConstructionTable,
-  constructionBtnPrimary,
-  constructionBtnSecondary,
   constructionInput,
 } from "@/components/construction/ConstructionShell";
 
@@ -139,13 +139,12 @@ export default function ContractorsPage() {
               onChange={(e) => setForm({ ...form, gstin: e.target.value })}
             />
           </ConstructionField>
-          <button
+          <Button
             type="submit"
             disabled={busy}
-            className={constructionBtnPrimary}
           >
             Add contractor
-          </button>
+          </Button>
         </form>
       </ConstructionSection>
 
@@ -163,14 +162,13 @@ export default function ContractorsPage() {
               </td>
               <td className="px-4 py-3">
                 {row.is_active && (
-                  <button
+                  <Button
                     type="button"
-                    disabled={busy}
-                    className={constructionBtnSecondary}
+                    disabled={busy} variant="secondary"
                     onClick={() => deactivate(row.id)}
                   >
                     Deactivate
-                  </button>
+                  </Button>
                 )}
               </td>
             </tr>

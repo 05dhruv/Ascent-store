@@ -1,5 +1,7 @@
 "use client";
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useMemo, useState } from "react";
 import InventoryShell from "@/components/inventory/InventoryShell";
 import { useUser } from "@/hooks/useUser";
@@ -796,7 +798,7 @@ export default function StockRequisitionPage() {
                         <div>
                           <label className="block text-xs font-semibold text-gray-700 mb-1">
                             Select Vendor / Supplier{" "}
-                            <span className="text-red-500">*</span>
+                            <RequiredMark />
                           </label>
                           <select
                             value={poVendorId}
@@ -994,7 +996,7 @@ export default function StockRequisitionPage() {
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold text-gray-700">
-                    Destination Site <span className="text-red-500">*</span>
+                    Destination Site <RequiredMark />
                   </span>
                   <select
                     value={form.destinationId}

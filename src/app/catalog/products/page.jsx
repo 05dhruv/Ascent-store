@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { loadXlsx } from "@/lib/loadXlsx";
+import { StatusBadge } from "@/components/ui/WorkspaceUI";
 import CatalogDataPage from "@/components/CatalogDataPage";
 import SearchableSelect from "@/components/SearchableSelect";
 import SmartImage from "@/components/SmartImage";
@@ -29,11 +30,24 @@ async function ensureXlsx() {
 const columns = [
   { key: "sno", label: "S. No.", sortable: true },
   { key: "image", label: "Image", sortable: false },
-  { key: "name", label: "Material Name", sortable: true },
+  {
+    key: "name",
+    label: "Material",
+    sortable: true,
+    render: (row) => (
+      <div className="material-cell">
+        {row.image}
+        <div>
+          <strong>{row.name}</strong>
+          <small>{row.brand}</small>
+        </div>
+      </div>
+    ),
+  },
   { key: "dimensions", label: "Dimensions / Spec", sortable: true },
   { key: "unit", label: "Unit", sortable: true },
-  { key: "barcode", label: "Material Code / Barcode (Opt)", sortable: true },
-  { key: "category", label: "Material Category", sortable: true },
+  { key: "barcode", label: "Code / Barcode", sortable: true },
+  { key: "category", label: "Category", sortable: true },
   { key: "brand", label: "Make / Brand", sortable: true },
   { key: "hsn", label: "HSN / SAC", sortable: true },
   { key: "gst", label: "GST", sortable: true },
@@ -41,10 +55,36 @@ const columns = [
   { key: "costPrice", label: "Est. Purchase Rate (₹)", sortable: true },
   { key: "sellingPrice", label: "Issue Rate (₹)", sortable: true },
   { key: "stock", label: "Current Stock", sortable: true },
+  {
+    key: "stockStatus",
+    label: "Status",
+    sortable: false,
+    render: (row) => <StatusBadge status={row.stockStatus} />,
+  },
 ];
 
 const UNIT_OPTIONS = [
-  "PCS", "BAGS", "KG", "TONNE", "MTR", "RFT", "SQFT", "SQMT", "CUM", "CFT", "LTR", "BUNDLE", "BOX", "GRAMS", "NOS", "SET", "COIL", "ROLL", "PKT", "TRIP", "BRASS"
+  "PCS",
+  "BAGS",
+  "KG",
+  "TONNE",
+  "MTR",
+  "RFT",
+  "SQFT",
+  "SQMT",
+  "CUM",
+  "CFT",
+  "LTR",
+  "BUNDLE",
+  "BOX",
+  "GRAMS",
+  "NOS",
+  "SET",
+  "COIL",
+  "ROLL",
+  "PKT",
+  "TRIP",
+  "BRASS",
 ];
 const INVENTORY_METHOD_OPTIONS = ["direct", "indirect"];
 const STOCK_ITEM_TYPE_OPTIONS = ["unbatched", "batched"];
@@ -131,6 +171,21 @@ function getInitialQueryParam(key) {
   return new URLSearchParams(window.location.search).get(key) || "";
 }
 
+const DEFAULT_LOW_STOCK_THRESHOLD = 10;
+
+function getStockStatus(record, storeId) {
+  if (record.is_active === false) return "inactive";
+  if (record.actual_stock == null) return "available";
+  const stock = Number(record.actual_stock);
+  if (stock <= 0) return "out_of_stock";
+  // A threshold is only meaningful for one store; aggregated stock across stores has none.
+  const isSingleStore = storeId && storeId !== ALL_ASSIGNED_STORES_VALUE;
+  const threshold =
+    Number(record.low_stock_threshold) ||
+    (isSingleStore ? DEFAULT_LOW_STOCK_THRESHOLD : 0);
+  return threshold && stock <= threshold ? "low_stock" : "in_stock";
+}
+
 function getInitialStoreFilter() {
   if (typeof window === "undefined") return "";
   const params = new URLSearchParams(window.location.search);
@@ -202,8 +257,8 @@ export default function ProductsPage() {
   // after returning from Product Edit.
   const hasGlobalStoreAccess = Boolean(
     user?.role === "super_admin" ||
-      user?.system_role === "super_admin" ||
-      user?.permissions?.includes("*"),
+    user?.system_role === "super_admin" ||
+    user?.permissions?.includes("*"),
   );
   const isStoreRestricted = Boolean(user && !hasGlobalStoreAccess);
   const assignedStoreIds = useMemo(
@@ -238,7 +293,7 @@ export default function ProductsPage() {
   );
   const canManageCatalog = Boolean(
     user?.permissions?.includes("*") ||
-      user?.permissions?.includes("MANAGE_CATALOG"),
+    user?.permissions?.includes("MANAGE_CATALOG"),
   );
 
   useEffect(() => {
@@ -269,13 +324,14 @@ export default function ProductsPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [deptRes, brandRes, catRes, taxRes, storesRes] = await Promise.all([
-          fetch("/api/catalog/departments?pageSize=200"),
-          fetch("/api/catalog/brands?pageSize=5000"),
-          fetch("/api/catalog/categories?pageSize=200"),
-          fetch("/api/catalog/taxes?pageSize=200"),
-          fetch("/api/stores"),
-        ]);
+        const [deptRes, brandRes, catRes, taxRes, storesRes] =
+          await Promise.all([
+            fetch("/api/catalog/departments?pageSize=200"),
+            fetch("/api/catalog/brands?pageSize=5000"),
+            fetch("/api/catalog/categories?pageSize=200"),
+            fetch("/api/catalog/taxes?pageSize=200"),
+            fetch("/api/stores"),
+          ]);
         const deptJson = await deptRes.json();
         const brandJson = await brandRes.json();
         const catJson = await catRes.json();
@@ -285,7 +341,8 @@ export default function ProductsPage() {
         if (brandJson.success) setBrands(brandJson.data.records || []);
         if (catJson.success) setCategories(catJson.data.records || []);
         if (taxJson.success) setTaxes(taxJson.data.records || []);
-        if (storesJson.success) setStores(storesJson.data?.stores || storesJson.data?.records || []);
+        if (storesJson.success)
+          setStores(storesJson.data?.stores || storesJson.data?.records || []);
       } catch {
         setDepartments([]);
         setBrands([]);
@@ -306,12 +363,13 @@ export default function ProductsPage() {
 
   const filters = useMemo(
     () => (
-      <div className="grid gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:grid-cols-2 xl:grid-cols-5">
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-600">
             Warehouse
           </label>
           <SearchableSelect
+            ariaLabel="Warehouse"
             value={warehouseId}
             onChange={setWarehouseId}
             placeholder={isStoreRestricted ? "Store access only" : "ALL"}
@@ -324,8 +382,11 @@ export default function ProductsPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">Site Store</label>
+          <label className="mb-1 block text-xs font-medium text-gray-600">
+            Site Store
+          </label>
           <SearchableSelect
+            ariaLabel="Site Store"
             value={storeId}
             onChange={(value) => {
               if (isStoreRestricted && !value) return;
@@ -341,6 +402,7 @@ export default function ProductsPage() {
             Material Group
           </label>
           <SearchableSelect
+            ariaLabel="Material Group"
             value={departmentId}
             onChange={setDepartmentId}
             placeholder="ALL"
@@ -356,6 +418,7 @@ export default function ProductsPage() {
             Make / Brand
           </label>
           <SearchableSelect
+            ariaLabel="Make / Brand"
             value={brandId}
             onChange={setBrandId}
             placeholder="ALL"
@@ -371,6 +434,7 @@ export default function ProductsPage() {
             Category
           </label>
           <SearchableSelect
+            ariaLabel="Category"
             value={categoryId}
             onChange={setCategoryId}
             placeholder="ALL"
@@ -462,10 +526,14 @@ export default function ProductsPage() {
         ]);
 
       const rows = [MATERIAL_MASTER_TEMPLATE_HEADERS];
-      while (rows.length <= 100) rows.push(Array(MATERIAL_MASTER_TEMPLATE_HEADERS.length).fill(""));
+      while (rows.length <= 100)
+        rows.push(Array(MATERIAL_MASTER_TEMPLATE_HEADERS.length).fill(""));
       const worksheet = XLSX.utils.aoa_to_sheet(rows);
       worksheet["!cols"] = MATERIAL_MASTER_TEMPLATE_HEADERS.map((header) => ({
-        wch: header === "Material Name" ? 34 : Math.max(15, Math.min(28, header.length + 3)),
+        wch:
+          header === "Material Name"
+            ? 34
+            : Math.max(15, Math.min(28, header.length + 3)),
       }));
 
       applyTextFormatToColumns(worksheet, MATERIAL_MASTER_TEMPLATE_HEADERS, [
@@ -536,12 +604,30 @@ export default function ProductsPage() {
         XLSX.utils.aoa_to_sheet([
           ["Field", "Guidance"],
           ["Material Name", "Required. Example: OPC Cement 53 Grade"],
-          ["Unit of Measure", `Select from dropdown: ${UNIT_OPTIONS.join(", ")}`],
-          ["Category", "Select from dropdown (synced with System Categories) or enter a new one."],
-          ["Make / Brand", "Select from dropdown (synced with System Brands) or enter a new one."],
-          ["Manufacturer", "Optional dropdown (synced with System Manufacturers)."],
-          ["Rates", "Optional numeric values. Physical stock is added separately through Warehouse Stock In / GRN."],
-          ["Reorder Level", "Optional minimum quantity for alerts at the selected warehouse."],
+          [
+            "Unit of Measure",
+            `Select from dropdown: ${UNIT_OPTIONS.join(", ")}`,
+          ],
+          [
+            "Category",
+            "Select from dropdown (synced with System Categories) or enter a new one.",
+          ],
+          [
+            "Make / Brand",
+            "Select from dropdown (synced with System Brands) or enter a new one.",
+          ],
+          [
+            "Manufacturer",
+            "Optional dropdown (synced with System Manufacturers).",
+          ],
+          [
+            "Rates",
+            "Optional numeric values. Physical stock is added separately through Warehouse Stock In / GRN.",
+          ],
+          [
+            "Reorder Level",
+            "Optional minimum quantity for alerts at the selected warehouse.",
+          ],
         ]),
         "Instructions",
       );
@@ -692,8 +778,14 @@ export default function ProductsPage() {
       );
       addOptionNamedRanges(workbook, optionGroups);
       hideOptionsSheet(workbook);
-      const selectedFilters = [departmentId && "group", brandId && "brand", categoryId && "category"].filter(Boolean);
-      const suffix = selectedFilters.length ? selectedFilters.join("-") : "full";
+      const selectedFilters = [
+        departmentId && "group",
+        brandId && "brand",
+        categoryId && "category",
+      ].filter(Boolean);
+      const suffix = selectedFilters.length
+        ? selectedFilters.join("-")
+        : "full";
       await saveWorkbookWithValidations(
         workbook,
         `material-master-bulk-update-${suffix}-${new Date().toISOString().slice(0, 10)}.xlsx`,
@@ -733,12 +825,15 @@ export default function ProductsPage() {
 
       // Pick the Material Master sheet, or first non-options/instructions sheet
       let targetSheetName = workbook.SheetNames.find(
-        (name) => /material|product|item|master|sheet1/i.test(name) && !/option|instruction/i.test(name)
+        (name) =>
+          /material|product|item|master|sheet1/i.test(name) &&
+          !/option|instruction/i.test(name),
       );
       if (!targetSheetName) {
-        targetSheetName = workbook.SheetNames.find(
-          (name) => !/^_?options|instructions/i.test(name)
-        ) || workbook.SheetNames[0];
+        targetSheetName =
+          workbook.SheetNames.find(
+            (name) => !/^_?options|instructions/i.test(name),
+          ) || workbook.SheetNames[0];
       }
 
       const worksheet = workbook.Sheets[targetSheetName];
@@ -748,8 +843,13 @@ export default function ProductsPage() {
       });
 
       // Filter out empty rows where all cells are blank
-      const rows = rawRows.filter((r) =>
-        r && typeof r === "object" && Object.values(r).some((v) => v !== null && v !== undefined && String(v).trim() !== "")
+      const rows = rawRows.filter(
+        (r) =>
+          r &&
+          typeof r === "object" &&
+          Object.values(r).some(
+            (v) => v !== null && v !== undefined && String(v).trim() !== "",
+          ),
       );
 
       if (!rows.length) {
@@ -764,11 +864,16 @@ export default function ProductsPage() {
         const response = await fetch("/api/catalog/products/ascent-template", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rows, preview: true, warehouse_id: warehouseId }),
+          body: JSON.stringify({
+            rows,
+            preview: true,
+            warehouse_id: warehouseId,
+          }),
         });
         const json = await response.json().catch(() => ({}));
         if (!response.ok || !json.success) {
-          let errText = json.message || json.error || "Failed to preview Material Master";
+          let errText =
+            json.message || json.error || "Failed to preview Material Master";
           if (Array.isArray(json.errors) && json.errors.length > 0) {
             const issues = json.errors
               .map((e) => (typeof e === "string" ? e : e.message))
@@ -783,7 +888,8 @@ export default function ProductsPage() {
         setBulkSheetRows(rows);
         setBulkSheetPreview(data);
         setBulkSheetNotice({
-          type: (data.toCreate || data.changed || 0) > 0 ? "success" : "warning",
+          type:
+            (data.toCreate || data.changed || 0) > 0 ? "success" : "warning",
           message: `Preview ready: ${data.toCreate || data.changed || 0} new material(s) ready to create${data.existing ? `, ${data.existing} already exist in system` : ""}${data.skipped ? `, ${data.skipped} duplicate(s) in sheet.` : "."}`,
         });
         return;
@@ -830,11 +936,16 @@ export default function ProductsPage() {
         const response = await fetch("/api/catalog/products/ascent-template", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rows: bulkSheetRows, preview: false, warehouse_id: warehouseId }),
+          body: JSON.stringify({
+            rows: bulkSheetRows,
+            preview: false,
+            warehouse_id: warehouseId,
+          }),
         });
         const json = await response.json().catch(() => ({}));
         if (!response.ok || !json.success) {
-          let errText = json.message || json.error || "Failed to create Material Master";
+          let errText =
+            json.message || json.error || "Failed to create Material Master";
           if (Array.isArray(json.errors) && json.errors.length > 0) {
             const issues = json.errors
               .map((e) => (typeof e === "string" ? e : e.message))
@@ -1149,7 +1260,9 @@ export default function ProductsPage() {
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                   <h3 className="text-sm font-bold text-slate-900">
-                    {isMaterialCreateMode ? "1. Download blank template" : "1. Download pre-filled master"}
+                    {isMaterialCreateMode
+                      ? "1. Download blank template"
+                      : "1. Download pre-filled master"}
                   </h3>
                   {isMaterialCreateMode ? (
                     <div className="mt-3 grid gap-3">
@@ -1162,15 +1275,17 @@ export default function ProductsPage() {
                         Download blank Excel template
                       </button>
                       <p className="text-xs text-slate-500">
-                        Required: Material Name. Unit defaults to PCS; rates and references are optional.
-                        This creates the master only—no warehouse stock is added.
+                        Required: Material Name. Unit defaults to PCS; rates and
+                        references are optional. This creates the master only—no
+                        warehouse stock is added.
                       </p>
                     </div>
                   ) : (
                     <div className="mt-3 grid gap-3">
                       <p className="text-xs text-slate-500">
-                        Uses the Material Group, Make / Brand and Category filters selected on this page.
-                        Leave all filters as ALL to download the complete master.
+                        Uses the Material Group, Make / Brand and Category
+                        filters selected on this page. Leave all filters as ALL
+                        to download the complete master.
                       </p>
                       <button
                         type="button"
@@ -1186,7 +1301,9 @@ export default function ProductsPage() {
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                   <h3 className="text-sm font-bold text-slate-900">
-                    {isMaterialCreateMode ? "2. Upload completed template" : "2. Upload edited Excel"}
+                    {isMaterialCreateMode
+                      ? "2. Upload completed template"
+                      : "2. Upload edited Excel"}
                   </h3>
                   <p className="hidden">
                     {isMaterialCreateMode
@@ -1321,135 +1438,140 @@ export default function ProductsPage() {
                 </div>
 
                 <div className="mt-4 max-h-[48vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  {(bulkSheetPreview.rows || []).slice(0, 120).map((row, idx) => (
-                    <div
-                      key={`${row.row}-${row.productId || row.barcode || row.name || idx}`}
-                      className={`rounded-xl border px-3.5 py-2.5 ${
-                        row.status === "new" ||
-                        row.status === "changed" ||
-                        row.status === "updated"
-                          ? "border-green-200 bg-green-50/70"
-                          : row.status === "skipped"
-                            ? "border-amber-200 bg-amber-50/70"
-                            : "border-slate-200 bg-white"
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">
-                            Row {row.row}: {row.name || row.productName || "-"}
+                  {(bulkSheetPreview.rows || [])
+                    .slice(0, 120)
+                    .map((row, idx) => (
+                      <div
+                        key={`${row.row}-${row.productId || row.barcode || row.name || idx}`}
+                        className={`rounded-xl border px-3.5 py-2.5 ${
+                          row.status === "new" ||
+                          row.status === "changed" ||
+                          row.status === "updated"
+                            ? "border-green-200 bg-green-50/70"
+                            : row.status === "skipped"
+                              ? "border-amber-200 bg-amber-50/70"
+                              : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">
+                              Row {row.row}:{" "}
+                              {row.name || row.productName || "-"}
+                            </p>
+                            {(row.code || row.barcode || row.sku) && (
+                              <p className="text-xs text-slate-500">
+                                {row.code ? `Code: ${row.code}` : ""}
+                                {row.code && (row.barcode || row.sku)
+                                  ? " | "
+                                  : ""}
+                                {row.barcode || row.sku
+                                  ? `Barcode/SKU: ${row.barcode || row.sku}`
+                                  : ""}
+                              </p>
+                            )}
+                          </div>
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ${
+                              row.status === "new" ||
+                              row.status === "changed" ||
+                              row.status === "updated"
+                                ? "bg-green-100 text-green-700"
+                                : row.status === "skipped"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-slate-200 text-slate-700"
+                            }`}
+                          >
+                            {row.statusLabel ||
+                              (row.status === "new"
+                                ? "New"
+                                : row.status === "updated"
+                                  ? "Updated"
+                                  : row.status === "changed"
+                                    ? "Edited"
+                                    : row.status === "skipped"
+                                      ? "Duplicate"
+                                      : "Exists")}
+                          </span>
+                        </div>
+
+                        {(row.unit ||
+                          row.category ||
+                          row.brand ||
+                          row.costPrice > 0 ||
+                          row.issueRate > 0 ||
+                          row.referenceRate > 0 ||
+                          row.reorderLevel > 0) && (
+                          <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-700">
+                            {row.unit && (
+                              <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
+                                Unit: <b>{row.unit}</b>
+                              </span>
+                            )}
+                            {row.category && (
+                              <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
+                                Category: <b>{row.category}</b>
+                              </span>
+                            )}
+                            {row.brand && (
+                              <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
+                                Brand: <b>{row.brand}</b>
+                              </span>
+                            )}
+                            {row.costPrice > 0 && (
+                              <span className="rounded bg-emerald-50 px-2 py-0.5 font-medium text-emerald-800">
+                                Cost: <b>₹{row.costPrice}</b>
+                              </span>
+                            )}
+                            {row.issueRate > 0 && (
+                              <span className="rounded bg-blue-50 px-2 py-0.5 font-medium text-blue-800">
+                                Issue: <b>₹{row.issueRate}</b>
+                              </span>
+                            )}
+                            {row.referenceRate > 0 && (
+                              <span className="rounded bg-purple-50 px-2 py-0.5 font-medium text-purple-800">
+                                Ref: <b>₹{row.referenceRate}</b>
+                              </span>
+                            )}
+                            {row.reorderLevel > 0 && (
+                              <span className="rounded bg-amber-50 px-2 py-0.5 font-medium text-amber-800">
+                                Min Qty: <b>{row.reorderLevel}</b>
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {(row.note || row.error) && (
+                          <p
+                            className={`mt-1.5 text-xs font-medium ${
+                              row.error || row.status === "skipped"
+                                ? "text-amber-700"
+                                : "text-slate-600"
+                            }`}
+                          >
+                            {row.error || row.note}
                           </p>
-                          {(row.code || row.barcode || row.sku) && (
-                            <p className="text-xs text-slate-500">
-                              {row.code ? `Code: ${row.code}` : ""}
-                              {row.code && (row.barcode || row.sku) ? " | " : ""}
-                              {row.barcode || row.sku
-                                ? `Barcode/SKU: ${row.barcode || row.sku}`
-                                : ""}
-                            </p>
-                          )}
-                        </div>
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ${
-                            row.status === "new" ||
-                            row.status === "changed" ||
-                            row.status === "updated"
-                              ? "bg-green-100 text-green-700"
-                              : row.status === "skipped"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-slate-200 text-slate-700"
-                          }`}
-                        >
-                          {row.statusLabel ||
-                            (row.status === "new"
-                              ? "New"
-                              : row.status === "updated"
-                                ? "Updated"
-                                : row.status === "changed"
-                                  ? "Edited"
-                                  : row.status === "skipped"
-                                    ? "Duplicate"
-                                    : "Exists")}
-                        </span>
+                        )}
+
+                        {row.changes?.length > 0 && (
+                          <div className="mt-2 grid gap-1 text-xs text-slate-700 sm:grid-cols-2">
+                            {row.changes.slice(0, 6).map((change) => (
+                              <p key={`${row.row}-${change.field}`}>
+                                <span className="font-semibold">
+                                  {change.label}:
+                                </span>{" "}
+                                {String(change.from)} -&gt; {String(change.to)}
+                              </p>
+                            ))}
+                            {row.changes.length > 6 && (
+                              <p className="font-medium text-slate-500">
+                                +{row.changes.length - 6} more changes
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
-
-                      {(row.unit ||
-                        row.category ||
-                        row.brand ||
-                        row.costPrice > 0 ||
-                        row.issueRate > 0 ||
-                        row.referenceRate > 0 ||
-                        row.reorderLevel > 0) && (
-                        <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-700">
-                          {row.unit && (
-                            <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
-                              Unit: <b>{row.unit}</b>
-                            </span>
-                          )}
-                          {row.category && (
-                            <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
-                              Category: <b>{row.category}</b>
-                            </span>
-                          )}
-                          {row.brand && (
-                            <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-800">
-                              Brand: <b>{row.brand}</b>
-                            </span>
-                          )}
-                          {row.costPrice > 0 && (
-                            <span className="rounded bg-emerald-50 px-2 py-0.5 font-medium text-emerald-800">
-                              Cost: <b>₹{row.costPrice}</b>
-                            </span>
-                          )}
-                          {row.issueRate > 0 && (
-                            <span className="rounded bg-blue-50 px-2 py-0.5 font-medium text-blue-800">
-                              Issue: <b>₹{row.issueRate}</b>
-                            </span>
-                          )}
-                          {row.referenceRate > 0 && (
-                            <span className="rounded bg-purple-50 px-2 py-0.5 font-medium text-purple-800">
-                              Ref: <b>₹{row.referenceRate}</b>
-                            </span>
-                          )}
-                          {row.reorderLevel > 0 && (
-                            <span className="rounded bg-amber-50 px-2 py-0.5 font-medium text-amber-800">
-                              Min Qty: <b>{row.reorderLevel}</b>
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {(row.note || row.error) && (
-                        <p
-                          className={`mt-1.5 text-xs font-medium ${
-                            row.error || row.status === "skipped"
-                              ? "text-amber-700"
-                              : "text-slate-600"
-                          }`}
-                        >
-                          {row.error || row.note}
-                        </p>
-                      )}
-
-                      {row.changes?.length > 0 && (
-                        <div className="mt-2 grid gap-1 text-xs text-slate-700 sm:grid-cols-2">
-                          {row.changes.slice(0, 6).map((change) => (
-                            <p key={`${row.row}-${change.field}`}>
-                              <span className="font-semibold">
-                                {change.label}:
-                              </span>{" "}
-                              {String(change.from)} -&gt; {String(change.to)}
-                            </p>
-                          ))}
-                          {row.changes.length > 6 && (
-                            <p className="font-medium text-slate-500">
-                              +{row.changes.length - 6} more changes
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
                   {(bulkSheetPreview.rows || []).length > 120 && (
                     <p className="text-center text-xs text-slate-500">
                       Showing first 120 rows. Confirm will process all rows.
@@ -1474,18 +1596,23 @@ export default function ProductsPage() {
                       onClick={confirmBulkEditUpload}
                       disabled={
                         bulkSheetBusy ||
-                        (isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
-                          ? (bulkSheetPreview.toCreate ?? bulkSheetPreview.changed ?? 0) === 0 &&
+                        (isMaterialCreateMode ||
+                        bulkSheetPreview.isMaterialCreate
+                          ? (bulkSheetPreview.toCreate ??
+                              bulkSheetPreview.changed ??
+                              0) === 0 &&
                             (bulkSheetPreview.rows || []).length === 0
                           : !(bulkSheetPreview.changed > 0))
                       }
                       className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {bulkSheetBusy
-                        ? isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                        ? isMaterialCreateMode ||
+                          bulkSheetPreview.isMaterialCreate
                           ? "Creating Materials..."
                           : "Updating..."
-                        : isMaterialCreateMode || bulkSheetPreview.isMaterialCreate
+                        : isMaterialCreateMode ||
+                            bulkSheetPreview.isMaterialCreate
                           ? "Confirm & Create Materials"
                           : "Confirm Update"}
                     </button>
@@ -1505,8 +1632,17 @@ export default function ProductsPage() {
           { label: "Materials" },
         ]}
         title="Material Master"
-        description="Manage construction materials, specifications, rates and availability."
+        description="Manage construction materials, specifications, rates, stock and availability."
         columns={columns}
+        defaultVisibleColumns={[
+          "name",
+          "barcode",
+          "category",
+          "unit",
+          "stock",
+          "costPrice",
+          "stockStatus",
+        ]}
         filters={filters}
         createLabel={canManageCatalog ? "Create Material" : null}
         onCreateClick={
@@ -1539,7 +1675,11 @@ export default function ProductsPage() {
                   category_id: categoryId,
                 };
                 Object.entries(currentParams).forEach(([key, value]) => {
-                  if (value !== undefined && value !== null && String(value).trim()) {
+                  if (
+                    value !== undefined &&
+                    value !== null &&
+                    String(value).trim()
+                  ) {
                     returnParams.set(key, String(value));
                   }
                 });
@@ -1553,23 +1693,26 @@ export default function ProductsPage() {
         }}
         totalLabel="Material(s)"
         emptyMessage="No materials found"
-        customBulkActions={canManageCatalog ? [
-          {
-            label: "Create Material Master (Excel)",
-            action: openMaterialCreateImport,
-          },
-          {
-            label: "Edit Material Master (Excel)",
-            action: openBulkEdit,
-          },
-        ] : []}
+        customBulkActions={
+          canManageCatalog
+            ? [
+                {
+                  label: "Create Material Master (Excel)",
+                  action: openMaterialCreateImport,
+                },
+                {
+                  label: "Edit Material Master (Excel)",
+                  action: openBulkEdit,
+                },
+              ]
+            : []
+        }
         extraQueryParams={{
           department_id: departmentId,
           brand_id: brandId,
           category_id: categoryId,
           // Empty store_id makes the API use the current user's permitted stores.
-          store_id:
-            storeId === ALL_ASSIGNED_STORES_VALUE ? "" : storeId,
+          store_id: storeId === ALL_ASSIGNED_STORES_VALUE ? "" : storeId,
           all_assigned_stores:
             storeId === ALL_ASSIGNED_STORES_VALUE ? "true" : "",
           warehouse_id: warehouseId,
@@ -1588,23 +1731,15 @@ export default function ProductsPage() {
             />
           ) : (
             <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-300">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
+              <i className="ti ti-package text-xl" aria-hidden="true" />
             </div>
           ),
           name: record.name,
-          dimensions: record.dimensions || (record.length && record.width ? `${record.length}×${record.width}${record.height ? `×${record.height}` : ""} ${record.dimension_unit || "MM"}` : "—"),
+          dimensions:
+            record.dimensions ||
+            (record.length && record.width
+              ? `${record.length}×${record.width}${record.height ? `×${record.height}` : ""} ${record.dimension_unit || "MM"}`
+              : "—"),
           barcode: record.barcode || "—",
           category: record.category_name || "—",
           brand: record.brand_name || "—",
@@ -1626,6 +1761,7 @@ export default function ProductsPage() {
             record.selling_price ?? record.mrp,
           ),
           stock: record.actual_stock ?? "—",
+          stockStatus: getStockStatus(record, storeId),
           unit: record.unit || "PCS",
         })}
       />

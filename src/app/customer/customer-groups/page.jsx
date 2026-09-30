@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
@@ -27,7 +29,7 @@ function Field({ label, value, onChange, placeholder = '', required = false, mul
   return (
     <div>
       <label className="block text-[12px] text-gray-700 mb-1.5">
-        {label}{required ? <span className="text-red-500"> *</span> : null}
+        {label}{required ? <RequiredMark /> : null}
       </label>
       {multiline ? (
         <textarea

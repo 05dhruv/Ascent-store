@@ -1,5 +1,7 @@
 "use client";
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useMemo, useState } from 'react';
 import InventoryShell from '@/components/inventory/InventoryShell';
 import SearchableSelect from '@/components/SearchableSelect';
@@ -537,7 +539,7 @@ export default function StockOutPage() {
 
               <div className="mb-5">
                 <label className="mb-2 block text-sm text-gray-800">
-                  Issuing Site / Warehouse<span className="ml-0.5 text-red-500">*</span>
+                  Issuing Site / Warehouse<RequiredMark />
                 </label>
                 <select
                   className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-700"
@@ -559,7 +561,7 @@ export default function StockOutPage() {
                 <div>
                   <div className="mb-5">
                     <label className="mb-2 block text-sm text-gray-800">
-                      Destination<span className="ml-0.5 text-red-500">*</span>
+                      Destination<RequiredMark />
                     </label>
                     <select
                       className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-700"
@@ -580,7 +582,7 @@ export default function StockOutPage() {
                   </div>
                   {activeTab === 'damage_dump' && (
                     <div className="mb-5">
-                      <label className="mb-2 block text-sm text-gray-800">Reason<span className="ml-0.5 text-red-500">*</span></label>
+                      <label className="mb-2 block text-sm text-gray-800">Reason<RequiredMark /></label>
                       <input className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700" placeholder="Damage, dump, expiry..." value={reason} onChange={(e) => setReason(e.target.value)} />
                     </div>
                   )}
@@ -599,7 +601,7 @@ export default function StockOutPage() {
                 <div>
                   <div className="mb-4">
                     <label className="mb-2 block text-sm text-gray-800">
-                      Source Store<span className="ml-0.5 text-red-500">*</span>
+                      Source Store<RequiredMark />
                     </label>
                     <select
                       className="w-full appearance-none rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-gray-700"
@@ -634,7 +636,7 @@ export default function StockOutPage() {
                     *Stock will be removed from the selected destination on the next screen.
                   </p>
                   <div className="mb-5">
-                    <label className="mb-2 block text-sm text-gray-800">Reason<span className="ml-0.5 text-red-500">*</span></label>
+                    <label className="mb-2 block text-sm text-gray-800">Reason<RequiredMark /></label>
                     <input className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700" placeholder={activeTab === 'return_warehouse' ? 'Return to warehouse reason' : 'Return to vendor reason'} value={reason} onChange={(e) => setReason(e.target.value)} />
                   </div>
 

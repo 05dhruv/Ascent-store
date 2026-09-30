@@ -1,5 +1,7 @@
 "use client";
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -458,7 +460,7 @@ function RoleForm() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-semibold text-gray-700">
-                Role Name <span className="text-red-500">*</span>
+                Role Name <RequiredMark />
               </label>
               <input
                 type="text"

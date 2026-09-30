@@ -71,7 +71,11 @@ function buildSearchItems(items = []) {
   return results;
 }
 
-export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
+export default function Topbar({
+  onMenuOpen,
+  hasSidebar = true,
+  sidebarCollapsed = false,
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading: loadingUser } = useUser();
@@ -265,9 +269,10 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
         window.localStorage.getItem("dismissed-promotion-alerts") || "[]",
       );
       setPromotionAlerts(
-        (Array.isArray(data.promotionAlerts) ? data.promotionAlerts : []).filter(
-          (item) => !dismissed.includes(`${item.id}:${item.alertType}`),
-        ),
+        (Array.isArray(data.promotionAlerts)
+          ? data.promotionAlerts
+          : []
+        ).filter((item) => !dismissed.includes(`${item.id}:${item.alertType}`)),
       );
     } catch {
       setReturnRequests([]);
@@ -469,41 +474,21 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-[56px] bg-white/90 backdrop-blur-md border-b border-slate-200/80 z-50 flex items-center px-3 md:px-5 shadow-[0_1px_16px_rgba(15,23,42,0.06)]">
-      {/* Hamburger — mobile only */}
-      <button
-        onClick={onMenuOpen}
-        className="md:hidden p-2 rounded-xl hover:bg-indigo-50 transition-colors mr-2 flex-shrink-0"
-        aria-label="Open menu"
-      >
-        <i className="ti ti-menu-2 text-slate-700 text-[20px]" />
-      </button>
-
-      {/* Brand — hidden on mobile (shown in drawer instead) */}
-      <button
-        type="button"
-        onClick={() => router.push("/home")}
-        className={`hidden md:flex flex-shrink-0 items-center transition-all ${
-          sidebarExpanded
-            ? "w-[240px] justify-start pl-3"
-            : "w-[64px] justify-center"
-        }`}
-        aria-label="Go to home"
-      >
-        {sidebarExpanded ? (
-          <img
-            src="/ascent-sync-logo.svg"
-            alt="Ascent Sync"
-            className="h-12 w-[170px] object-contain"
-          />
-        ) : (
-          <img
-            src="/ascent-sync-icon.svg"
-            alt="Ascent Sync"
-            className="h-10 w-10 object-contain"
-          />
-        )}
-      </button>
+    <header
+      className={`workspace-topbar fixed top-0 right-0 left-0 h-[56px] z-50 flex items-center px-3 md:pr-5 transition-[left] duration-300 ${
+        !hasSidebar ? "" : sidebarCollapsed ? "lg:left-[72px]" : "lg:left-[240px]"
+      }`}
+    >
+      {/* Hamburger — below desktop, sidebar lives in the drawer */}
+      {hasSidebar && (
+        <button
+          onClick={onMenuOpen}
+          className="lg:hidden p-2 rounded-xl hover:bg-slate-100 transition-colors mr-2 flex-shrink-0"
+          aria-label="Open menu"
+        >
+          <i className="ti ti-menu-2 text-slate-700 text-[20px]" />
+        </button>
+      )}
 
       {/* Brand — mobile center */}
       <button
@@ -513,20 +498,15 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
         aria-label="Go to home"
       >
         <img
-          src="/ascent-sync-logo.svg"
+          src="/ascent-sync-icon.svg"
           alt="Ascent Sync"
-          className="h-8 w-auto max-w-[125px] object-contain"
+          className="h-8 w-8 rounded-lg object-contain"
         />
       </button>
 
-      {/* Page title — desktop */}
-      <div className="hidden md:flex flex-1 items-center gap-3 px-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-            Ascent Sync
-          </p>
-          <h2 className="text-[15px] font-bold text-slate-900">{title}</h2>
-        </div>
+      {/* Breadcrumb + page title */}
+      <div className="hidden md:flex flex-1 items-center gap-3 px-2 lg:px-4 min-w-0">
+        <h2 className="truncate text-[16px] font-bold tracking-tight text-slate-900">{title}</h2>
       </div>
 
       {/* Right Actions */}
@@ -554,7 +534,7 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                 : "hidden md:block"
             }`}
           >
-            <div className="relative w-full md:w-[360px]">
+            <div className="relative w-full md:w-[280px] xl:w-[420px]">
               <i className="ti ti-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[17px] text-slate-400" />
               <input
                 type="search"
@@ -564,7 +544,14 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
                   setOpenSearch(true);
                 }}
                 onFocus={() => setOpenSearch(true)}
-                placeholder="Search pages, reports, settings..."
+                aria-label="Global search"
+                placeholder={
+                  pathname.startsWith("/catalog")
+                    ? "Search materials, codes, brands..."
+                    : pathname.startsWith("/construction")
+                      ? "Search projects, sites, clients..."
+                      : "Search projects, materials, reports..."
+                }
                 className="h-10 w-full rounded-xl border border-slate-200 bg-white px-9 pr-16 text-[13px] font-medium text-slate-800 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
               />
               <span className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 md:block">
@@ -628,8 +615,8 @@ export default function Topbar({ onMenuOpen, sidebarExpanded = false }) {
           >
             <i className="ti ti-bell text-slate-500 text-[20px]" />
             {notificationCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] font-bold leading-4 text-white">
-                {notificationCount}
+              <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+                {notificationCount > 9 ? "9+" : notificationCount}
               </span>
             )}
           </button>

@@ -1,5 +1,7 @@
 "use client";
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import MainLayout from "@/components/MainLayout";
@@ -1122,7 +1124,7 @@ export default function VendorsPage() {
                       </div>
                       <div className="flex flex-col">
                         <label className="text-[12px] text-gray-700">
-                          Mobile Number <span className="text-red-500">*</span>
+                          Mobile Number <RequiredMark />
                         </label>
                         <input
                           value={form.mobile_number}

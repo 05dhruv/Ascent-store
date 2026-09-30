@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/components/ui/Button";
+
 import { useEffect, useState } from "react";
 import ConstructionShell, {
   ConstructionAlert,
@@ -7,7 +9,6 @@ import ConstructionShell, {
   ConstructionField,
   ConstructionSection,
   ConstructionTable,
-  constructionBtnPrimary,
   constructionInput,
 } from "@/components/construction/ConstructionShell";
 
@@ -124,13 +125,12 @@ export default function DocumentsPage() {
             />
           </ConstructionField>
           <div className="flex items-end">
-            <button
+            <Button
               type="submit"
               disabled={busy}
-              className={constructionBtnPrimary}
             >
               Add document
-            </button>
+            </Button>
           </div>
         </form>
       </ConstructionSection>

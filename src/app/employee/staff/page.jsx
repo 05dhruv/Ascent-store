@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -302,7 +304,7 @@ function MultiSelect({ label, options, value, onChange, placeholder = 'Select', 
 
   return (
     <div ref={ref}>
-      <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">{label}{required ? <span className="text-red-500"> *</span> : null}</label>
+      <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">{label}{required ? <RequiredMark /> : null}</label>
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
@@ -362,7 +364,7 @@ function MultiSelect({ label, options, value, onChange, placeholder = 'Select', 
 function SelectField({ label, value, onChange, options, required = false }) {
   return (
     <div>
-      <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">{label}{required ? <span className="text-red-500"> *</span> : null}</label>
+      <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">{label}{required ? <RequiredMark /> : null}</label>
       <div className="relative">
         <select
           required={required}
@@ -763,7 +765,7 @@ export default function EmployeeStaffPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5 sm:gap-y-6">
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">First Name <span className="text-red-500">*</span></label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">First Name <RequiredMark /></label>
                   <input
                     required
                     value={form.firstName}
@@ -784,7 +786,7 @@ export default function EmployeeStaffPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Username <span className="text-red-500">*</span></label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Username <RequiredMark /></label>
                   <input
                     required
                     value={form.username}
@@ -806,7 +808,7 @@ export default function EmployeeStaffPage() {
                 />
 
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Password {editingId ? '(leave blank to keep current)' : <span className="text-red-500">*</span>}</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Password {editingId ? '(leave blank to keep current)' : <RequiredMark />}</label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="password"
@@ -832,7 +834,7 @@ export default function EmployeeStaffPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Confirm Password {editingId ? '(if changing)' : <span className="text-red-500">*</span>}</label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Confirm Password {editingId ? '(if changing)' : <RequiredMark />}</label>
                   <input
                     type="password"
                     required={!editingId || !!form.password}
@@ -844,7 +846,7 @@ export default function EmployeeStaffPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Mobile Number <span className="text-red-500">*</span></label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Mobile Number <RequiredMark /></label>
                   <input
                     type="tel"
                     inputMode="numeric"
@@ -865,7 +867,7 @@ export default function EmployeeStaffPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                  <label className="block text-[12px] font-semibold text-gray-600 mb-1.5">Email Address <RequiredMark /></label>
                   <input
                     type="email"
                     required

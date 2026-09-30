@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, useParams } from 'next/navigation';
@@ -327,7 +329,7 @@ export default function EditCategoryPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category Name <span className="text-red-500">*</span>
+                    Category Name <RequiredMark />
                   </label>
                   <input
                     type="text"
@@ -499,7 +501,7 @@ export default function EditCategoryPage() {
             <form onSubmit={handleCreateCategoryType} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Type Name <span className="text-red-500">*</span>
+                  Type Name <RequiredMark />
                 </label>
                 <input
                   type="text"

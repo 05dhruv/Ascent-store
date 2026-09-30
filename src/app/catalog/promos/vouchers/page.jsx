@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
@@ -385,7 +387,7 @@ export default function VouchersPage() {
 
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-gray-600">
-                  Voucher Code <span className="text-red-500">*</span>
+                  Voucher Code <RequiredMark />
                 </label>
                 <input
                   className={inputCls}
@@ -398,7 +400,7 @@ export default function VouchersPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-gray-600">
-                    Voucher Value <span className="text-red-500">*</span>
+                    Voucher Value <RequiredMark />
                   </label>
                   <input
                     type="number"
@@ -452,7 +454,7 @@ export default function VouchersPage() {
 
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-gray-600">
-                  Voucher Count To Distribute <span className="text-red-500">*</span>
+                  Voucher Count To Distribute <RequiredMark />
                 </label>
                 <input
                   type="number"

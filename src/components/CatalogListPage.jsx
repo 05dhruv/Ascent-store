@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { loadXlsx } from "@/lib/loadXlsx";
+import Button from "@/components/ui/Button";
 import {
   OPTIONS_SHEET_NAME,
   applyTextFormatToColumns,
@@ -192,6 +193,7 @@ export default function CatalogListPage({
   endpoint = "",
   extraQueryParams = null,
   columns = [],
+  defaultVisibleColumns,
   rows = [],
   loading = false,
   totalLabel = "Record(s)",
@@ -215,6 +217,13 @@ export default function CatalogListPage({
   onImportSuccess,
   onDownloadTemplate,
 }) {
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState(null);
+  const visibleColumns = defaultVisibleColumns
+    ? (visibleColumnKeys || defaultVisibleColumns)
+        .map((key) => columns.find((col) => col.key === key))
+        .filter(Boolean)
+    : columns;
+
   const [checkedRows, setCheckedRows] = useState([]);
   const [allChecked, setAllChecked] = useState(false);
   const [storeVal, setStoreVal] = useState("");
@@ -1348,13 +1357,14 @@ export default function CatalogListPage({
           )}
           {extraHeaderButtons && extraHeaderButtons}
           {createLabel && (
-            <button
+            <Button
+              variant="accent"
               onClick={onCreateClick}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
+              className="w-full sm:w-auto"
+              icon="ti ti-plus"
             >
-              <span className="text-base leading-none">+</span>
               {createLabel}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -1432,6 +1442,43 @@ export default function CatalogListPage({
           </div>
         </div>
 
+        {defaultVisibleColumns && (
+          <details className="column-picker px-4">
+            <summary className="ui-button ui-button--secondary">
+              <i className="ti ti-columns" aria-hidden="true" />
+              Columns
+            </summary>
+            <div className="ui-card">
+              {columns.map((col) => (
+                <label key={col.key}>
+                  <input
+                    type="checkbox"
+                    checked={(
+                      visibleColumnKeys || defaultVisibleColumns
+                    ).includes(col.key)}
+                    disabled={col.key === "name"}
+                    onChange={(event) =>
+                      setVisibleColumnKeys((previous) => {
+                        const current = previous || defaultVisibleColumns;
+                        return event.target.checked
+                          ? [...current, col.key]
+                          : current.filter((key) => key !== col.key);
+                      })
+                    }
+                  />
+                  {col.label}
+                </label>
+              ))}
+              <Button
+                variant="secondary"
+                className="mt-2 w-full"
+                onClick={() => setVisibleColumnKeys(null)}
+              >
+                Reset columns
+              </Button>
+            </div>
+          </details>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -1439,12 +1486,13 @@ export default function CatalogListPage({
                 <th className="px-4 py-3 w-10">
                   <input
                     type="checkbox"
+                    aria-label="Select all rows"
                     checked={allChecked}
                     onChange={handleAllCheck}
                     className="w-4 h-4 accent-blue-600 cursor-pointer rounded"
                   />
                 </th>
-                {columns.map((col) => (
+                {visibleColumns.map((col) => (
                   <th
                     key={col.key}
                     className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap"
@@ -1455,14 +1503,14 @@ export default function CatalogListPage({
                     )}
                   </th>
                 ))}
-                {showRowActions && <th className="px-4 py-3 w-20"></th>}
+                {showRowActions && <th className="px-4 py-3 w-20">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td
-                    colSpan={columns.length + (showRowActions ? 2 : 1)}
+                    colSpan={visibleColumns.length + (showRowActions ? 2 : 1)}
                     className="text-center py-16"
                   >
                     <div className="flex items-center justify-center gap-2 text-gray-400">
@@ -1488,7 +1536,7 @@ export default function CatalogListPage({
               ) : displayRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={columns.length + (showRowActions ? 2 : 1)}
+                    colSpan={visibleColumns.length + (showRowActions ? 2 : 1)}
                     className="text-center py-16"
                   >
                     <div className="flex flex-col items-center gap-2 text-gray-400">
@@ -1532,6 +1580,7 @@ export default function CatalogListPage({
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
+                        aria-label={`Select ${row.name || "row"}`}
                         checked={checkedRows.includes(row.id)}
                         onChange={() =>
                           setCheckedRows((prev) =>
@@ -1543,9 +1592,11 @@ export default function CatalogListPage({
                         className="w-4 h-4 accent-blue-600 cursor-pointer rounded"
                       />
                     </td>
-                    {columns.map((col) => (
+                    {visibleColumns.map((col) => (
                       <td key={col.key} className="px-4 py-3 text-gray-700">
-                        {col.key === "sno" ? (
+                        {col.render ? (
+                          col.render(row)
+                        ) : col.key === "sno" ? (
                           <span className="text-blue-600 font-medium">
                             {row[col.key]}
                           </span>
@@ -1574,6 +1625,7 @@ export default function CatalogListPage({
                         <div className="flex items-center gap-1">
                           {onEdit && (
                             <button
+                              aria-label={`Edit ${row.name || "record"}`}
                               onClick={() => onEdit(row)}
                               className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
                             >
@@ -1593,6 +1645,7 @@ export default function CatalogListPage({
                           )}
                           {onDelete && (
                             <button
+                              aria-label={`Delete ${row.name || "record"}`}
                               onClick={() => onDelete(row)}
                               className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
                             >

@@ -376,6 +376,7 @@ export async function GET(request) {
         t.rate  AS tax_rate,
         COALESCE(batch_agg.qty, 0) AS actual_stock,
         COALESCE(batch_agg.active_batch_count, 0) AS active_batch_count,
+        NULLIF(ps_store.low_stock_value, 0) AS low_stock_threshold,
         batch_agg.min_cost_price, batch_agg.max_cost_price,
         batch_agg.min_selling_price, batch_agg.max_selling_price,
         batch_agg.min_mrp, batch_agg.max_mrp,

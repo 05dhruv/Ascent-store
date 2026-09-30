@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -194,7 +196,7 @@ export default function EditSubCategoryPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sub Category Name <span className="text-red-500">*</span>
+                Sub Category Name <RequiredMark />
               </label>
               <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
                 placeholder="Enter Sub Category Name"

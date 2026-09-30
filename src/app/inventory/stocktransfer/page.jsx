@@ -1,5 +1,7 @@
 "use client";
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import InventoryShell from "@/components/inventory/InventoryShell";
 import {
@@ -1695,7 +1697,7 @@ export default function StockTransferPage() {
 
               <div className="mb-6">
                 <label className="mb-2 block text-[15px] text-gray-700">
-                  Source <span className="font-semibold text-red-500">*</span>
+                  Source <RequiredMark />
                 </label>
                 <SelectBox
                   value={source}
@@ -1709,7 +1711,7 @@ export default function StockTransferPage() {
               <div className="mb-6">
                 <label className="mb-2 block text-[15px] text-gray-700">
                   Destination{" "}
-                  <span className="font-semibold text-red-500">*</span>
+                  <RequiredMark />
                 </label>
                 <SelectBox
                   value={destination}

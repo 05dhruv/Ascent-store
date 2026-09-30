@@ -1,5 +1,7 @@
 "use client";
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import InventoryShell from "@/components/inventory/InventoryShell";
 import {
@@ -1223,7 +1225,7 @@ export default function StockValidationPage() {
               <div className="mb-6">
                 <label className="mb-2 block text-[15px] text-gray-700">
                   Site / Warehouse Store{" "}
-                  <span className="font-semibold text-red-500">*</span>
+                  <RequiredMark />
                 </label>
                 <div className="relative">
                   <select

@@ -453,7 +453,7 @@ function LineItemsContent() {
 function StockOutFrame({ children }) {
   return (
     <div className="min-h-screen bg-[#f1f2f5] font-sans text-black">
-      <Topbar onMenuOpen={() => {}} />
+      <Topbar hasSidebar={false} onMenuOpen={() => {}} />
       <main className="pt-[52px]">{children}</main>
     </div>
   );

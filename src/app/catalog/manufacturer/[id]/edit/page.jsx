@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -154,7 +156,7 @@ export default function EditManufacturerPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Manufacturer Name <span className="text-red-500">*</span>
+              Manufacturer Name <RequiredMark />
             </label>
             <input
               type="text"

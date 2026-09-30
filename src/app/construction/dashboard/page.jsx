@@ -1,11 +1,12 @@
 'use client';
 
+import Button from "@/components/ui/Button";
+
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionSection,
-  constructionBtnPrimary,
   constructionInput,
 } from '@/components/construction/ConstructionShell';
 
@@ -74,9 +75,9 @@ export default function ConstructionDashboard() {
         <ConstructionAlert>
           <div className="flex items-center justify-between gap-3">
             <span>{error}</span>
-            <button type="button" onClick={loadDashboard} className={constructionBtnPrimary}>
+            <Button type="button" onClick={loadDashboard}>
               Retry
-            </button>
+            </Button>
           </div>
         </ConstructionAlert>
       )}
@@ -166,9 +167,7 @@ export default function ConstructionDashboard() {
               placeholder="e.g. 12"
             />
           </label>
-          <button
-            type="button"
-            className={constructionBtnPrimary}
+          <Button
             onClick={async () => {
               setQrError('');
               setQr(null);
@@ -185,7 +184,7 @@ export default function ConstructionDashboard() {
             }}
           >
             Generate QR
-          </button>
+          </Button>
         </div>
         {qrError && (
           <p className="mt-3 text-sm text-red-600">{qrError}</p>

@@ -1,5 +1,7 @@
 "use client";
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadXlsx } from "@/lib/loadXlsx";
@@ -1686,7 +1688,7 @@ export default function PurchaseOrdersPage() {
             <div className="space-y-4 p-6">
               <label className="block">
                 <span className="mb-1 block text-[12px] text-gray-700">
-                  Approved Requisition <span className="text-red-500">*</span>
+                  Approved Requisition <RequiredMark />
                 </span>
                 <select
                   value={reqForm.requisitionId}
@@ -1709,7 +1711,7 @@ export default function PurchaseOrdersPage() {
               </label>
               <label className="block">
                 <span className="mb-1 block text-[12px] text-gray-700">
-                  Vendor <span className="text-red-500">*</span>
+                  Vendor <RequiredMark />
                 </span>
                 <select
                   value={reqForm.vendorId}

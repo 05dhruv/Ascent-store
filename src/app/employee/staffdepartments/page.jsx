@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -439,7 +441,7 @@ export default function EmployeeDepartmentsPage() {
 
               <div className="grid grid-cols-2 gap-x-12 gap-y-8">
                 <div>
-                  <label className="text-[12px] text-gray-700 font-medium">Department Name <span className="text-red-500">*</span></label>
+                  <label className="text-[12px] text-gray-700 font-medium">Department Name <RequiredMark /></label>
                   <input
                     value={editingDepartment.departmentName}
                     onChange={(e) => setEditingDepartment({ ...editingDepartment, departmentName: e.target.value })}

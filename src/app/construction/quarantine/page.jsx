@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/components/ui/Button";
+
 import { useEffect, useState } from "react";
 import ConstructionShell, {
   ConstructionAlert,
@@ -7,8 +9,6 @@ import ConstructionShell, {
   ConstructionField,
   ConstructionSection,
   ConstructionTable,
-  constructionBtnPrimary,
-  constructionBtnSecondary,
   constructionInput,
 } from "@/components/construction/ConstructionShell";
 
@@ -148,13 +148,12 @@ export default function QuarantinePage() {
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
             />
           </ConstructionField>
-          <button
+          <Button
             type="submit"
             disabled={busy}
-            className={constructionBtnPrimary}
           >
             Request release
-          </button>
+          </Button>
         </form>
       </ConstructionSection>
 
@@ -187,22 +186,20 @@ export default function QuarantinePage() {
               <td className="px-4 py-3">
                 {row.status === "pending" && (
                   <div className="flex flex-wrap gap-2">
-                    <button
+                    <Button
                       type="button"
                       disabled={busy}
-                      className={constructionBtnPrimary}
                       onClick={() => resolve(row.id, "approved")}
                     >
                       Approve
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      disabled={busy}
-                      className={constructionBtnSecondary}
+                      disabled={busy} variant="secondary"
                       onClick={() => resolve(row.id, "rejected")}
                     >
                       Reject
-                    </button>
+                    </Button>
                   </div>
                 )}
               </td>

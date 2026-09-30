@@ -19,6 +19,7 @@ export default function CatalogDataPage({
   title = "",
   description = "",
   columns = [],
+  defaultVisibleColumns,
   mapRecord = (record, index) => ({ id: record.id ?? index, ...record }),
   totalLabel = "Record(s)",
   emptyMessage = "No records found",
@@ -237,6 +238,7 @@ export default function CatalogDataPage({
         endpoint={endpoint}
         extraQueryParams={extraQueryParams}
         columns={columns}
+        defaultVisibleColumns={defaultVisibleColumns}
         rows={rows}
         loading={loading}
         totalLabel={totalLabel}

@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/components/ui/Button";
+
 import { useEffect, useState } from "react";
 import ConstructionShell, {
   ConstructionAlert,
@@ -7,8 +9,6 @@ import ConstructionShell, {
   ConstructionField,
   ConstructionSection,
   ConstructionTable,
-  constructionBtnPrimary,
-  constructionBtnSecondary,
   constructionInput,
 } from "@/components/construction/ConstructionShell";
 
@@ -180,13 +180,12 @@ export default function RaBillsPage() {
             />
           </ConstructionField>
           <div className="flex items-end">
-            <button
+            <Button
               type="submit"
               disabled={busy}
-              className={constructionBtnPrimary}
             >
               Create RA bill
-            </button>
+            </Button>
           </div>
         </form>
       </ConstructionSection>
@@ -210,24 +209,22 @@ export default function RaBillsPage() {
               <td className="px-4 py-3 uppercase text-slate-600">{row.status}</td>
               <td className="px-4 py-3">
                 {row.status === "draft" && (
-                  <button
+                  <Button
                     type="button"
-                    disabled={busy}
-                    className={constructionBtnSecondary}
+                    disabled={busy} variant="secondary"
                     onClick={() => setStatus(row.id, "submitted")}
                   >
                     Submit
-                  </button>
+                  </Button>
                 )}
                 {row.status === "submitted" && (
-                  <button
+                  <Button
                     type="button"
                     disabled={busy}
-                    className={constructionBtnPrimary}
                     onClick={() => setStatus(row.id, "approved")}
                   >
                     Approve
-                  </button>
+                  </Button>
                 )}
               </td>
             </tr>

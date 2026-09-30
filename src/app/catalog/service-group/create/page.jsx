@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -201,7 +203,7 @@ export default function CreateServiceGroupPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Service Group Name <span className="text-red-500">*</span>
+                    Service Group Name <RequiredMark />
                   </label>
                   <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
                     placeholder="Enter Service Group Name"

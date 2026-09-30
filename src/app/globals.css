@@ -1,26 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --brand-red: #e56f24;
-  --brand-green: #2f7d5a;
+  --color-primary: #163b5c;
+  --color-primary-dark: #0f2740;
+  --color-sidebar: #0d2a42;
+  --color-accent: #f59e0b;
+  --color-success: #2e8b57;
+  --color-info: #3b82f6;
+  --color-danger: #dc4c4c;
+  --color-bg: #f4f7fa;
+  --color-card: #ffffff;
+  --color-border: #e3eaf1;
+  --color-text: #162033;
+  --color-text-secondary: #667085;
+  --color-text-muted: #98a2b3;
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+  --brand-red: var(--color-primary);
+  --brand-green: var(--color-success);
   --brand-red-rgb: 229, 111, 36;
   --brand-green-rgb: 47, 125, 90;
 }
 
 @theme inline {
+  --color-primary: #163b5c;
+  --color-primary-dark: #0f2740;
+  --color-accent: #f59e0b;
+  --color-workspace: #f4f7fa;
+  --color-border: #e3eaf1;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-brand-red: var(--brand-red);
   --color-brand-green: var(--brand-green);
-  --color-blue-50: #f1f6f8;
-  --color-blue-100: #dce8ed;
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
   --color-blue-200: #b8d3de;
   --color-blue-300: #8cb6c8;
   --color-blue-400: #5d94ae;
-  --color-blue-500: #2f6d8d;
-  --color-blue-600: #1a476c;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
   --color-blue-700: #143a58;
   --color-blue-800: #102f48;
   --color-blue-900: #0c263b;
@@ -30,7 +48,7 @@
   --color-indigo-300: #8cb6c8;
   --color-indigo-400: #5d94ae;
   --color-indigo-500: #2f6d8d;
-  --color-indigo-600: #1a476c;
+  --color-indigo-600: #163b5c;
   --color-indigo-700: #143a58;
   --color-indigo-800: #102f48;
   --color-indigo-900: #0c263b;
@@ -114,7 +132,7 @@
   --color-green-700: #3c6747;
   --color-green-800: #34523b;
   --color-green-900: #2b4432;
-  --color-emerald-50: #f1f8f3;
+  --color-emerald-50: #ecfdf3;
   --color-emerald-100: #dceee0;
   --color-emerald-200: #bce0c4;
   --color-emerald-300: #92cca0;
@@ -146,11 +164,10 @@
 }
 
 body {
-  background:
-    radial-gradient(circle at top, rgba(26, 71, 108, 0.10), transparent 34%),
-    linear-gradient(180deg, #f9fbfc 0%, #edf2f4 100%);
+  background: var(--color-bg);
   color: var(--foreground);
   font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
   min-width: 320px;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
@@ -247,13 +264,18 @@ progress {
   accent-color: var(--brand-red);
 }
 
-html, body {
+html,
+body {
   overflow-x: hidden;
   max-width: 100%;
   width: 100%;
 }
 
-button:where(:not([class*="h-"]):not([class*="min-h-"]):not([class*="py-0"]):not([class*="py-0.5"]):not([class*="py-1"])) {
+button:where(
+  :not([class*="h-"]):not([class*="min-h-"]):not([class*="py-0"]):not(
+      [class*="py-0.5"]
+    ):not([class*="py-1"])
+) {
   min-height: 38px;
 }
 

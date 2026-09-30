@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./workspace.css";
 import { RootClientWrapper } from "./RootClientWrapper";
 
 export const metadata = {

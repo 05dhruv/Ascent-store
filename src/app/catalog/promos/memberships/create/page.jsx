@@ -1,5 +1,7 @@
 'use client';
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -50,7 +52,7 @@ function Field({ label, required, children, className = '' }) {
     <div className={className}>
       <label className="mb-1.5 block text-xs font-medium text-gray-600">
         {label}
-        {required ? <span className="text-red-500"> *</span> : null}
+        {required ? <RequiredMark /> : null}
       </label>
       {children}
     </div>

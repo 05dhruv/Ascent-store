@@ -1,5 +1,7 @@
 "use client";
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
@@ -1564,7 +1566,7 @@ function Field({ label, children, error }) {
     <label className="block">
       <span className="mb-1 block text-xs font-semibold text-gray-700">
         {displayLabel}
-        {isRequired ? <span className="text-red-500 font-bold"> *</span> : null}
+        {isRequired ? <RequiredMark /> : null}
       </span>
       {children}
       {error ? (

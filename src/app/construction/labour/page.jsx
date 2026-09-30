@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/components/ui/Button";
+
 import { useEffect, useState } from "react";
 import ConstructionShell, {
   ConstructionAlert,
@@ -7,7 +9,6 @@ import ConstructionShell, {
   ConstructionField,
   ConstructionSection,
   ConstructionTable,
-  constructionBtnPrimary,
   constructionInput,
 } from "@/components/construction/ConstructionShell";
 
@@ -167,9 +168,9 @@ export default function LabourPage() {
               }
             />
           </ConstructionField>
-          <button type="submit" disabled={busy} className={constructionBtnPrimary}>
+          <Button type="submit" disabled={busy}>
             Save crew
-          </button>
+          </Button>
         </form>
       </ConstructionSection>
 
@@ -253,9 +254,9 @@ export default function LabourPage() {
               }
             />
           </ConstructionField>
-          <button type="submit" disabled={busy} className={constructionBtnPrimary}>
+          <Button type="submit" disabled={busy}>
             Save attendance
-          </button>
+          </Button>
         </form>
       </ConstructionSection>
 

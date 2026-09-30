@@ -1,4 +1,6 @@
 "use client";
+
+import { RequiredMark } from "@/components/ui/FormField";
 import { useEffect, useState } from "react";
 
 const inputClass =
@@ -348,7 +350,7 @@ export default function PromotionForm({
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className={labelClass}>
-                  Promotion Name <span className="text-red-500">*</span>
+                  Promotion Name <RequiredMark />
                 </label>
                 <input
                   value={name}
@@ -359,7 +361,7 @@ export default function PromotionForm({
               </div>
               <div>
                 <label className={labelClass}>
-                  Date Range <span className="text-red-500">*</span>
+                  Date Range <RequiredMark />
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -384,7 +386,7 @@ export default function PromotionForm({
               </div>
               <div>
                 <label className={labelClass}>
-                  Store <span className="text-red-500">*</span>
+                  Store <RequiredMark />
                 </label>
                 <select
                   value={storeId}

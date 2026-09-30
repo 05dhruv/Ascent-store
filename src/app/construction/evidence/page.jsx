@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/components/ui/Button";
+
 import { useEffect, useState } from "react";
 import ConstructionShell, {
   ConstructionAlert,
@@ -7,7 +9,6 @@ import ConstructionShell, {
   ConstructionField,
   ConstructionSection,
   ConstructionTable,
-  constructionBtnPrimary,
   constructionInput,
 } from "@/components/construction/ConstructionShell";
 
@@ -191,13 +192,12 @@ export default function EvidencePage() {
               }
             />
           </ConstructionField>
-          <button
+          <Button
             type="submit"
             disabled={busy}
-            className={constructionBtnPrimary}
           >
             Save evidence
-          </button>
+          </Button>
         </form>
       </ConstructionSection>
 
@@ -282,13 +282,12 @@ export default function EvidencePage() {
             />
           </ConstructionField>
           <div className="flex items-end">
-            <button
+            <Button
               type="submit"
               disabled={busy}
-              className={constructionBtnPrimary}
             >
               Save limit
-            </button>
+            </Button>
           </div>
         </form>
         <ul className="mt-4 space-y-1 text-[13px] text-slate-600">

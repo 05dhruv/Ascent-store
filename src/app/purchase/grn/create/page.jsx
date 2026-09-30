@@ -1,5 +1,7 @@
 "use client";
 
+import { RequiredMark } from "@/components/ui/FormField";
+
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/MainLayout';
@@ -133,7 +135,7 @@ export default function CreateGrnPage() {
           {error && <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600">{error}</div>}
 
           <div className="mb-4">
-            <label className="block text-sm text-gray-700 font-medium mb-1">Purchase Order ID <span className="text-red-500">*</span></label>
+            <label className="block text-sm text-gray-700 font-medium mb-1">Purchase Order ID <RequiredMark /></label>
             <div className="relative">
               <div className="mt-1 flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 focus-within:border-blue-500">
                 <i className="ti ti-search text-[16px] text-gray-400" />

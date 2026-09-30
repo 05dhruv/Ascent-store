@@ -1,46 +1,76 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
-import ConstructionShell from '@/components/construction/ConstructionShell';
+import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
+import ProjectCreateDialog from "@/components/construction/ProjectCreateDialog";
+import { MetricCard, StatusBadge } from "@/components/ui/WorkspaceUI";
+import ConstructionShell from "@/components/construction/ConstructionShell";
+import FilterBar, { FilterSelect } from "@/components/ui/FilterBar";
 
 const emptyForm = {
-  projectCode: '',
-  name: '',
-  clientName: '',
-  budget: '',
-  status: 'planning',
-  startDate: '',
-  expectedEndDate: '',
-  address: '',
-  siteCode: '',
-  siteName: '',
-  siteAddress: '',
-  siteEngineerId: '',
+  projectCode: "",
+  name: "",
+  clientName: "",
+  budget: "",
+  status: "planning",
+  startDate: "",
+  expectedEndDate: "",
+  address: "",
+  siteCode: "",
+  siteName: "",
+  siteAddress: "",
+  siteEngineerId: "",
 };
+
+function formatDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function projectTimeline(project) {
+  const start = new Date(project.start_date || project.created_at).getTime();
+  const end = new Date(project.expected_end_date).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return null;
+  }
+  if (project.status === "completed") return { percent: 100, overdue: false };
+  const ratio = (Date.now() - start) / (end - start);
+  return {
+    percent: Math.max(0, Math.min(100, Math.round(ratio * 100))),
+    overdue: ratio > 1,
+  };
+}
 
 export default function ProjectsPage() {
   const [records, setRecords] = useState([]);
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [clientFilter, setClientFilter] = useState("all");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = () =>
-    fetch('/api/construction/projects', { cache: 'no-store' })
+    fetch("/api/construction/projects", { cache: "no-store" })
       .then((response) => response.json())
       .then((json) => {
         const list = json.data?.records || [];
         setRecords(list);
       })
-      .catch((err) => console.error('[projects load]', err));
+      .catch((err) => console.error("[projects load]", err));
 
   useEffect(() => {
     load();
-    fetch('/api/auth/users', { cache: 'no-store' })
+    fetch("/api/auth/users", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : []))
       .then((data) => setUsers(Array.isArray(data) ? data : []))
       .catch(() => setUsers([]));
@@ -50,8 +80,11 @@ export default function ProjectsPage() {
   const handleProjectNameChange = (val) => {
     setForm((prev) => {
       const next = { ...prev, name: val };
-      if (!prev.siteName || prev.siteName === `${prev.name} Site Store`.trim()) {
-        next.siteName = val ? `${val} Site Store` : '';
+      if (
+        !prev.siteName ||
+        prev.siteName === `${prev.name} Site Store`.trim()
+      ) {
+        next.siteName = val ? `${val} Site Store` : "";
       }
       return next;
     });
@@ -61,8 +94,11 @@ export default function ProjectsPage() {
     const upper = val.toUpperCase();
     setForm((prev) => {
       const next = { ...prev, projectCode: upper };
-      if (!prev.siteCode || prev.siteCode === `SITE-${prev.projectCode}`.trim()) {
-        next.siteCode = upper ? `SITE-${upper}` : '';
+      if (
+        !prev.siteCode ||
+        prev.siteCode === `SITE-${prev.projectCode}`.trim()
+      ) {
+        next.siteCode = upper ? `SITE-${upper}` : "";
       }
       return next;
     });
@@ -71,21 +107,25 @@ export default function ProjectsPage() {
   async function submit(event) {
     event.preventDefault();
     setSaving(true);
-    setMessage('');
-    setErrorMessage('');
+    setMessage("");
+    setErrorMessage("");
     try {
-      const response = await fetch('/api/construction/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/construction/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const json = await response.json();
-      if (!response.ok) throw new Error(json.message || 'Unable to create project');
+      if (!response.ok)
+        throw new Error(json.message || "Unable to create project");
       setForm(emptyForm);
-      setMessage('Project and Site Store created successfully! Site Store is active for stock transfers.');
+      setCreateOpen(false);
+      setMessage(
+        "Project and Site Store created successfully! Site Store is active for stock transfers.",
+      );
       await load();
     } catch (error) {
-      setErrorMessage(error.message || 'Unable to create project');
+      setErrorMessage(error.message || "Unable to create project");
     } finally {
       setSaving(false);
     }
@@ -98,12 +138,22 @@ export default function ProjectsPage() {
         proj.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         proj.project_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         proj.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        proj.sites?.some((s) => s.name?.toLowerCase().includes(searchQuery.toLowerCase()) || s.site_code?.toLowerCase().includes(searchQuery.toLowerCase()));
+        proj.sites?.some(
+          (s) =>
+            s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            s.site_code?.toLowerCase().includes(searchQuery.toLowerCase()),
+        );
 
-      const matchesStatus = statusFilter === 'all' || proj.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesStatus =
+        statusFilter === "all" || proj.status === statusFilter;
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        (clientFilter === "all" ||
+          (proj.client_name || "Direct / Self") === clientFilter)
+      );
     });
-  }, [records, searchQuery, statusFilter]);
+  }, [records, searchQuery, statusFilter, clientFilter]);
 
   const stats = useMemo(() => {
     const totalProjects = records.length;
@@ -112,7 +162,7 @@ export default function ProjectsPage() {
     let totalInTransit = 0;
 
     records.forEach((p) => {
-      totalSites += (p.sites?.length || p.site_count || 0);
+      totalSites += p.sites?.length || p.site_count || 0;
       totalStock += Number(p.total_site_stock || 0);
       totalInTransit += Number(p.total_in_transit || 0);
     });
@@ -123,319 +173,101 @@ export default function ProjectsPage() {
   return (
     <ConstructionShell
       title="Projects & Site Stores"
-      subtitle="Every project provisions a site store. Track warehouse dispatch, site receipt, transit, and field consumption."
-      breadcrumb={[{ label: 'Projects' }]}
+      subtitle="Manage construction projects, site stores, warehouse dispatch, and field activity."
+      breadcrumb={[{ label: "Projects" }]}
       actions={[
         {
-          label: 'Stock Transfer',
-          href: '/inventory/stocktransfer',
-          icon: 'ti ti-truck',
-          primary: false,
-        },
-        {
-          label: 'Material Movement Report',
-          href: '/reports/inventory/stock-movement',
-          icon: 'ti ti-chart-bar',
-          primary: true,
+          label: "New Project",
+          icon: "ti ti-plus",
+          accent: true,
+          onClick: () => setCreateOpen(true),
         },
       ]}
     >
       <div className="space-y-6">
-        {/* Top Summary Metric Strip */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Projects</p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                <i className="ti ti-building text-base" />
-              </div>
-            </div>
-            <p className="mt-2 text-2xl font-black text-slate-900">{stats.totalProjects}</p>
-            <p className="text-[11px] text-slate-500">Active construction works</p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Linked Site Stores</p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-                <i className="ti ti-building-warehouse text-base" />
-              </div>
-            </div>
-            <p className="mt-2 text-2xl font-black text-slate-900">{stats.totalSites}</p>
-            <p className="text-[11px] text-slate-500">Field storage locations</p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">On-Site Inventory</p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                <i className="ti ti-packages text-base" />
-              </div>
-            </div>
-            <p className="mt-2 text-2xl font-black text-emerald-700">{stats.totalStock.toLocaleString('en-IN')}</p>
-            <p className="text-[11px] text-slate-500">Total units stored on sites</p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active Transits</p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                <i className="ti ti-truck-delivery text-base" />
-              </div>
-            </div>
-            <p className="mt-2 text-2xl font-black text-blue-700">{stats.totalInTransit}</p>
-            <p className="text-[11px] text-slate-500">Dispatches in transit</p>
-          </div>
+        {message && (
+          <p
+            role="status"
+            className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800"
+          >
+            {message}
+          </p>
+        )}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            label="Total Projects"
+            value={stats.totalProjects}
+            note="Construction projects"
+            icon="ti-building"
+          />
+          <MetricCard
+            label="Linked Site Stores"
+            value={stats.totalSites}
+            note="Field storage locations"
+            icon="ti-building-warehouse"
+          />
+          <MetricCard
+            label="On-Site Inventory"
+            value={stats.totalStock.toLocaleString("en-IN")}
+            note="Total units stored on sites"
+            icon="ti-packages"
+            tone="emerald"
+          />
+          <MetricCard
+            label="Active Transits"
+            value={stats.totalInTransit}
+            note="Dispatches in transit"
+            icon="ti-truck-delivery"
+          />
         </div>
-
-        {/* Main 2-Column Layout: Form (Left) & Projects List (Right) */}
-        <div className="grid items-start gap-6 lg:grid-cols-[460px_1fr]">
-          
-          {/* Left Form Card */}
-          <div className="sticky top-6 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">Create Project & Site Store</h2>
-                <p className="text-xs text-slate-500">Setup project details and initialize its first site store</p>
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60 shadow-xs">
-                <i className="ti ti-plus text-base font-bold" />
-              </div>
-            </div>
-
-            <form onSubmit={submit} className="space-y-4">
-              {/* Section 1: Project Details */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-900 text-[9px] text-white">1</span>
-                    Project Information
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    <span>Project Code <span className="text-rose-500">*</span></span>
-                    <input
-                      required
-                      type="text"
-                      placeholder="e.g. PRJ-001"
-                      value={form.projectCode}
-                      onChange={(e) => handleProjectCodeChange(e.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    />
-                  </label>
-
-                  <label className="block text-xs font-semibold text-slate-700">
-                    <span>Status</span>
-                    <select
-                      value={form.status}
-                      onChange={(e) => setForm({ ...form, status: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    >
-                      <option value="planning">Planning</option>
-                      <option value="active">Active</option>
-                      <option value="on_hold">On Hold</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  </label>
-                </div>
-
-                <label className="block text-xs font-semibold text-slate-700">
-                  <span>Project Name <span className="text-rose-500">*</span></span>
-                  <input
-                    required
-                    type="text"
-                    placeholder="e.g. Skyline Residency Phase 2"
-                    value={form.name}
-                    onChange={(e) => handleProjectNameChange(e.target.value)}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                  />
-                </label>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    <span>Client / Developer</span>
-                    <input
-                      type="text"
-                      placeholder="e.g. Apex Infra Corp"
-                      value={form.clientName}
-                      onChange={(e) => setForm({ ...form, clientName: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    />
-                  </label>
-
-                  <label className="block text-xs font-semibold text-slate-700">
-                    <span>Budget (₹)</span>
-                    <input
-                      type="number"
-                      placeholder="e.g. 5000000"
-                      value={form.budget}
-                      onChange={(e) => setForm({ ...form, budget: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    />
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    <span>Start Date</span>
-                    <input
-                      type="date"
-                      value={form.startDate}
-                      onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    />
-                  </label>
-
-                  <label className="block text-xs font-semibold text-slate-700">
-                    <span>Expected Completion</span>
-                    <input
-                      type="date"
-                      value={form.expectedEndDate}
-                      onChange={(e) => setForm({ ...form, expectedEndDate: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    />
-                  </label>
-                </div>
-
-                <label className="block text-xs font-semibold text-slate-700">
-                  <span>Project Location / Site Address</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Sector 62, Noida, Uttar Pradesh"
-                    value={form.address}
-                    onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                  />
-                </label>
-              </div>
-
-              {/* Section 2: Site Store Setup */}
-              <div className="border-t border-slate-200/80 pt-4 space-y-3">
-                <div>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-amber-800">
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-700 text-[9px] text-white">2</span>
-                    First Site Store Details
-                  </span>
-                  <p className="mt-0.5 text-[11px] text-slate-500">
-                    A physical store record is created automatically to receive material transfers.
-                  </p>
-                </div>
-
-                {/* Site Store Name - Full Width for comfortable typing */}
-                <label className="block text-xs font-semibold text-slate-700">
-                  <span>Site Store Name</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Noida Sector 62 Site Store"
-                    value={form.siteName}
-                    onChange={(e) => setForm({ ...form, siteName: e.target.value })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                  />
-                </label>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    <span>Site Code</span>
-                    <input
-                      type="text"
-                      placeholder="e.g. SITE-01"
-                      value={form.siteCode}
-                      onChange={(e) => setForm({ ...form, siteCode: e.target.value.toUpperCase() })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    />
-                  </label>
-
-                  <label className="block text-xs font-semibold text-slate-700">
-                    <span>Site Engineer / In-Charge</span>
-                    <select
-                      value={form.siteEngineerId}
-                      onChange={(e) => setForm({ ...form, siteEngineerId: e.target.value })}
-                      className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                    >
-                      <option value="">Assign later</option>
-                      {users.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.name || user.email} {user.role ? `(${user.role})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-
-                <label className="block text-xs font-semibold text-slate-700">
-                  <span>Site Store Address</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Plot 4B, Sector 62 Site, Noida"
-                    value={form.siteAddress}
-                    onChange={(e) => setForm({ ...form, siteAddress: e.target.value })}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                  />
-                  <span className="mt-1 block text-[11px] font-normal text-slate-400">
-                    The assigned engineer will automatically receive live site store inventory access.
-                  </span>
-                </label>
-              </div>
-
-              {message && (
-                <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
-                  <i className="ti ti-circle-check text-base shrink-0 text-emerald-600" />
-                  <span>{message}</span>
-                </div>
-              )}
-
-              {errorMessage && (
-                <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
-                  <i className="ti ti-alert-circle text-base shrink-0 text-rose-600" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-slate-800 disabled:opacity-50"
-              >
-                <i className="ti ti-building-warehouse text-base" />
-                {saving ? 'Creating Project & Store...' : 'Create Project & Site Store'}
-              </button>
-            </form>
-          </div>
-
+        {createOpen && (
+          <ProjectCreateDialog
+            open={createOpen}
+            onClose={() => setCreateOpen(false)}
+            form={form}
+            setForm={setForm}
+            users={users}
+            saving={saving}
+            errorMessage={errorMessage}
+            submit={submit}
+            onNameChange={handleProjectNameChange}
+            onCodeChange={handleProjectCodeChange}
+          />
+        )}
+        <div>
           {/* Right Portfolio & Site Tracker Column */}
           <div className="space-y-4">
             {/* Filter / Search Bar */}
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative flex-1">
-                <i className="ti ti-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search projects by name, code, client, or site store..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:bg-white"
-                />
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="planning">Planning</option>
-                  <option value="active">Active</option>
-                  <option value="on_hold">On Hold</option>
-                  <option value="completed">Completed</option>
-                </select>
-                <span className="rounded-lg bg-slate-100 px-2.5 py-2 text-xs font-bold text-slate-600 shrink-0">
-                  {filteredRecords.length} Project{filteredRecords.length === 1 ? '' : 's'}
-                </span>
-              </div>
-            </div>
+            <FilterBar
+              search={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Search projects by name, code, client, or site store..."
+              searchLabel="Search projects"
+              count={filteredRecords.length}
+              countLabel="Project"
+            >
+              <FilterSelect
+                ariaLabel="Project status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                allLabel="All Statuses"
+                options={[
+                  { value: "planning", label: "Planning" },
+                  { value: "active", label: "Active" },
+                  { value: "on_hold", label: "On Hold" },
+                  { value: "completed", label: "Completed" },
+                ]}
+              />
+              <FilterSelect
+                ariaLabel="Filter by client"
+                value={clientFilter}
+                onChange={setClientFilter}
+                allLabel="All Clients"
+                options={[
+                  ...new Set(records.map((p) => p.client_name || "Direct / Self")),
+                ].sort()}
+              />
+            </FilterBar>
 
             {/* Project List Cards */}
             {filteredRecords.length === 0 ? (
@@ -443,9 +275,12 @@ export default function ProjectsPage() {
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                   <i className="ti ti-folder-off text-2xl" />
                 </div>
-                <p className="mt-3 font-bold text-slate-700">No construction projects found</p>
+                <p className="mt-3 font-bold text-slate-700">
+                  No construction projects found
+                </p>
                 <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
-                  Create your first project using the form on the left to initialize linked site stores and inventory tracking.
+                  Select New Project to create your first project to initialize
+                  linked site stores and inventory tracking.
                 </p>
               </div>
             ) : (
@@ -453,56 +288,49 @@ export default function ProjectsPage() {
                 const sites = project.sites || [];
                 const budgetNum = Number(project.budget || 0);
 
-                const getStatusBadge = (status) => {
-                  switch (status) {
-                    case 'active':
-                      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                    case 'planning':
-                      return 'bg-amber-50 text-amber-700 border-amber-200';
-                    case 'on_hold':
-                      return 'bg-rose-50 text-rose-700 border-rose-200';
-                    case 'completed':
-                      return 'bg-blue-50 text-blue-700 border-blue-200';
-                    default:
-                      return 'bg-slate-100 text-slate-700 border-slate-200';
-                  }
-                };
-
                 return (
-                  <div
-                    key={project.id}
-                    className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
-                  >
+                  <div key={project.id} className="ui-card project-card">
                     {/* Project Header Row */}
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b border-slate-100 pb-4">
-                      <div>
+                      <div className="flex min-w-0 items-start gap-4">
+                        <div
+                          className="hidden h-20 w-24 shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,#1e3a5f,#0f2740)] text-white/80 sm:grid"
+                          aria-hidden="true"
+                        >
+                          <i className="ti ti-building-skyscraper text-[34px]" />
+                        </div>
+                        <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-black tracking-wider text-white">
                             {project.project_code}
                           </span>
-                          <h3 className="text-lg font-black text-slate-900">{project.name}</h3>
-                          <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${getStatusBadge(project.status)}`}>
-                            {project.status?.replace('_', ' ')}
-                          </span>
+                          <h3 className="text-lg font-black text-slate-900">
+                            {project.name}
+                          </h3>
+                          <StatusBadge status={project.status} />
                         </div>
                         <p className="mt-1 text-xs text-slate-500">
-                          Client: <span className="font-semibold text-slate-700">{project.client_name || 'Direct / Self'}</span>
-                          {project.address ? ` · ${project.address}` : ''}
+                          Client:{" "}
+                          <span className="font-semibold text-slate-700">
+                            {project.client_name || "Direct / Self"}
+                          </span>
+                          {project.address ? ` · ${project.address}` : ""}
                         </p>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-4 shrink-0">
                         <div className="text-right">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          <p className="text-[11px] font-medium text-slate-400">
                             Approved Budget
                           </p>
                           <p className="text-sm font-black text-slate-900">
-                            ₹{budgetNum.toLocaleString('en-IN')}
+                            ₹{budgetNum.toLocaleString("en-IN")}
                           </p>
                         </div>
                         <div className="h-8 w-px bg-slate-200" />
                         <div className="text-right">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          <p className="text-[11px] font-medium text-slate-400">
                             Site Stores
                           </p>
                           <p className="text-sm font-black text-amber-700">
@@ -513,58 +341,116 @@ export default function ProjectsPage() {
                     </div>
 
                     {/* Summary Metric Pills for Project Progress */}
-                    <div className="mt-3.5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                      <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          📦 On-Site Stock
+                    <div className="project-inline-stats">
+                      <div className="px-1">
+                        <p className="text-[11px] font-medium text-slate-400">
+                          <i
+                            className="ti ti-package mr-1"
+                            aria-hidden="true"
+                          />
+                          On-Site Stock
                         </p>
                         <p className="mt-0.5 text-base font-black text-slate-900">
-                          {Number(project.total_site_stock || 0).toLocaleString('en-IN')}{' '}
-                          <span className="text-xs font-normal text-slate-500">qty</span>
+                          {Number(project.total_site_stock || 0).toLocaleString(
+                            "en-IN",
+                          )}{" "}
+                          <span className="text-xs font-normal text-slate-500">
+                            qty
+                          </span>
                         </p>
                       </div>
 
-                      <div className="rounded-xl border border-blue-100/80 bg-blue-50/40 p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
-                          🚚 Transferred In
+                      <div className="px-1">
+                        <p className="text-[11px] font-medium text-blue-700">
+                          <i className="ti ti-truck mr-1" aria-hidden="true" />
+                          Transferred In
                         </p>
                         <p className="mt-0.5 text-base font-black text-blue-900">
-                          {Number(project.total_transferred_in || 0).toLocaleString('en-IN')}{' '}
-                          <span className="text-xs font-normal text-blue-600">qty</span>
+                          {Number(
+                            project.total_transferred_in || 0,
+                          ).toLocaleString("en-IN")}{" "}
+                          <span className="text-xs font-normal text-blue-600">
+                            qty
+                          </span>
                         </p>
                       </div>
 
-                      <div className="rounded-xl border border-emerald-100/80 bg-emerald-50/40 p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                          🔨 Material Consumed
+                      <div className="px-1">
+                        <p className="text-[11px] font-medium text-emerald-700">
+                          <i className="ti ti-hammer mr-1" aria-hidden="true" />
+                          Material Consumed
                         </p>
                         <p className="mt-0.5 text-base font-black text-emerald-900">
-                          {Number(project.total_consumed || 0).toLocaleString('en-IN')}{' '}
-                          <span className="text-xs font-normal text-emerald-600">qty</span>
+                          {Number(project.total_consumed || 0).toLocaleString(
+                            "en-IN",
+                          )}{" "}
+                          <span className="text-xs font-normal text-emerald-600">
+                            qty
+                          </span>
                         </p>
                       </div>
 
-                      <div className="rounded-xl border border-amber-100/80 bg-amber-50/40 p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
-                          ⏳ In Transit
+                      <div className="px-1">
+                        <p className="text-[11px] font-medium text-amber-700">
+                          <i
+                            className="ti ti-hourglass mr-1"
+                            aria-hidden="true"
+                          />
+                          In Transit
                         </p>
                         <p className="mt-0.5 text-base font-black text-amber-900">
-                          {Number(project.total_in_transit || 0)}{' '}
-                          <span className="text-xs font-normal text-amber-600">shipment(s)</span>
+                          {Number(project.total_in_transit || 0)}{" "}
+                          <span className="text-xs font-normal text-amber-600">
+                            shipment(s)
+                          </span>
                         </p>
                       </div>
                     </div>
 
+                    {(() => {
+                      const timeline = projectTimeline(project);
+                      return (
+                        <div className="mb-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                            <span>
+                              <i className="ti ti-calendar mr-1" aria-hidden="true" />
+                              {formatDate(project.start_date || project.created_at) || "—"}
+                              {" → "}
+                              {formatDate(project.expected_end_date) || "End date not set"}
+                            </span>
+                            {timeline && (
+                              <span
+                                className={`font-semibold ${timeline.overdue ? "text-red-600" : "text-slate-700"}`}
+                              >
+                                {timeline.overdue
+                                  ? "Past expected completion"
+                                  : `${timeline.percent}% of timeline elapsed`}
+                              </span>
+                            )}
+                          </div>
+                          {timeline && (
+                            <div
+                              className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"
+                              role="progressbar"
+                              aria-valuenow={timeline.percent}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                              aria-label="Timeline elapsed"
+                            >
+                              <div
+                                className={`h-full rounded-full ${timeline.overdue ? "bg-red-500" : project.status === "completed" ? "bg-emerald-500" : "bg-orange-500"}`}
+                                style={{ width: `${timeline.percent}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {/* Linked Site Stores Breakdown */}
-                    <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5">
-                      <div className="mb-2.5 flex items-center justify-between">
-                        <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                          🏪 Linked Site Store(s) & Live Status
-                        </p>
-                        <span className="text-[11px] text-slate-400">
-                          {sites.length} Active Store(s)
-                        </span>
-                      </div>
+                    <details className="project-sites">
+                      <summary>
+                        View site stores & operations · {sites.length} store(s)
+                      </summary>
 
                       {sites.length === 0 ? (
                         <p className="text-xs text-slate-400">
@@ -593,12 +479,14 @@ export default function ProjectsPage() {
                                     )}
                                   </div>
                                   <p className="mt-1 text-xs text-slate-500">
-                                    In-Charge:{' '}
+                                    In-Charge:{" "}
                                     <span className="font-semibold text-slate-700">
-                                      {site.site_engineer_name || 'Unassigned'}
+                                      {site.site_engineer_name || "Unassigned"}
                                     </span>
-                                    {site.site_engineer_email ? ` (${site.site_engineer_email})` : ''}
-                                    {site.address ? ` · ${site.address}` : ''}
+                                    {site.site_engineer_email
+                                      ? ` (${site.site_engineer_email})`
+                                      : ""}
+                                    {site.address ? ` · ${site.address}` : ""}
                                   </p>
                                 </div>
                               </div>
@@ -649,7 +537,7 @@ export default function ProjectsPage() {
                           ))}
                         </div>
                       )}
-                    </div>
+                    </details>
                   </div>
                 );
               })

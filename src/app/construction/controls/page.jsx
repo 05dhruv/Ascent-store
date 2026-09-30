@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Button from "@/components/ui/Button";
+import DataTable, { TableEmpty } from "@/components/ui/DataTable";
 import ConstructionShell, {
   ConstructionAlert,
   ConstructionSection,
-  constructionBtnPrimary,
   constructionInput,
 } from "@/components/construction/ConstructionShell";
 
@@ -87,9 +88,9 @@ export default function ProjectControlsPage() {
         <ConstructionAlert>
           <p className="font-semibold">Project Controls could not load</p>
           <p className="mt-1">{loadError}</p>
-          <button type="button" className={`${constructionBtnPrimary} mt-3`} onClick={load}>
+          <Button className="mt-3" onClick={load}>
             Retry
-          </button>
+          </Button>
         </ConstructionAlert>
       </ConstructionShell>
     );
@@ -234,12 +235,13 @@ export default function ProjectControlsPage() {
                       </option>
                     ))}
                   </select>
-                  <button
+                  <Button
+                    type="submit"
                     disabled={busy}
-                    className="w-full rounded-lg bg-slate-900 py-2 text-sm font-bold text-white"
+                    className="w-full"
                   >
                     Save BOQ line
-                  </button>
+                  </Button>
                 </form>
                 <Table
                   headers={["Code", "Description", "Qty", "Budget", "Actual"]}
@@ -285,12 +287,13 @@ export default function ProjectControlsPage() {
                       setForm({ ...form, category: e.target.value })
                     }
                   />
-                  <button
+                  <Button
+                    type="submit"
                     disabled={busy}
-                    className="w-full rounded-lg bg-slate-900 py-2 text-sm font-bold text-white"
+                    className="w-full"
                   >
                     Add cost code
-                  </button>
+                  </Button>
                 </form>
                 <Table
                   headers={["Code", "Name", "Category", "Budget"]}
@@ -359,12 +362,13 @@ export default function ProjectControlsPage() {
                       }
                     />
                   </div>
-                  <button
+                  <Button
+                    type="submit"
                     disabled={busy}
-                    className="w-full rounded-lg bg-slate-900 py-2 text-sm font-bold text-white"
+                    className="w-full"
                   >
                     Submit progress
-                  </button>
+                  </Button>
                 </form>
                 <Table
                   headers={[
@@ -392,39 +396,18 @@ export default function ProjectControlsPage() {
 }
 function Table({ headers, rows }) {
   return (
-    <div className="overflow-x-auto rounded-xl border bg-white">
-      <table className="w-full min-w-[620px] text-left text-sm">
-        <thead className="bg-slate-50">
-          <tr>
-            {headers.map((h) => (
-              <th key={h} className="px-4 py-3">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-t">
+    <DataTable headers={headers}>
+      {rows.length
+        ? rows.map((row, i) => (
+            <tr key={i} className="hover:bg-slate-50/80">
               {row.map((cell, j) => (
                 <td key={j} className="px-4 py-3 text-slate-700">
                   {cell}
                 </td>
               ))}
             </tr>
-          ))}
-          {!rows.length && (
-            <tr>
-              <td
-                colSpan={headers.length}
-                className="px-4 py-10 text-center text-slate-400"
-              >
-                No records yet.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+          ))
+        : <TableEmpty colSpan={headers.length} />}
+    </DataTable>
   );
 }
